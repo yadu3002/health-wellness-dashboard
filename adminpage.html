@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corporate Health & Wellness Program</title>
+    <link rel="stylesheet" href="adminpage.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div class="header-left">
+                <div class="admin-label">Admin</div>
+                <span class="date-label" id="currentDate"></span>
+            </div>
+            <h2 class="header-title">Corporate Health & Wellness Program</h2>
+            <div class="header-right">
+                <div class="header-logo-text">
+                    <div>Corporate Health &</div>
+                    <div>Wellness Program</div>
+                </div>
+                <div class="logo-diamond"></div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Filter Panel -->
+            <div class="filter-panel">
+                <div class="filter-content">
+                    <div class="form-group">
+                        <label>Corporate:</label>
+                        <input type="text" placeholder="dropbox">
+                    </div>
+                    <div class="form-group">
+                        <label>DOS:</label>
+                        <input type="text" placeholder="calendar - selection">
+                    </div>
+                    <div class="form-group">
+                        <label>Location:</label>
+                        <input type="text" placeholder="dropbox">
+                    </div>
+                    <div class="form-group">
+                        <label>Department:</label>
+                        <input type="text">
+                    </div>
+                    <div class="form-group">
+                        <label class="highlight">Monthly Report:</label>
+                        <input type="text" placeholder="calendar - date range picker">
+                    </div>
+                    <div class="form-group">
+                        <label>Employee:</label>
+                        <input type="text" placeholder="search bar">
+                    </div>
+                    <div class="form-group">
+                        <label>Generate Analysis:</label>
+                        <input type="text" placeholder="date range picker">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metrics Grid -->
+            <div class="metrics-grid">
+                <div class="metrics-container" id="metricsContainer"></div>
+            </div>
+        </div>
+
+        <!-- Action Bar -->
+        <div class="action-bar">
+            <div class="action-buttons">
+                <button class="action-button">Generate Report</button>
+                <button class="action-button">Create User</button>
+                <button class="action-button">Screening Data</button>
+                <button class="action-button">HRA</button>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="data-table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="header-col">Ref ID</th>
+                        <th class="header-col">Name</th>
+                        <th class="header-col">Emp ID</th>
+                        <th class="header-col">Mobile</th>
+                        <th class="header-col">Depart</th>
+                        <th class="header-col">BMI</th>
+                        <th class="header-col">BP</th>
+                        <th class="header-col">BG</th>
+                        <th class="header-col">T Chol</th>
+                        <th class="header-col">Media</th>
+                        <th class="action-col-1">Cardiac</th>
+                        <th class="action-col-1">Risk</th>
+                        <th class="action-col-2">Health</th>
+                        <th class="action-col-2">Habit</th>
+                        <th class="action-col-3">Fitness</th>
+                        <th class="action-col-3">Stress</th>
+                        <th class="action-col-3">View Report</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="adminpage.js"></script>
+</body>
+</html>

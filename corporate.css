@@ -1,0 +1,250 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #ffffff;
+    color: #1e293b;
+    line-height: 1.5;
+}
+
+.container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+/* Header */
+.dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(to right, #f1f5f9, #f8fafc);
+    border: 2px solid #cbd5e1;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.admin-label {
+    color: #1e293b;
+    padding: 0.5rem 1rem;
+    background-color: #94a3b8;
+    border-right: 2px solid #64748b;
+}
+
+.date-label {
+    color: #475569;
+}
+
+.header-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #1e293b;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.header-logo-text {
+    text-align: right;
+    margin-right: 0.5rem;
+}
+
+.header-logo-text div {
+    color: #2563eb;
+    font-size: 0.875rem;
+}
+
+.logo-diamond {
+    width: 4rem;
+    height: 4rem;
+    background: linear-gradient(to bottom right, #60a5fa, #2563eb);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+/* Main Content Layout */
+.main-content {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.filter-panel {
+    width: 400px;
+    border: 2px solid #cbd5e1;
+    background-color: #ffffff;
+    height: fit-content;
+}
+
+.filter-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.form-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.form-group label {
+    width: 8rem;
+    color: #1e293b;
+}
+
+.form-group label.highlight {
+    background-color: #eff6ff;
+    padding: 0.25rem 0.5rem;
+}
+
+.form-group input {
+    flex: 1;
+    border: 2px solid #cbd5e1;
+    padding: 0.375rem 0.75rem;
+    text-align: center;
+}
+
+.form-group input::placeholder {
+    color: #94a3b8;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+    flex: 1;
+    border: 2px solid #cbd5e1;
+    background-color: #ffffff;
+    padding: 1rem;
+}
+
+.metrics-container {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.75rem;
+}
+
+.metric-card {
+    border: 1px solid #cbd5e1;
+    background-color: #f8fafc;
+    padding: 0.75rem;
+}
+
+.metric-title {
+    text-align: center;
+    color: #1e293b;
+    margin-bottom: 0.75rem;
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chart-container {
+    width: 7rem;
+    height: 7rem;
+    margin: 0 auto;
+    position: relative;
+}
+
+.chart-labels {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.chart-label-item {
+    font-size: 0.875rem;
+}
+
+/* Action Bar */
+.action-bar {
+    background-color: #e2e8f0;
+    border: 2px solid #cbd5e1;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+.action-button {
+    background-color: #3b82f6;
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border: 1px solid #94a3b8;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.action-button:hover {
+    background-color: #2563eb;
+}
+
+/* Data Table */
+.data-table-container {
+    border: 2px solid #cbd5e1;
+    background-color: #ffffff;
+    overflow: auto;
+    max-height: 600px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1400px;
+}
+
+thead {
+    position: sticky;
+    top: 0;
+    background-color: #ffffff;
+}
+
+th {
+    border: 1px solid #94a3b8;
+    padding: 0.5rem 1rem;
+    color: #1e293b;
+}
+
+th.header-col {
+    background-color: #e2e8f0;
+}
+
+th.action-col-1 {
+    background-color: #cbd5e1;
+}
+
+th.action-col-2 {
+    background-color: #94a3b8;
+}
+
+th.action-col-3 {
+    background-color: #ffffff;
+}
+
+td {
+    border: 1px solid #cbd5e1;
+    padding: 0.75rem 1rem;
+}
+
+tr:hover {
+    background-color: #f8fafc;
+}
