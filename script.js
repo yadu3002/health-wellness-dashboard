@@ -87,40 +87,70 @@ function calculateDiabetesData(data, header) {
     return counts;
 }
 
-// (4) Generic Status Check (USED FOR FITNESS AND STRESS ONLY)
-// If any of the keyword columns has a positive indicator ('Y', 'Positive', 'High', etc.), it is 'Yes'.
-function calculateGenericStatusData(data, header, keywords, yesLabel='Yes', noLabel='No') {
-    const cols = findCols(header, keywords);
-    if (cols.length === 0) return null;
 
-    const counts = { [yesLabel]: 0, [noLabel]: 0 }; 
-    
-    for (let i = 1; i < data.length; i++) {
-        let foundYes = false;
-        let foundValue = false;
-        for (const col of cols) {
-             const value = (data[i][col] || '').toString().toUpperCase().trim();
-             if (value.startsWith('Y') || value.includes('POSITIVE') || value.includes('HIGH') || value.includes('MEDICATION')) { 
-                 foundYes = true;
-                 foundValue = true;
-                 break;
-             }
-             if (value.length > 0 && value !== 'N') { 
-                 foundValue = true;
-             }
-        }
-        
-        if (foundYes) { 
-            counts[yesLabel]++; 
-        } else if (foundValue) { 
-            counts[noLabel]++; 
-        }
-    }
-    
-    if (counts[yesLabel] + counts[noLabel] === 0) return null;
-    
-    return counts;
+
+function calculateFitnessData(data, header) {
+    const exeCols = findCols(header, ['exe1', 'exe2', 'exe3']);
+    if (exeCols.length === 0) return null;
+
+    // Change: Counts now represent the total number of 'Yes' and 'No' responses across all exercise columns.
+    const counts = { 'Yes': 0, 'No': 0 }; 
+
+    for (let i = 1; i < data.length; i++) {
+        for (const colIndex of exeCols) {
+            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
+
+            if (value.startsWith('Y')) {
+                counts['Yes']++;
+            } else if (value.startsWith('N')) { 
+                counts['No']++;
+            }
+        }
+    }
+
+    if (counts['Yes'] + counts['No'] === 0) return null;
+    return counts;
 }
+
+// **MODIFIED LOGIC: Count total 'Y's and 'N's across STR1, STR2, STR3, STR4**
+function calculateStressData(data, header) {
+    const strCols = findCols(header, ['str1', 'str2', 'str3', 'str4']);
+    const str4ColIndex = findCol(header, 'str4');
+    if (strCols.length === 0) return null;
+
+    // Change: Counts now represent the total number of 'Yes' and 'No' responses across all stress columns.
+    const counts = { 'Yes': 0, 'No': 0 }; 
+
+    for (let i = 1; i < data.length; i++) {
+        for (const colIndex of strCols) {
+            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
+
+            if (colIndex === str4ColIndex) {
+                // REVERSED LOGIC FOR STR4
+                if (value.startsWith('Y')) {
+                    // Y in STR4 means 'No' Stress
+                    counts['No']++; 
+                } else if (value.startsWith('N')) { 
+                    // N in STR4 means 'Yes' Stress
+                    counts['Yes']++;
+                }
+            } else {
+                // NORMAL LOGIC for STR1, STR2, STR3
+                if (value.startsWith('Y')) {
+                    // Y means 'Yes' Stress
+                    counts['Yes']++;
+                } else if (value.startsWith('N')) { 
+                    // N means 'No' Stress
+                    counts['No']++;
+                }
+            }
+        }
+    }
+
+    if (counts['Yes'] + counts['No'] === 0) return null;
+    return counts;
+}
+    
 
 // (5) Hypertension - UPDATED LOGIC (Yes/No based on BP thresholds)
 function calculateHypertensionData(data, header) {
@@ -405,7 +435,7 @@ function updateDashboardAndCharts(data) {
     } else { clearChart('chartObesity', 'BMI column not found.'); }
 
     // Chart 8: Fitness/Exercise (Keep Existing Generic Logic)
-    const fitnessData = calculateGenericStatusData(data, header, ['exe1', 'exe2', 'exe3'], 'Active/Fit', 'Less Active');
+    const fitnessData = calculateFitnessData(data, header);
     if (fitnessData) {
         preDrawCleanup('chartFitness');
         // Green for Active/Fit, Red for Less Active
@@ -413,12 +443,12 @@ function updateDashboardAndCharts(data) {
     } else { clearChart('chartFitness', 'Exercise columns (EXE1-3) not found.'); }
     
     // Chart 9: Stress (Keep Existing Generic Logic)
-    const stressData = calculateGenericStatusData(data, header, ['str1', 'str2', 'str3', 'str4'], 'High Stress', 'Low Stress');
+    const stressData = calculateStressData(data, header);
     if (stressData) {
         preDrawCleanup('chartStress');
-        // Red for High Stress, Green for Low Stress
-        drawChart('chartStress', 'pie', 'Stress/Mental Health', Object.keys(stressData), Object.values(stressData), ['#dc3545', '#28a745']);
-    } else { clearChart('chartStress', 'Stress columns (STR1-4) not found.'); }
+        // Green for Active/Fit, Red for Less Active
+        drawChart('chartStress', 'pie', 'Stress', Object.keys(stressData), Object.values(stressData), ['#28a745', '#dc3545']); 
+    } else { clearChart('chartStress', 'Exercise columns (STR1-4) not found.'); }
 
     // Chart 10: Chronic Medication (NEW DEDICATED LOGIC)
     const medicationData = calculateMedicationData(data, header);
@@ -428,6 +458,132 @@ function updateDashboardAndCharts(data) {
         drawChart('chartMedication', 'pie', 'Chronic Medication Status', Object.keys(medicationData), Object.values(medicationData), ['#dc3545', '#28a745']); 
     } else { clearChart('chartMedication', 'MEDICATION column not found.'); }
 }
+
+function filterData() {
+    if (allLoadedData.length === 0) return [];
+
+    let combinedFilteredData = [];
+    if (allLoadedData[0] && allLoadedData[0].data.length > 0) {
+        combinedFilteredData.push(allLoadedData[0].data[0]); // Add Header from the first file
+    } else { return []; }
+    
+    // This is where we combine all the employee rows from all files
+    for (const dataObj of allLoadedData) {
+        // Start from the first row after the header (index 1)
+        for (let i = 1; i < dataObj.data.length; i++) {
+            combinedFilteredData.push(dataObj.data[i]);
+        }
+    }
+    
+    // NOTE: We no longer update the dashboard or company counts here. 
+    // That happens on the admin page using the stored data.
+    return combinedFilteredData;
+}
+
+
+function handleFilterChange() {
+    // This is now purely a data consolidation step before saving.
+    if (allLoadedData.length === 0) return;
+    
+    const finalDataArray = filterData();
+
+    if (finalDataArray.length <= 1) {
+        // Only header row present
+        localStorage.removeItem('corporateWellnessData');
+        alert('No employee data found after processing files.');
+        return;
+    }
+    
+    // --- 🚨 STEP 1: PREPARE AND SAVE TO LOCALSTORAGE 🚨 ---
+    const dataToStore = {
+        // The first element is the Header Row
+        header: finalDataArray[0].map(h => String(h || '').trim()), 
+        // The rest are the Employee Rows
+        employeeRows: finalDataArray.slice(1) 
+    };
+
+    localStorage.setItem('corporateWellnessData', JSON.stringify(dataToStore));
+    
+    alert(`Successfully loaded ${dataToStore.employeeRows.length} employee records and saved to local storage. You can now log in.`);
+    
+    // The dashboard update logic is now on the Admin Page.
+}
+
+// --- File Upload Logic (MODIFIED for LocalStorage) ---
+function handleFileUpload(event) {
+    const files = event.target.files;
+    if (files.length === 0) return;
+
+    allLoadedData = []; 
+    
+    // Use the SheetJS library (XLSX.js) for parsing
+    const processFile = (file) => {
+        return new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                
+                // Read sheet into array of arrays format
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                if (jsonData.length <= 1) {
+                    console.warn(`File ${file.name} contained no employee data.`);
+                    return resolve();
+                }
+
+                const fileHeader = jsonData[0].map(h => String(h || '').toLowerCase().trim());
+                
+                // Store the parsed data temporarily
+                allLoadedData.push({ data: jsonData, header: fileHeader });
+                resolve();
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    };
+
+    // Process all uploaded files
+    Promise.all(Array.from(files).map(processFile))
+        .then(() => {
+            if (allLoadedData.length === 0) {
+                alert('No valid data found in the uploaded files. Please check file format.');
+                localStorage.removeItem('corporateWellnessData'); // Clear any previous data
+                return;
+            }
+
+            // Once all files are processed, consolidate and save data to storage
+            handleFilterChange();
+        });
+}
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Initial date and stat setup (Keep for the index page)
+    const dateElement = document.getElementById('currentDate');
+    const today = new Date();
+
+    if (dateElement) {
+        dateElement.textContent = today.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+    
+    // Ensure the file upload listener is attached
+    const fileUploadElement = document.getElementById('fileUpload');
+    if (fileUploadElement) {
+        fileUploadElement.addEventListener('change', handleFileUpload);
+    } else {
+         console.error("Error: 'fileUpload' element not found. Cannot attach file listener.");
+    }
+    
+    // The following elements/logic should ONLY exist on the Admin Page:
+    // document.getElementById('numCompaniesValue').textContent = '0';
+    // document.getElementById('numScreenedValue').textContent = '0';
+    // Chart clearing logic
+    
+    // If the index page also has the stats, ensure they are reset until the user logs in.
+    document.getElementById('numCompaniesValue').textContent = '0';
+    document.getElementById('numScreenedValue').textContent = '0';
+});
 
 
 // --- Filtering Logic (MODIFIED) ---
