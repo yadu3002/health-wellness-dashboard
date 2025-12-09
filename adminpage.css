@@ -83,10 +83,11 @@ body {
 }
 
 .filter-panel {
-    width: 400px;
+    width: 400px; /* Kept at 400px to maintain original layout */
     border: 2px solid #cbd5e1;
     background-color: #ffffff;
     height: fit-content;
+    flex-shrink: 0; /* Prevents filter panel from shrinking if necessary */
 }
 
 .filter-content {
@@ -133,7 +134,7 @@ body {
 
 .metrics-container {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, 1fr); /* Restored 5-column grid */
     gap: 0.75rem;
 }
 
@@ -247,4 +248,65 @@ td {
 
 tr:hover {
     background-color: #f8fafc;
+}
+
+/* Style for the View Report button */
+.view-button {
+    background-color: #3b82f6;
+    color: white;
+    padding: 0.3rem 0.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    text-align: center;
+    width: 100%; /* Make button fill the cell */
+}
+
+.view-button:hover {
+    background-color: #2563eb;
+}
+
+/* Style for Y/N flags */
+.flag-indicator {
+    display: block; 
+    margin: 0 auto; 
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px; 
+    font-weight: bold;
+    font-size: 0.75rem;
+    text-align: center;
+    width: 30px; 
+}
+
+.flag-normal { 
+    background-color: #d1fae5; 
+    color: #059669; 
+}
+
+.flag-issue { 
+    background-color: #fee2e2; 
+    color: #ef4444; 
+}
+
+.flag-unknown {
+    background-color: #fef3c7; 
+    color: #d97706; 
+}
+
+/* Ensure data cells are centered for flags */
+td {
+    text-align: center;
+}
+
+/* Overwrite centering for specific text-based columns */
+td:nth-child(2), /* Emp ID */
+td:nth-child(3), /* Name */
+td:nth-child(5), /* Depart */
+td:nth-child(6), /* BMI */
+td:nth-child(7), /* BP/BG */
+td:nth-child(8) /* Cholestrol */
+{
+    text-align: left; 
 }
