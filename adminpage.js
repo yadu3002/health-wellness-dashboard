@@ -3,20 +3,26 @@ let allLoadedData = [];
 let headerRow = null;
 let chartInstances = {}; // Object to store all Chart.js instances by their canvas ID
 let lastFilteredData = null; 
+// --- NEW GLOBAL VARIABLE FOR DATE RANGE ---
+let selectedDateRange = null;
+
+// --- NEW GLOBAL VARIABLES FOR FILTERING ---
+let companyNames = new Set();
+let selectedCompany = 'ALL'; // Default to show all companies
 
 // --- Column Finder Helpers ---
 const findCol = (header, name) => header.findIndex(h => h.includes(name));
 const findCols = (header, names) => names.map(name => findCol(header, name)).filter(i => i !== -1);
 
 function openLoginPopup() {
-            const url = 'loginpage2.html';
-            const name = 'LoginWindow';
-            // Window features: width, height, and disabling toolbars/location bar
-            const features = 'width=550,height=700,toolbar=no,location=,status=no,menubar=no,scrollbars=yes,resizable=yes';
-            window.open(url, name, features);
-        }
+    const url = 'loginpage2.html';
+    const name = 'LoginWindow';
+    // Window features: width, height, and disabling toolbars/location bar
+    const features = 'width=550,height=700,toolbar=no,location=,status=no,menubar=no,scrollbars=yes,resizable=yes';
+    window.open(url, name, features);
+}
 
-// --- Data Categorization Functions ---
+// --- Data Categorization Functions (No Change) ---
 
 // (1) Participants - NEW DEDICATED LOGIC (For chartParticipants)
 function calculateParticipantsData(data) {
@@ -87,71 +93,68 @@ function calculateDiabetesData(data, header) {
     return counts;
 }
 
-
-
 function calculateFitnessData(data, header) {
-    const exeCols = findCols(header, ['exe1', 'exe2', 'exe3']);
-    if (exeCols.length === 0) return null;
+    const exeCols = findCols(header, ['exe1', 'exe2', 'exe3']);
+    if (exeCols.length === 0) return null;
 
-    // Change: Counts now represent the total number of 'Yes' and 'No' responses across all exercise columns.
-    const counts = { 'Yes': 0, 'No': 0 }; 
+    // Change: Counts now represent the total number of 'Yes' and 'No' responses across all exercise columns.
+    const counts = { 'Yes': 0, 'No': 0 }; 
 
-    for (let i = 1; i < data.length; i++) {
-        for (const colIndex of exeCols) {
-            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
+    for (let i = 1; i < data.length; i++) {
+        for (const colIndex of exeCols) {
+            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
 
-            if (value.startsWith('Y')) {
-                counts['Yes']++;
-            } else if (value.startsWith('N')) { 
-                counts['No']++;
-            }
-        }
-    }
+            if (value.startsWith('Y')) {
+                counts['Yes']++;
+            } else if (value.startsWith('N')) { 
+                counts['No']++;
+            }
+        }
+    }
 
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
+    if (counts['Yes'] + counts['No'] === 0) return null;
+    return counts;
 }
 
 // **MODIFIED LOGIC: Count total 'Y's and 'N's across STR1, STR2, STR3, STR4**
 function calculateStressData(data, header) {
-    const strCols = findCols(header, ['str1', 'str2', 'str3', 'str4']);
+    const strCols = findCols(header, ['str1', 'str2', 'str3', 'str4']);
     const str4ColIndex = findCol(header, 'str4');
-    if (strCols.length === 0) return null;
+    if (strCols.length === 0) return null;
 
-    // Change: Counts now represent the total number of 'Yes' and 'No' responses across all stress columns.
-    const counts = { 'Yes': 0, 'No': 0 }; 
+    // Change: Counts now represent the total number of 'Yes' and 'No' responses across all stress columns.
+    const counts = { 'Yes': 0, 'No': 0 }; 
 
-    for (let i = 1; i < data.length; i++) {
-        for (const colIndex of strCols) {
-            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
+    for (let i = 1; i < data.length; i++) {
+        for (const colIndex of strCols) {
+            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
 
-            if (colIndex === str4ColIndex) {
-                // REVERSED LOGIC FOR STR4
-                if (value.startsWith('Y')) {
-                    // Y in STR4 means 'No' Stress
-                    counts['No']++; 
-                } else if (value.startsWith('N')) { 
-                    // N in STR4 means 'Yes' Stress
-                    counts['Yes']++;
-                }
-            } else {
-                // NORMAL LOGIC for STR1, STR2, STR3
-                if (value.startsWith('Y')) {
-                    // Y means 'Yes' Stress
-                    counts['Yes']++;
-                } else if (value.startsWith('N')) { 
-                    // N means 'No' Stress
-                    counts['No']++;
-                }
-            }
-        }
-    }
+            if (colIndex === str4ColIndex) {
+                // REVERSED LOGIC FOR STR4
+                if (value.startsWith('Y')) {
+                    // Y in STR4 means 'No' Stress
+                    counts['No']++; 
+                } else if (value.startsWith('N')) { 
+                    // N in STR4 means 'Yes' Stress
+                    counts['Yes']++;
+                }
+            } else {
+                // NORMAL LOGIC for STR1, STR2, STR3
+                if (value.startsWith('Y')) {
+                    // Y means 'Yes' Stress
+                    counts['Yes']++;
+                } else if (value.startsWith('N')) { 
+                    // N means 'No' Stress
+                    counts['No']++;
+                }
+            }
+        }
+    }
 
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
+    if (counts['Yes'] + counts['No'] === 0) return null;
+    return counts;
 }
     
-
 // (5) Hypertension - UPDATED LOGIC (Yes/No based on BP thresholds)
 function calculateHypertensionData(data, header) {
     const bp1Col = findCol(header, 'bp1');
@@ -257,7 +260,14 @@ function calculateDyslipidemiaData(data, header) {
     return counts;
 }   
 
-// --- Chart Drawing Functions (Unchanged) ---
+// --- Placeholder for Dashboard Filter Update ---
+function updateDashboardFilters() {
+    console.log("Date range selected:", selectedDateRange);
+    // When you implement filtering, this function will contain the logic
+    // to filter your data based on the selectedDateRange.
+}
+
+// --- Chart Drawing Functions (No Change) ---
 
 /**
  * Draws or updates any chart.
@@ -272,10 +282,11 @@ function drawChart(chartId, type, title, labels, data, colors) {
     
     ctx.style.display = 'block';
 
-    const isPie = (type === 'pie');
+    const isPie = (type === 'pie' || type === 'doughnut');
     
     chartInstances[chartId] = new Chart(ctx, {
         type: type,
+        plugins: [ChartDataLabels], // Enable the plugin globally for this chart instance
         data: {
             labels: labels,
             datasets: [{
@@ -283,7 +294,36 @@ function drawChart(chartId, type, title, labels, data, colors) {
                 data: data,
                 backgroundColor: colors,
                 borderColor: isPie ? 'white' : 'rgba(0, 0, 0, 0.1)',
-                borderWidth: isPie ? 2 : 1
+                borderWidth: isPie ? 2 : 1,
+                // Configuration specific to the datalabels plugin
+                datalabels: {
+                    formatter: (value, context) => {
+                        // Display the count and the percentage for pie/doughnut charts
+                        if (isPie) {
+                            let sum = 0;
+                            let dataArr = context.chart.data.datasets[0].data;
+                            dataArr.map(data => {
+                                sum += data;
+                            });
+                            const percentage = (value * 100 / sum).toFixed(1) + '%';
+                            return value.toLocaleString() + ' (' + percentage + ')';
+                        }
+                        return value.toLocaleString(); // Just the count for bar/other charts
+                    },
+                    color: '#000000', // Always black for better visibility outside
+                    backgroundColor: '#ffffff', // White background
+                    borderColor: '#94a3b8', // Light border
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    padding: 6,
+                    font: {
+                        weight: 'bold',
+                        size: 11
+                    },
+                    anchor: 'end', // Place the anchor point at the end of the line
+                    align: 'start', // Align the text box to the start of the line (outside the slice)
+                    offset: 10, // Move 10 pixels away from the slice edge
+                }
             }]
         },
         options: {
@@ -291,7 +331,8 @@ function drawChart(chartId, type, title, labels, data, colors) {
             maintainAspectRatio: false, 
             plugins: {
                 legend: { position: isPie ? 'right' : 'top' },
-                title: { display: false } 
+                title: { display: false },
+                datalabels: { display: false } 
             },
             scales: isPie ? {} : {
                 y: { beginAtZero: true, title: { display: true, text: 'Count' } },
@@ -341,8 +382,7 @@ function preDrawCleanup(chartId) {
     }
 }
 
-
-// --- Dashboard Update Logic ---
+// --- Dashboard Update Logic (No Change) ---
 
 function updateDashboardAndCharts(data) {
     const totalEmployees = data.length - 1; 
@@ -387,19 +427,19 @@ function updateDashboardAndCharts(data) {
     if (participantsData) {
         preDrawCleanup('chartParticipants');
         // Use 'doughnut' for a better look for a single total, making the total count visible in the card above.
-        drawChart('chartParticipants', 'doughnut', 'Total Participants', Object.keys(participantsData), Object.values(participantsData), ['#4e73df']); 
+        drawChart('chartParticipants', 'doughnut', '', Object.keys(participantsData), Object.values(participantsData), ['#4e73df']); 
     } else { clearChart('chartParticipants', 'No employees found in selection.'); }
 
     // Chart 2: Gender (Pie)
     preDrawCleanup('chartGender');
-    drawChart('chartGender', 'pie', 'Gender Distribution', Object.keys(genderData), Object.values(genderData), ['#4e73df', '#e74a3b']);
+    drawChart('chartGender', 'pie', '', Object.keys(genderData), Object.values(genderData), ['#4e73df', '#e74a3b']);
 
     // Chart 3: Chronic Disease (NEW DEDICATED LOGIC)
     const chronicData = calculateChronicData(data, header);
     if (chronicData) {
         preDrawCleanup('chartChronic');
         // Red for Yes, Green for No
-        drawChart('chartChronic', 'pie', 'Chronic Disease Status', Object.keys(chronicData), Object.values(chronicData), ['#dc3545', '#28a745']); 
+        drawChart('chartChronic', 'pie', '', Object.keys(chronicData), Object.values(chronicData), ['#dc3545', '#28a745']); 
     } else { clearChart('chartChronic', 'MED_DETAILS column not found.'); }
 
     // Chart 4: Hypertension/BP (NEW DEDICATED LOGIC)
@@ -407,7 +447,7 @@ function updateDashboardAndCharts(data) {
     if (hypertensionData) {
         preDrawCleanup('chartHypertension');
         // Red for Yes, Green for No
-        drawChart('chartHypertension', 'pie', 'Hypertension Risk (BP)', Object.keys(hypertensionData), Object.values(hypertensionData), ['#dc3545', '#28a745']);
+        drawChart('chartHypertension', 'pie', '', Object.keys(hypertensionData), Object.values(hypertensionData), ['#dc3545', '#28a745']);
     } else { clearChart('chartHypertension', 'Blood Pressure columns (BP1/BP2) not found.'); }
     
     // Chart 5: Diabetes/BS (NEW DEDICATED LOGIC)
@@ -415,7 +455,7 @@ function updateDashboardAndCharts(data) {
     if (diabetesData) {
         preDrawCleanup('chartDiabetes');
         // Red for Yes, Green for No
-        drawChart('chartDiabetes', 'pie', 'Diabetes (Blood Sugar)', Object.keys(diabetesData), Object.values(diabetesData), ['#dc3545', '#28a745']);
+        drawChart('chartDiabetes', 'pie', '', Object.keys(diabetesData), Object.values(diabetesData), ['#dc3545', '#28a745']);
     } else { clearChart('chartDiabetes', 'Required blood sugar columns (BS1/BS2) not found.'); }
     
     // Chart 6: Dyslipidemia (NEW DEDICATED LOGIC)
@@ -423,7 +463,7 @@ function updateDashboardAndCharts(data) {
     if (dyslipidemiaData) {
         preDrawCleanup('chartCholestrol');
         // Red for Yes, Green for No
-        drawChart('chartCholestrol', 'pie', 'Dyslipidemia', Object.keys(dyslipidemiaData), Object.values(dyslipidemiaData), ['#dc3545', '#28a745']);
+        drawChart('chartCholestrol', 'pie', '', Object.keys(dyslipidemiaData), Object.values(dyslipidemiaData), ['#dc3545', '#28a745']);
     } else { clearChart('chartCholestrol', 'Cholesterol/Lipid columns not found.'); }
 
     // Chart 7: Obesity/BMI (NEW DEDICATED LOGIC)
@@ -431,7 +471,7 @@ function updateDashboardAndCharts(data) {
     if (obesityData) {
         preDrawCleanup('chartObesity');
         // Red for Yes, Green for No
-        drawChart('chartObesity', 'pie', 'Obesity/BMI Classification', Object.keys(obesityData), Object.values(obesityData), ['#dc3545', '#28a745']);
+        drawChart('chartObesity', 'pie', '', Object.keys(obesityData), Object.values(obesityData), ['#dc3545', '#28a745']);
     } else { clearChart('chartObesity', 'BMI column not found.'); }
 
     // Chart 8: Fitness/Exercise (Keep Existing Generic Logic)
@@ -439,7 +479,7 @@ function updateDashboardAndCharts(data) {
     if (fitnessData) {
         preDrawCleanup('chartFitness');
         // Green for Active/Fit, Red for Less Active
-        drawChart('chartFitness', 'pie', 'Fitness/Exercise Level', Object.keys(fitnessData), Object.values(fitnessData), ['#28a745', '#dc3545']); 
+        drawChart('chartFitness', 'pie', '', Object.keys(fitnessData), Object.values(fitnessData), ['#28a745', '#dc3545']); 
     } else { clearChart('chartFitness', 'Exercise columns (EXE1-3) not found.'); }
     
     // Chart 9: Stress (Keep Existing Generic Logic)
@@ -447,7 +487,7 @@ function updateDashboardAndCharts(data) {
     if (stressData) {
         preDrawCleanup('chartStress');
         // Green for Active/Fit, Red for Less Active
-        drawChart('chartStress', 'pie', 'Stress', Object.keys(stressData), Object.values(stressData), ['#28a745', '#dc3545']); 
+        drawChart('chartStress', 'pie', '', Object.keys(stressData), Object.values(stressData), ['#28a745', '#dc3545']); 
     } else { clearChart('chartStress', 'Exercise columns (STR1-4) not found.'); }
 
     // Chart 10: Chronic Medication (NEW DEDICATED LOGIC)
@@ -455,49 +495,120 @@ function updateDashboardAndCharts(data) {
     if (medicationData) {
         preDrawCleanup('chartMedication');
         // Red for Yes, Green for No
-        drawChart('chartMedication', 'pie', 'Chronic Medication Status', Object.keys(medicationData), Object.values(medicationData), ['#dc3545', '#28a745']); 
+        drawChart('chartMedication', 'pie', '', Object.keys(medicationData), Object.values(medicationData), ['#dc3545', '#28a745']); 
     } else { clearChart('chartMedication', 'MEDICATION column not found.'); }
 }
 
+// --- NEW FUNCTION: Populate the Company Dropdown ---
+function populateDropdowns() {
+    const companySelect = document.getElementById('companySelect');
+    if (!companySelect) return;
+
+    // Clear existing options, but keep the "All Companies" option
+    companySelect.innerHTML = '<option value="ALL">All Companies</option>';
+
+    // Add new company options
+    const sortedCompanies = Array.from(companyNames).sort();
+    sortedCompanies.forEach(company => {
+        const option = document.createElement('option');
+        option.value = company;
+        option.textContent = company;
+        companySelect.appendChild(option);
+    });
+
+    // Restore the previously selected value, or default to ALL
+    if (selectedCompany === 'ALL' || !companyNames.has(selectedCompany)) {
+        selectedCompany = 'ALL';
+    }
+    companySelect.value = selectedCompany;
+}
+
+
+// --- MODIFIED FUNCTION: Apply Dynamic Filter ---
+// --- MODIFIED FUNCTION: Apply Dynamic Filter ---
 function filterData() {
     if (allLoadedData.length === 0) return [];
 
-    const TARGET_COMPANY = 'RAK CERAMICS'; // Define the company to filter
-
-    // No year/company filters now, combine all data.
     let combinedFilteredData = [];
     if (allLoadedData[0] && allLoadedData[0].data.length > 0) {
         combinedFilteredData.push(allLoadedData[0].data[0]); // Add Header
     } else { return []; }
     
-    let companiesInSelection = new Set();
+    const companyColIndex = headerRow.findIndex(h => h.includes('company'));
+    // NEW: Find Date of Screening column
+    const doscColIndex = headerRow.findIndex(h => h.includes('dosc'));
+    
+    const startDate = selectedDateRange ? new Date(selectedDateRange.start) : null;
+    // We use the start of the next day as the end boundary to include the full end day
+    const endDate = selectedDateRange ? new Date(selectedDateRange.end) : null;
+    if (endDate) {
+        endDate.setDate(endDate.getDate() + 1); // e.g., if end date is 2025-12-10, this makes the boundary 2025-12-11 00:00:00
+    }
     
     for (const dataObj of allLoadedData) {
         const data = dataObj.data;
-        const companyCol = dataObj.header.findIndex(h => h.includes('company'));
         
         for (let i = 1; i < data.length; i++) {
             const row = data[i];
             
-            // Assume we only proceed if we find the company column.
-            if (companyCol !== -1) {
-                const rowCompany = (row[companyCol] || '').toString().toUpperCase().trim();
+            let rowCompany = '';
+            if (companyColIndex !== -1) {
+                rowCompany = (row[companyColIndex] || '').toString().toUpperCase().trim();
+            }
+
+            // *** Apply Dynamic Filter using selectedCompany ***
+            const companyMatch = (selectedCompany === 'ALL' || rowCompany === selectedCompany);
+            
+            // NEW: Apply Date Filter
+            let dateMatch = true;
+            if (selectedDateRange && doscColIndex !== -1) {
+                const doscValue = row[doscColIndex];
+                let rowDate = null;
                 
-                // *** Apply RAK CERAMICS Filter ***
-                if (rowCompany === TARGET_COMPANY) {
-                    combinedFilteredData.push(row);
-                    companiesInSelection.add(rowCompany); // Add to set if it matches the filter
+                if (doscValue) {
+                    // Robustly parse DD.MM.YYYY format
+                    const dateParts = doscValue.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
+                    if (dateParts) {
+                        const day = parseInt(dateParts[1], 10);
+                        const month = parseInt(dateParts[2], 10) - 1; // Month is 0-indexed
+                        const year = parseInt(dateParts[3], 10);
+                        rowDate = new Date(year, month, day);
+                    }
                 }
-            } else {
-                // If company column is missing, skip the row based on the filtering request.
+                
+                // Check if the date is valid and falls within the range
+                if (rowDate && !isNaN(rowDate.getTime())) {
+                    // Normalize rowDate to midnight for comparison accuracy
+                    rowDate.setHours(0, 0, 0, 0);
+                    
+                    // rowDate >= startDate AND rowDate < endDate
+                    if (rowDate < startDate || rowDate >= endDate) {
+                        dateMatch = false;
+                    }
+                } else {
+                    // If DOSC value exists but couldn't be parsed, treat as no match
+                    dateMatch = false;
+                }
+            }
+            
+            // Combine both filters
+            const shouldInclude = companyMatch && dateMatch;
+
+            if (shouldInclude) {
+                combinedFilteredData.push(row);
             }
         }
     }
     
-    // Update the 'Total Corporates' card
+    // Update the 'Total Corporates' card based on filtered data
     const numCompaniesValue = document.getElementById('numCompaniesValue');
     if (numCompaniesValue) {
-        numCompaniesValue.textContent = companiesInSelection.size.toLocaleString();
+        // Count unique companies in the filtered result set
+        const companiesInFilter = new Set(combinedFilteredData.slice(1).map(row => {
+            return companyColIndex !== -1 ? (row[companyColIndex] || '').toString().toUpperCase().trim() : null;
+        }).filter(c => c && c.length > 0 && c !== 'UNKNOWN'));
+
+        numCompaniesValue.textContent = companiesInFilter.size.toLocaleString();
     }
     
     return combinedFilteredData;
@@ -522,7 +633,7 @@ function handleFileUpload(event) {
     if (files.length === 0) return;
 
     allLoadedData = []; 
-    // Removed all dropdown-related variables (companyNames, yearSelect, years)
+    companyNames.clear(); // Clear company names list on new upload
     
     const processFile = (file) => {
         return new Promise(resolve => {
@@ -565,7 +676,21 @@ function handleFileUpload(event) {
 
             headerRow = allLoadedData[0].header;
             
-            // Removed dropdown population logic
+            // **NEW: Collect all unique company names**
+            const companyColIndex = headerRow.findIndex(h => h.includes('company'));
+            if (companyColIndex !== -1) {
+                 allLoadedData.forEach(dataObj => {
+                    dataObj.data.slice(1).forEach(row => {
+                        const company = (row[companyColIndex] || '').toString().toUpperCase().trim();
+                        if (company.length > 0 && company !== 'UNKNOWN') {
+                            companyNames.add(company);
+                        }
+                    });
+                });
+            }
+
+            // **NEW: Populate the dropdown**
+            populateDropdowns();
             
             handleFilterChange();
         });
@@ -592,9 +717,45 @@ document.addEventListener('DOMContentLoaded', () => {
     if (fileUploadElement) {
         fileUploadElement.addEventListener('change', handleFileUpload);
     } else {
-         console.error("Error: 'fileUpload' element not found. Cannot attach file listener.");
+        console.error("Error: 'fileUpload' element not found. Cannot attach file listener.");
     }
-    // Removed yearSelect and companySelect listeners
+
+    const datePickerInput = document.getElementById('dosDateRangePicker');
+    if (datePickerInput) {
+        flatpickr(datePickerInput, {
+            mode: "range", // Enable date range selection
+            dateFormat: "d.m.Y", // Set display format to DD.MM.YYYY
+            // The onChange event fires when the date is selected
+            onChange: function(selectedDates, dateStr, instance) {
+                if (selectedDates.length === 2) {
+                    // dateStr will be like "DD.MM.YYYY to DD.MM.YYYY"
+                    const parts = dateStr.split(' to ');
+                    
+                    // Convert DD.MM.YYYY back to YYYY-MM-DD for standard Date object creation
+                    const startParts = parts[0].split('.');
+                    const endParts = parts[1].split('.');
+                    
+                    selectedDateRange = {
+                        start: `${startParts[2]}-${startParts[1]}-${startParts[0]}`, // YYYY-MM-DD
+                        end: `${endParts[2]}-${endParts[1]}-${endParts[0]}` // YYYY-MM-DD
+                    };
+                    // Trigger the filter update
+                    handleFilterChange();
+                } else {
+                    selectedDateRange = null;
+                    handleFilterChange(); // Clear date filter if one date is unselected
+                }
+            }
+        });}
+    
+    // **NEW: Company dropdown listener**
+    const companySelect = document.getElementById('companySelect');
+    if (companySelect) {
+        companySelect.addEventListener('change', (event) => {
+            selectedCompany = event.target.value;
+            handleFilterChange();
+        });
+    }
     
     // Initial placeholder setup
     const numCompaniesValue = document.getElementById('numCompaniesValue');

@@ -7,7 +7,10 @@
     <link rel="stylesheet" href="adminpage.css">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
 </head>
 <body>
     <div class="container">
@@ -30,12 +33,14 @@
             <div class="filter-panel">
                 <div class="filter-content">
                     <div class="form-group">
-                        <label>Corporate:</label>
-                        <input type="text" placeholder="RAK CERAMICS">
+                        <label for="companySelect">Corporate:</label>
+                        <select id="companySelect">
+                        <option value="ALL">All Companies</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>DOS:</label>
-                        <input type="text" placeholder="calendar - selection">
+                        <label for="dosDateRangePicker">DOS:</label>
+                        <input type="text" id="dosDateRangePicker" placeholder="Select Date Range">
                     </div>
                     <div class="form-group">
                         <label>Location:</label>
@@ -167,5 +172,6 @@
         </div>
     </div>
     <script src="adminpage.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </body>
 </html>
