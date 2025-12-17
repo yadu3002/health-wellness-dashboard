@@ -5,6 +5,7 @@ let chartInstances = {}; // Object to store all Chart.js instances by their canv
 let lastFilteredData = null; 
 // --- NEW GLOBAL VARIABLE FOR DATE RANGE ---
 let selectedDateRange = null;
+let selectedLocation = 'ALL';
 
 // --- NEW GLOBAL VARIABLES FOR FILTERING ---
 let companyNames = new Set();
@@ -259,6 +260,145 @@ function calculateDyslipidemiaData(data, header) {
     if (counts['Yes'] + counts['No'] === 0) return null;
     return counts;
 }   
+
+
+/**
+ * Populates the data table with the filtered participant records.
+ * @param {Array<Array<any>>} data - The filtered data array (including the header row).
+ */
+
+/**
+ * Populates the data table with the filtered participant records.
+ * @param {Array<Array<any>>} data - The filtered data array (including the header row).
+ */
+function populateDataTable(data) {
+    const tableBody = document.getElementById('tableBody');
+    if (!tableBody) return;
+    tableBody.innerHTML = ''; 
+
+    if (!data || data.length <= 1) {
+        tableBody.innerHTML = '<tr><td colspan="14" style="text-align:center;">No data records found.</td></tr>';
+        return;
+    }
+
+    const header = data[0];
+    const rows = data.slice(1);
+
+    // FIX: Enhanced Column Finder (Case-Insensitive & Flexible)
+    const getCol = (name) => header.findIndex(h => h.toUpperCase().replace(/\s/g, '').includes(name.toUpperCase()));
+
+    const colIdx = {
+        ref: getCol('REFID'),
+        emp: getCol('EMPID'),
+        name: getCol('EMPNAME'),
+        phone: getCol('PHONE'),
+        dept: getCol('DEPART'),
+        bmi: getCol('BMI'),
+        bp1: getCol('BP1'), // Matches BP1 or Systolic BP1
+        bp2: getCol('BP2'), // Matches BP2 or Diastolic BP2
+        bs1: getCol('BS1'), // Matches BS1 or Fasting BS1
+        bs2: getCol('BS2'), // Matches BS2 or Random BS2
+        chol: getCol('CHOLESTEROL'),
+        med: getCol('MEDICATION'),
+        // Flag mapping based on your Excel sheet columns
+        orgs: [getCol('ORG1'), getCol('ORG2'), getCol('ORG3')],
+        habs: [getCol('HAB1'), getCol('HAB2')],
+        exes: [getCol('EXE1'), getCol('EXE2'), getCol('EXE3')],
+        strs: [getCol('STR1'), getCol('STR2'), getCol('STR3'), getCol('STR4')]
+    };
+
+    rows.forEach(row => {
+        const tr = tableBody.insertRow();
+        
+        // Populate Cells with Fallbacks
+        tr.insertCell().textContent = row[colIdx.ref] || '-';
+        tr.insertCell().textContent = row[colIdx.emp] || '-';
+        tr.insertCell().textContent = row[colIdx.name] || '-';
+        tr.insertCell().textContent = row[colIdx.phone] || '-';
+        tr.insertCell().textContent = row[colIdx.dept] || '-';
+        tr.insertCell().textContent = row[colIdx.bmi] || '-';
+        
+        // BP/BG Combined Logic
+        const bp = (row[colIdx.bp1] && row[colIdx.bp2]) ? `${row[colIdx.bp1]}/${row[colIdx.bp2]}` : '-';
+        const bs = (row[colIdx.bs1] || row[colIdx.bs2]) ? ` (${row[colIdx.bs1] || row[colIdx.bs2]})` : '';
+        tr.insertCell().textContent = bp + bs;
+
+        tr.insertCell().textContent = row[colIdx.chol] || '0';
+
+        // Helper to generate Red/Green labels
+        const createFlag = (cell, isIssue, labelIssue, labelNormal) => {
+            const label = isIssue ? labelIssue : labelNormal;
+            const className = isIssue ? 'flag-issue' : 'flag-normal';
+            cell.innerHTML = `<span class="flag-indicator ${className}">${label}</span>`;
+        };
+
+        // 1. Medication
+        createFlag(tr.insertCell(), row[colIdx.med] === 'Y', 'YES', 'NO');
+
+        // 2. Cardiac Risk (If any ORG column is 'Y')
+        const cardiacRisk = colIdx.orgs.some(i => row[i] === 'Y');
+        createFlag(tr.insertCell(), cardiacRisk, 'HIGH', 'LOW');
+
+        // 3. Health Habit (If any HAB column is 'N')
+        const poorHabit = colIdx.habs.some(i => row[i] === 'N');
+        createFlag(tr.insertCell(), poorHabit, 'POOR', 'GOOD');
+
+        // 4. Fitness (If any EXE column is 'N')
+        const lowFitness = colIdx.exes.some(i => row[i] === 'N');
+        createFlag(tr.insertCell(), lowFitness, 'LOW', 'ACTIVE');
+
+        // 5. Stress (If any STR column is 'Y')
+        const highStress = colIdx.strs.some(i => row[i] === 'Y');
+        createFlag(tr.insertCell(), highStress, 'HIGH', 'NORMAL');
+
+        // View Button
+        const viewCell = tr.insertCell();
+        viewCell.innerHTML = `<button class="view-button" onclick="alert('Viewing Report for ${row[colIdx.name]}')">View</button>`;
+    });
+}
+
+// (6) Location Dropdown Population
+function populateLocationDropdown(data) {
+    if (!headerRow) return;
+    
+    // Find column using Case-Insensitive search
+    let locationCol = headerRow.findIndex(h => 
+        String(h || '').toUpperCase().replace(/\s/g, '').includes('FACTORY')
+    );
+    
+    const locationSelect = document.getElementById('locationSelect');
+    if (locationCol === -1 || !locationSelect) return;
+
+    // 1. Get unique locations from the data ALREADY filtered by Company
+    const uniqueLocations = new Set();
+    for (let i = 1; i < data.length; i++) {
+        const location = data[i][locationCol];
+        if (location && String(location).trim() !== '' && String(location).trim().toUpperCase() !== 'NA') {
+            uniqueLocations.add(String(location).trim());
+        }
+    }
+
+    // 2. Clear and Rebuild
+    const currentSelection = selectedLocation;
+    locationSelect.innerHTML = '<option value="ALL">ALL</option>';
+
+    const sortedLocations = Array.from(uniqueLocations).sort();
+    sortedLocations.forEach(location => {
+        const option = document.createElement('option');
+        option.value = location;
+        option.textContent = location;
+        locationSelect.appendChild(option);
+    });
+    
+    // 3. Keep selection if it's still valid, otherwise reset to ALL
+    if (uniqueLocations.has(currentSelection)) {
+        locationSelect.value = currentSelection;
+    } else {
+        selectedLocation = 'ALL';
+        locationSelect.value = 'ALL';
+    }
+}
+
 
 // --- Placeholder for Dashboard Filter Update ---
 function updateDashboardFilters() {
@@ -526,105 +666,45 @@ function populateDropdowns() {
 
 // --- MODIFIED FUNCTION: Apply Dynamic Filter ---
 // --- MODIFIED FUNCTION: Apply Dynamic Filter ---
-function filterData() {
-    if (allLoadedData.length === 0) return [];
+function filterData(ignoreLocation = false) {
+    if (!headerRow) return [];
+    let combined = [headerRow];
+    
+    const compIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('COMPANY'));
+    const locIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('FACTORY'));
 
-    let combinedFilteredData = [];
-    if (allLoadedData[0] && allLoadedData[0].data.length > 0) {
-        combinedFilteredData.push(allLoadedData[0].data[0]); // Add Header
-    } else { return []; }
-    
-    const companyColIndex = headerRow.findIndex(h => h.includes('company'));
-    // NEW: Find Date of Screening column
-    const doscColIndex = headerRow.findIndex(h => h.includes('dosc'));
-    
-    const startDate = selectedDateRange ? new Date(selectedDateRange.start) : null;
-    // We use the start of the next day as the end boundary to include the full end day
-    const endDate = selectedDateRange ? new Date(selectedDateRange.end) : null;
-    if (endDate) {
-        endDate.setDate(endDate.getDate() + 1); // e.g., if end date is 2025-12-10, this makes the boundary 2025-12-11 00:00:00
-    }
-    
-    for (const dataObj of allLoadedData) {
-        const data = dataObj.data;
-        
-        for (let i = 1; i < data.length; i++) {
-            const row = data[i];
+    allLoadedData.forEach(obj => {
+        obj.data.slice(1).forEach(row => {
+            const rowComp = String(row[compIdx] || '').toUpperCase().trim();
+            const rowLoc = String(row[locIdx] || '').trim();
             
-            let rowCompany = '';
-            if (companyColIndex !== -1) {
-                rowCompany = (row[companyColIndex] || '').toString().toUpperCase().trim();
-            }
-
-            // *** Apply Dynamic Filter using selectedCompany ***
-            const companyMatch = (selectedCompany === 'ALL' || rowCompany === selectedCompany);
+            const compMatch = (selectedCompany === 'ALL' || rowComp === selectedCompany);
+            // Ignore location filter when we are just rebuilding the dropdown list
+            const locMatch = ignoreLocation || (selectedLocation === 'ALL' || rowLoc === selectedLocation);
             
-            // NEW: Apply Date Filter
-            let dateMatch = true;
-            if (selectedDateRange && doscColIndex !== -1) {
-                const doscValue = row[doscColIndex];
-                let rowDate = null;
-                
-                if (doscValue) {
-                    // Robustly parse DD.MM.YYYY format
-                    const dateParts = doscValue.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
-                    if (dateParts) {
-                        const day = parseInt(dateParts[1], 10);
-                        const month = parseInt(dateParts[2], 10) - 1; // Month is 0-indexed
-                        const year = parseInt(dateParts[3], 10);
-                        rowDate = new Date(year, month, day);
-                    }
-                }
-                
-                // Check if the date is valid and falls within the range
-                if (rowDate && !isNaN(rowDate.getTime())) {
-                    // Normalize rowDate to midnight for comparison accuracy
-                    rowDate.setHours(0, 0, 0, 0);
-                    
-                    // rowDate >= startDate AND rowDate < endDate
-                    if (rowDate < startDate || rowDate >= endDate) {
-                        dateMatch = false;
-                    }
-                } else {
-                    // If DOSC value exists but couldn't be parsed, treat as no match
-                    dateMatch = false;
-                }
+            if (compMatch && locMatch) {
+                combined.push(row);
             }
-            
-            // Combine both filters
-            const shouldInclude = companyMatch && dateMatch;
-
-            if (shouldInclude) {
-                combinedFilteredData.push(row);
-            }
-        }
-    }
-    
-    // Update the 'Total Corporates' card based on filtered data
-    const numCompaniesValue = document.getElementById('numCompaniesValue');
-    if (numCompaniesValue) {
-        // Count unique companies in the filtered result set
-        const companiesInFilter = new Set(combinedFilteredData.slice(1).map(row => {
-            return companyColIndex !== -1 ? (row[companyColIndex] || '').toString().toUpperCase().trim() : null;
-        }).filter(c => c && c.length > 0 && c !== 'UNKNOWN'));
-
-        numCompaniesValue.textContent = companiesInFilter.size.toLocaleString();
-    }
-    
-    return combinedFilteredData;
+        });
+    });
+    return combined;
 }
 
-
 function handleFilterChange() {
-    if (allLoadedData.length === 0) {
-        const allChartIds = ['chartParticipants','chartGender', 'chartChronic', 'chartHypertension', 'chartDiabetes', 
-                             'chartCholestrol','chartObesity', 'chartFitness', 'chartStress', 'chartMedication'];
-        allChartIds.forEach(id => clearChart(id, 'Upload data to begin analysis.'));
-        return;
-    }
+    if (allLoadedData.length === 0) return;
+
+    // Step 1: Filter raw data by Company & Date ONLY to see available locations
+    const companyDateFiltered = filterData(true); // Helper flag to ignore location
     
-    lastFilteredData = filterData();
+    // Step 2: Update the Location Dropdown based on those results
+    populateLocationDropdown(companyDateFiltered);
+
+    // Step 3: Apply the FINAL filter (Company + Date + the now-valid Location)
+    lastFilteredData = filterData(false); 
+    
+    // Step 4: Refresh UI
     updateDashboardAndCharts(lastFilteredData);
+    populateDataTable(lastFilteredData);
 }
 
 // --- File Upload Logic (MODIFIED) ---
@@ -697,79 +777,120 @@ function handleFileUpload(event) {
 }
 
 
+function populateCompanyDropdown(data) {
+    if (!data || data.length <= 1) return;
+    
+    // Use the existing findCol helper
+    const companyColIndex = findCol(data[0], 'COMPANY');
+    if (companyColIndex === -1) {
+        console.warn("Company column not found. Cannot populate Company filter.");
+        return;
+    }
+    
+    // Extract unique company names
+    companyNames = new Set(data.slice(1).map(row => row[companyColIndex]).filter(Boolean));
+    const companySelect = document.getElementById('companySelect');
+    
+    if (companySelect) {
+        companySelect.innerHTML = '<option value="ALL">ALL</option>';
+        companyNames.forEach(company => {
+            const option = document.createElement('option');
+            option.value = company;
+            option.textContent = company;
+            companySelect.appendChild(option);
+        });
+        // Select the initial value ('ALL')
+        companySelect.value = selectedCompany; 
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Initial date and stat setup
+    // 1. Initial date and stat setup
     const dateElement = document.getElementById('currentDate');
     const currentYearDisplay = document.getElementById('currentYearDisplay');
     const today = new Date();
 
     if (dateElement) {
-        dateElement.textContent = today.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        dateElement.textContent = today.toLocaleDateString('en-GB', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric' 
+        });
     }
     
-    // Set the current year display based on the HTML
+    // Set the current year display
     if (currentYearDisplay) {
         currentYearDisplay.textContent = '2025'; 
     }
     
-    // Initial Filter Listeners
+    // 2. Initial Filter Listeners (File Upload)
     const fileUploadElement = document.getElementById('fileUpload');
     if (fileUploadElement) {
         fileUploadElement.addEventListener('change', handleFileUpload);
     } else {
-        console.error("Error: 'fileUpload' element not found. Cannot attach file listener.");
+        console.error("Error: 'fileUpload' element not found.");
     }
 
+    // 3. Date Range Picker (Flatpickr)
     const datePickerInput = document.getElementById('dosDateRangePicker');
     if (datePickerInput) {
         flatpickr(datePickerInput, {
-            mode: "range", // Enable date range selection
-            dateFormat: "d.m.Y", // Set display format to DD.MM.YYYY
-            // The onChange event fires when the date is selected
-            onChange: function(selectedDates, dateStr, instance) {
+            mode: "range",
+            dateFormat: "d.m.Y",
+            onChange: function(selectedDates, dateStr) {
                 if (selectedDates.length === 2) {
-                    // dateStr will be like "DD.MM.YYYY to DD.MM.YYYY"
                     const parts = dateStr.split(' to ');
-                    
-                    // Convert DD.MM.YYYY back to YYYY-MM-DD for standard Date object creation
                     const startParts = parts[0].split('.');
                     const endParts = parts[1].split('.');
                     
                     selectedDateRange = {
-                        start: `${startParts[2]}-${startParts[1]}-${startParts[0]}`, // YYYY-MM-DD
-                        end: `${endParts[2]}-${endParts[1]}-${endParts[0]}` // YYYY-MM-DD
+                        start: `${startParts[2]}-${startParts[1]}-${startParts[0]}`, 
+                        end: `${endParts[2]}-${endParts[1]}-${endParts[0]}`
                     };
-                    // Trigger the filter update
                     handleFilterChange();
                 } else {
                     selectedDateRange = null;
-                    handleFilterChange(); // Clear date filter if one date is unselected
+                    handleFilterChange();
                 }
             }
-        });}
+        });
+    }
     
-    // **NEW: Company dropdown listener**
+    // 4. Company Dropdown
     const companySelect = document.getElementById('companySelect');
     if (companySelect) {
         companySelect.addEventListener('change', (event) => {
             selectedCompany = event.target.value;
+            selectedLocation = 'ALL'; // Reset location on company change
+            handleFilterChange(); 
+        });
+    }
+    
+    // 5. Location Dropdown
+    const locationSelect = document.getElementById('locationSelect');
+    if (locationSelect) {
+        locationSelect.addEventListener('change', (event) => {
+            selectedLocation = event.target.value;
             handleFilterChange();
         });
     }
     
-    // Initial placeholder setup
+    // 6. Initial Stats & Chart Placeholders
     const numCompaniesValue = document.getElementById('numCompaniesValue');
     const numScreenedValue = document.getElementById('numScreenedValue');
 
-    if (numCompaniesValue) {
-        numCompaniesValue.textContent = '0';
-    }
-    if (numScreenedValue) {
-        numScreenedValue.textContent = '0';
-    }
+    if (numCompaniesValue) numCompaniesValue.textContent = '0';
+    if (numScreenedValue) numScreenedValue.textContent = '0';
     
-    // Set initial messages for all charts
-    const allChartIds = ['chartParticipants','chartGender', 'chartChronic', 'chartHypertension', 'chartDiabetes', 
-                         'chartCholestrol','chartObesity', 'chartFitness', 'chartStress', 'chartMedication'];
-    allChartIds.forEach(id => clearChart(id, 'Upload data to begin analysis.'));
+    const allChartIds = [
+        'chartParticipants','chartGender', 'chartChronic', 'chartHypertension', 
+        'chartDiabetes', 'chartCholestrol','chartObesity', 'chartFitness', 
+        'chartStress', 'chartMedication'
+    ];
+    
+    allChartIds.forEach(id => {
+        if (typeof clearChart === "function") {
+            clearChart(id, 'Upload data to begin analysis.');
+        }
+    });
 });

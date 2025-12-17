@@ -42,9 +42,11 @@
                         <label for="dosDateRangePicker">DOS:</label>
                         <input type="text" id="dosDateRangePicker" placeholder="Select Date Range">
                     </div>
-                    <div class="form-group">
+                   <div class="form-group">
                         <label>Location:</label>
-                        <input type="text" placeholder="dropbox">
+                        <select id="locationSelect">
+                        <option value="ALL">All Locations</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>Department:</label>
@@ -167,7 +169,9 @@
                         <th class="action-col-3">View Report</th>
                     </tr>
                 </thead>
-                <tbody id="tableBody"></tbody>
+                <tbody id="tableBody">
+
+                </tbody>
             </table>
         </div>
     </div>
