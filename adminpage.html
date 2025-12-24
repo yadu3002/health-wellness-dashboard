@@ -10,6 +10,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/monthSelect/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/monthSelect/index.js"></script>
     
 </head>
 <body>
@@ -41,6 +43,7 @@
                     <div class="form-group">
                         <label for="dosDateRangePicker">DOS:</label>
                         <input type="text" id="dosDateRangePicker" placeholder="Select Date Range">
+                        <button id="clearDateFilter" style="background: #ef4444; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-weight: bold;">X</button>
                     </div>
                    <div class="form-group">
                         <label>Location:</label>
@@ -52,13 +55,14 @@
                         <label>Department:</label>
                         <input type="text">
                     </div>
-                    <div class="form-group">
-                        <label class="highlight">Monthly Report:</label>
-                        <input type="text" placeholder="calendar - date range picker">
+                     <div class="form-group">
+                        <label for="monthPicker">User Report</label>
+                        <input type="text" id="monthPicker" placeholder="Select Month">
+                        <button id="clearMonthFilter" style="background: #ef4444; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-weight: bold;">X</button>
                     </div>
                     <div class="form-group">
                         <label>Employee:</label>
-                        <input type="text" placeholder="search bar">
+                        <input type="text" id="employeeSearch" placeholder="Search ID, Name, or Phone...">
                     </div>
                     <div class="form-group">
                         <label>Generate Analysis:</label>
@@ -135,7 +139,6 @@
             <div class="action-buttons">
                 <button class="action-button">Generate Report</button>
                 <button class="action-button">Create User</button>
-                <button class="action-button">Screening Data</button>
                 <button class="action-button">HRA</button>
             </div>
         </div>
@@ -166,6 +169,7 @@
                         <th class="action-col-2">Health Habit</th>
                         <th class="action-col-3">Fitness</th>
                         <th class="action-col-3">Stress</th>
+                        <th class="header-col">DOSC</th>
                         <th class="action-col-3">View Report</th>
                     </tr>
                 </thead>

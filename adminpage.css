@@ -17,6 +17,11 @@ body {
     padding: 1rem;
 }
 
+td:nth-child(6) { /* Assuming BMI is the 6th column */
+    text-align: center;
+    font-weight: 500;
+}
+
 /* Header */
 .dashboard-header {
     display: flex;

@@ -1,5 +1,6 @@
 // Global variables
 let allLoadedData = []; 
+let searchQuery = '';
 let headerRow = null;
 let chartInstances = {}; // Object to store all Chart.js instances by their canvas ID
 let lastFilteredData = null; 
@@ -259,7 +260,7 @@ function calculateDyslipidemiaData(data, header) {
     
     if (counts['Yes'] + counts['No'] === 0) return null;
     return counts;
-}   
+}   
 
 
 /**
@@ -284,6 +285,8 @@ function populateDataTable(data) {
     const header = data[0];
     const rows = data.slice(1);
 
+    
+
     // FIX: Enhanced Column Finder (Case-Insensitive & Flexible)
     const getCol = (name) => header.findIndex(h => h.toUpperCase().replace(/\s/g, '').includes(name.toUpperCase()));
 
@@ -304,11 +307,23 @@ function populateDataTable(data) {
         orgs: [getCol('ORG1'), getCol('ORG2'), getCol('ORG3')],
         habs: [getCol('HAB1'), getCol('HAB2')],
         exes: [getCol('EXE1'), getCol('EXE2'), getCol('EXE3')],
-        strs: [getCol('STR1'), getCol('STR2'), getCol('STR3'), getCol('STR4')]
+        strs: [getCol('STR1'), getCol('STR2'), getCol('STR3'), getCol('STR4')],
+        dosc: getCol('DOSC')
     };
 
     rows.forEach(row => {
         const tr = tableBody.insertRow();
+
+        let rawBMI = row[colIdx.bmi];
+    let formattedBMI = '-';
+
+    // 2. Check if the value exists and is a valid number
+    if (rawBMI !== undefined && rawBMI !== null && rawBMI !== '') {
+        let bmiNum = parseFloat(rawBMI);
+    if (!isNaN(bmiNum)) {
+        formattedBMI = bmiNum.toFixed(2); // Rounds to 2 decimal places
+    }
+}
         
         // Populate Cells with Fallbacks
         tr.insertCell().textContent = row[colIdx.ref] || '-';
@@ -316,7 +331,8 @@ function populateDataTable(data) {
         tr.insertCell().textContent = row[colIdx.name] || '-';
         tr.insertCell().textContent = row[colIdx.phone] || '-';
         tr.insertCell().textContent = row[colIdx.dept] || '-';
-        tr.insertCell().textContent = row[colIdx.bmi] || '-';
+        tr.insertCell().textContent = formattedBMI;
+        
         
         // BP/BG Combined Logic
         const bp = (row[colIdx.bp1] && row[colIdx.bp2]) ? `${row[colIdx.bp1]}/${row[colIdx.bp2]}` : '-';
@@ -324,6 +340,7 @@ function populateDataTable(data) {
         tr.insertCell().textContent = bp + bs;
 
         tr.insertCell().textContent = row[colIdx.chol] || '0';
+        
 
         // Helper to generate Red/Green labels
         const createFlag = (cell, isIssue, labelIssue, labelNormal) => {
@@ -350,6 +367,8 @@ function populateDataTable(data) {
         // 5. Stress (If any STR column is 'Y')
         const highStress = colIdx.strs.some(i => row[i] === 'Y');
         createFlag(tr.insertCell(), highStress, 'HIGH', 'NORMAL');
+
+        tr.insertCell().textContent = row[colIdx.dosc] || '-';
 
         // View Button
         const viewCell = tr.insertCell();
@@ -665,30 +684,56 @@ function populateDropdowns() {
 
 
 // --- MODIFIED FUNCTION: Apply Dynamic Filter ---
-// --- MODIFIED FUNCTION: Apply Dynamic Filter ---
 function filterData(ignoreLocation = false) {
     if (!headerRow) return [];
     let combined = [headerRow];
     
+    // Find column indices
     const compIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('COMPANY'));
     const locIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('FACTORY'));
+    const doscIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('DOSC'));
 
+
+    const refIdx = headerRow.findIndex(h => String(h||'').toUpperCase().includes('REFID'));
+    const empIdx = headerRow.findIndex(h => String(h||'').toUpperCase().includes('EMPID'));
+    const nameIdx = headerRow.findIndex(h => String(h||'').toUpperCase().includes('EMPNAME'));
+    const phoneIdx = headerRow.findIndex(h => String(h||'').toUpperCase().includes('PHONE'));
+
+    
     allLoadedData.forEach(obj => {
         obj.data.slice(1).forEach(row => {
             const rowComp = String(row[compIdx] || '').toUpperCase().trim();
             const rowLoc = String(row[locIdx] || '').trim();
+            const rowDate = String(row[doscIdx] || '').trim(); // Gets the date from Excel
             
             const compMatch = (selectedCompany === 'ALL' || rowComp === selectedCompany);
-            // Ignore location filter when we are just rebuilding the dropdown list
             const locMatch = ignoreLocation || (selectedLocation === 'ALL' || rowLoc === selectedLocation);
             
-            if (compMatch && locMatch) {
+            // NEW: Logic to check if the row date matches the selected picker date
+            const dateMatch = !selectedDateRange || (rowDate === selectedDateRange);
+            
+            let searchMatch = true;
+            if (searchQuery) {
+                const valRef = String(row[refIdx] || '').toLowerCase();
+                const valEmp = String(row[empIdx] || '').toLowerCase();
+                const valName = String(row[nameIdx] || '').toLowerCase();
+                const valPhone = String(row[phoneIdx] || '').toLowerCase();
+                
+                searchMatch = valRef.includes(searchQuery) || 
+                              valEmp.includes(searchQuery) || 
+                              valName.includes(searchQuery) || 
+                              valPhone.includes(searchQuery);
+            }
+
+
+            if (compMatch && locMatch && searchMatch && dateMatch) {
                 combined.push(row);
             }
         });
     });
     return combined;
 }
+
 
 function handleFilterChange() {
     if (allLoadedData.length === 0) return;
@@ -833,29 +878,73 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 3. Date Range Picker (Flatpickr)
     const datePickerInput = document.getElementById('dosDateRangePicker');
-    if (datePickerInput) {
-        flatpickr(datePickerInput, {
-            mode: "range",
-            dateFormat: "d.m.Y",
-            onChange: function(selectedDates, dateStr) {
-                if (selectedDates.length === 2) {
-                    const parts = dateStr.split(' to ');
-                    const startParts = parts[0].split('.');
-                    const endParts = parts[1].split('.');
-                    
-                    selectedDateRange = {
-                        start: `${startParts[2]}-${startParts[1]}-${startParts[0]}`, 
-                        end: `${endParts[2]}-${endParts[1]}-${endParts[0]}`
-                    };
-                    handleFilterChange();
-                } else {
-                    selectedDateRange = null;
-                    handleFilterChange();
-                }
+if (datePickerInput) {
+    flatpickr(datePickerInput, {
+        mode: "single", // Changed from "range"
+        dateFormat: "d.m.Y", // Matches your Excel date format
+        onChange: function(selectedDates, dateStr) {
+            if (selectedDates.length === 1) {
+                selectedDateRange = dateStr; // Store the single date string
+            } else {
+                selectedDateRange = null;
             }
-        });
-    }
-    
+            handleFilterChange();
+        }
+    });
+
+    // X. Clear button
+    // Clear Date Filter Logic
+    const clearDateBtn = document.getElementById('clearDateFilter');
+    const dateInput = document.getElementById('dosDateRangePicker');
+
+    if (clearDateBtn && dateInput) {
+    clearDateBtn.addEventListener('click', () => {
+        // 1. Reset the global variable
+        selectedDateRange = null; 
+        
+        // 2. Clear the input field text
+        dateInput.value = ''; 
+        
+        // 3. Clear the Flatpickr instance (if it exists)
+        if (dateInput._flatpickr) {
+            dateInput._flatpickr.clear();
+        }
+
+        // 4. Trigger the filter refresh
+        handleFilterChange(); 
+    });
+
+}
+}
+   // User Report
+   let selectedMonth = null;
+
+// Initialize Month Picker
+const monthPickerInput = document.getElementById('monthPicker');
+if (monthPickerInput) {
+    flatpickr(monthPickerInput, {
+        plugins: [
+            new monthSelectPlugin({
+                shorthand: true, // "Jan" instead of "January"
+                dateFormat: "m.Y", // Matches format like "10.2025"
+                altFormat: "F Y" // Displays as "October 2025"
+            })
+        ],
+        onChange: function(selectedDates, dateStr) {
+            selectedMonth = dateStr; // e.g., "10.2025"
+            handleFilterChange();
+        }
+    });
+}
+
+// Clear Month Button
+document.getElementById('clearMonthFilter').addEventListener('click', () => {
+    selectedMonth = null;
+    monthPickerInput.value = '';
+    if (monthPickerInput._flatpickr) monthPickerInput._flatpickr.clear();
+    handleFilterChange();
+});
+
     // 4. Company Dropdown
     const companySelect = document.getElementById('companySelect');
     if (companySelect) {
@@ -874,6 +963,17 @@ document.addEventListener('DOMContentLoaded', () => {
             handleFilterChange();
         });
     }
+
+    // Search Function
+
+    const employeeSearch = document.getElementById('employeeSearch');
+    if (employeeSearch) {
+    employeeSearch.addEventListener('input', (e) => {
+        searchQuery = e.target.value.toLowerCase().trim();
+        handleFilterChange(); // Triggers re-filtering and chart updates
+    });
+}
+    
     
     // 6. Initial Stats & Chart Placeholders
     const numCompaniesValue = document.getElementById('numCompaniesValue');
