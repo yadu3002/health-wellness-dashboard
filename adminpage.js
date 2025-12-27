@@ -13,7 +13,8 @@ let companyNames = new Set();
 let selectedCompany = 'ALL'; // Default to show all companies
 
 // --- Column Finder Helpers ---
-const findCol = (header, name) => header.findIndex(h => h.includes(name));
+// Change this at the top of adminpage.js
+const findCol = (header, name) => header.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
 const findCols = (header, names) => names.map(name => findCol(header, name)).filter(i => i !== -1);
 
 function openLoginPopup() {
@@ -277,6 +278,18 @@ function populateDataTable(data) {
     if (!tableBody) return;
     tableBody.innerHTML = ''; 
 
+    const limit = 50;
+    const displayData = data.slice(0, limit);
+
+    displayData.forEach(row => {
+        const tr = document.createElement('tr');
+        // ... (your existing row creation logic) ...
+        tableBody.appendChild(tr);
+    });
+
+
+
+
     if (!data || data.length <= 1) {
         tableBody.innerHTML = '<tr><td colspan="14" style="text-align:center;">No data records found.</td></tr>';
         return;
@@ -377,45 +390,29 @@ function populateDataTable(data) {
 }
 
 // (6) Location Dropdown Population
-function populateLocationDropdown(data) {
-    if (!headerRow) return;
-    
-    // Find column using Case-Insensitive search
-    let locationCol = headerRow.findIndex(h => 
-        String(h || '').toUpperCase().replace(/\s/g, '').includes('FACTORY')
-    );
-    
-    const locationSelect = document.getElementById('locationSelect');
-    if (locationCol === -1 || !locationSelect) return;
+function populateLocationDropdown(filteredData) {
+    const select = document.getElementById('locationSelect');
+    if (!select) return;
 
-    // 1. Get unique locations from the data ALREADY filtered by Company
-    const uniqueLocations = new Set();
-    for (let i = 1; i < data.length; i++) {
-        const location = data[i][locationCol];
-        if (location && String(location).trim() !== '' && String(location).trim().toUpperCase() !== 'NA') {
-            uniqueLocations.add(String(location).trim());
-        }
-    }
+    const locIdx = findCol(headerRow, 'FACTORY'); // Or 'LOCATION' depending on your Excel
+    const uniqueLocs = new Set();
 
-    // 2. Clear and Rebuild
-    const currentSelection = selectedLocation;
-    locationSelect.innerHTML = '<option value="ALL">ALL</option>';
+    filteredData.forEach(row => {
+        const val = String(row[locIdx] || '').trim();
+        if (val) uniqueLocs.add(val);
+    });
 
-    const sortedLocations = Array.from(uniqueLocations).sort();
-    sortedLocations.forEach(location => {
-        const option = document.createElement('option');
-        option.value = location;
-        option.textContent = location;
-        locationSelect.appendChild(option);
+    const current = select.value;
+    select.innerHTML = '<option value="ALL">ALL LOCATIONS</option>';
+    Array.from(uniqueLocs).sort().forEach(loc => {
+        const opt = document.createElement('option');
+        opt.value = loc;
+        opt.textContent = loc;
+        select.appendChild(opt);
     });
     
-    // 3. Keep selection if it's still valid, otherwise reset to ALL
-    if (uniqueLocations.has(currentSelection)) {
-        locationSelect.value = currentSelection;
-    } else {
-        selectedLocation = 'ALL';
-        locationSelect.value = 'ALL';
-    }
+    // Keep the selection if it's still valid, otherwise reset to ALL
+    select.value = uniqueLocs.has(current) ? current : 'ALL';
 }
 
 
@@ -543,119 +540,115 @@ function preDrawCleanup(chartId) {
 
 // --- Dashboard Update Logic (No Change) ---
 
-function updateDashboardAndCharts(data) {
+async function updateDashboardAndCharts(data) {
     const totalEmployees = data.length - 1; 
-    
-    const allChartIds = ['chartParticipants','chartGender', 'chartChronic', 'chartHypertension', 'chartDiabetes', 
-                         'chartCholestrol','chartObesity', 'chartFitness', 'chartStress', 'chartMedication'];
+    const allChartIds = [
+        'chartParticipants','chartGender', 'chartChronic', 'chartHypertension', 
+        'chartDiabetes', 'chartCholestrol','chartObesity', 'chartFitness', 
+        'chartStress', 'chartMedication'
+    ];
+
+    // Update the stat card immediately
+    const screenedEl = document.getElementById('numScreenedValue');
+    if (screenedEl) {
+        screenedEl.textContent = totalEmployees <= 0 ? '0' : totalEmployees.toLocaleString();
+    }
 
     if (totalEmployees <= 0) {
-        // Only update the one stat card we have in the HTML
-        document.getElementById('numScreenedValue').textContent = '0';
-        
         allChartIds.forEach(id => clearChart(id, 'No data available for the current filters.'));
         return;
     }
     
-    document.getElementById('numScreenedValue').textContent = totalEmployees.toLocaleString();
-
+    // --- PRE-CALCULATION BLOCK (Runs quickly) ---
     const header = data[0].map(h => String(h || '').toLowerCase().trim());
     const genderCol = findCol(header, 'gender');
     let genderData = { Male: 0, Female: 0 };
 
-    // 1. Calculate Gender Data
     for (let i = 1; i < data.length; i++) {
         const row = data[i];
-        
-        // Gender
         if (genderCol !== -1) {
             const gender = (row[genderCol] || '').toString().toLowerCase();
-
-            if (gender.startsWith('m')) {
-                genderData.Male++;
-            } else if (gender.startsWith('f')) {
-                genderData.Female++;
-            }
+            if (gender.startsWith('m')) genderData.Male++;
+            else if (gender.startsWith('f')) genderData.Female++;
         }
     }
 
-    
-    // --- 2. Draw All 10 Charts ---
-    
-    const participantsData = calculateParticipantsData(data);
-    if (participantsData) {
-        preDrawCleanup('chartParticipants');
-        // Use 'doughnut' for a better look for a single total, making the total count visible in the card above.
-        drawChart('chartParticipants', 'doughnut', '', Object.keys(participantsData), Object.values(participantsData), ['#4e73df']); 
-    } else { clearChart('chartParticipants', 'No employees found in selection.'); }
+    // --- ASYNCHRONOUS RENDERING BLOCK ---
+    // This helper allows the browser to "breathe" so the search bar doesn't freeze
+    const yieldToBrowser = () => new Promise(resolve => setTimeout(resolve, 0));
 
-    // Chart 2: Gender (Pie)
-    preDrawCleanup('chartGender');
-    drawChart('chartGender', 'pie', '', Object.keys(genderData), Object.values(genderData), ['#4e73df', '#e74a3b']);
+    // Define all drawing tasks
+    const tasks = [
+        { id: 'chartParticipants', fn: () => {
+            const d = calculateParticipantsData(data);
+            if (d) { preDrawCleanup('chartParticipants'); drawChart('chartParticipants', 'doughnut', '', Object.keys(d), Object.values(d), ['#4e73df']); }
+            else { clearChart('chartParticipants', 'No employees found.'); }
+        }},
+        { id: 'chartGender', fn: () => {
+            preDrawCleanup('chartGender');
+            drawChart('chartGender', 'pie', '', Object.keys(genderData), Object.values(genderData), ['#4e73df', '#e74a3b']);
+        }},
+        { id: 'chartChronic', fn: () => {
+            const d = calculateChronicData(data, header);
+            if (d) { preDrawCleanup('chartChronic'); drawChart('chartChronic', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745']); }
+            else { clearChart('chartChronic', 'Data missing.'); }
+        }},
+        { id: 'chartHypertension', fn: () => {
+            const d = calculateHypertensionData(data, header);
+            if (d) { preDrawCleanup('chartHypertension'); drawChart('chartHypertension', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745']); }
+            else { clearChart('chartHypertension', 'Data missing.'); }
+        }},
+        { id: 'chartDiabetes', fn: () => {
+            const d = calculateDiabetesData(data, header);
+            if (d) { preDrawCleanup('chartDiabetes'); drawChart('chartDiabetes', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745']); }
+            else { clearChart('chartDiabetes', 'Data missing.'); }
+        }},
+        { id: 'chartCholestrol', fn: () => {
+            const d = calculateDyslipidemiaData(data, header);
+            if (d) { preDrawCleanup('chartCholestrol'); drawChart('chartCholestrol', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745']); }
+            else { clearChart('chartCholestrol', 'Data missing.'); }
+        }},
+        { id: 'chartObesity', fn: () => {
+            const d = calculateObesityData(data, header);
+            if (d) { preDrawCleanup('chartObesity'); drawChart('chartObesity', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745']); }
+            else { clearChart('chartObesity', 'Data missing.'); }
+        }},
+        { id: 'chartFitness', fn: () => {
+            const d = calculateFitnessData(data, header);
+            if (d) { preDrawCleanup('chartFitness'); drawChart('chartFitness', 'pie', '', Object.keys(d), Object.values(d), ['#28a745', '#dc3545']); }
+            else { clearChart('chartFitness', 'Data missing.'); }
+        }},
+        { id: 'chartStress', fn: () => {
+            const d = calculateStressData(data, header);
+            if (d) { preDrawCleanup('chartStress'); drawChart('chartStress', 'pie', '', Object.keys(d), Object.values(d), ['#28a745', '#dc3545']); }
+            else { clearChart('chartStress', 'Data missing.'); }
+        }},
+        { id: 'chartMedication', fn: () => {
+            const d = calculateMedicationData(data, header);
+            if (d) { preDrawCleanup('chartMedication'); drawChart('chartMedication', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745']); }
+            else { clearChart('chartMedication', 'Data missing.'); }
+        }}
+    ];
 
-    // Chart 3: Chronic Disease (NEW DEDICATED LOGIC)
-    const chronicData = calculateChronicData(data, header);
-    if (chronicData) {
-        preDrawCleanup('chartChronic');
-        // Red for Yes, Green for No
-        drawChart('chartChronic', 'pie', '', Object.keys(chronicData), Object.values(chronicData), ['#dc3545', '#28a745']); 
-    } else { clearChart('chartChronic', 'MED_DETAILS column not found.'); }
+    // Execute each chart render one by one, allowing UI updates in between
+    for (const task of tasks) {
+        await yieldToBrowser(); 
+        task.fn();
+    }
+}
 
-    // Chart 4: Hypertension/BP (NEW DEDICATED LOGIC)
-    const hypertensionData = calculateHypertensionData(data, header);
-    if (hypertensionData) {
-        preDrawCleanup('chartHypertension');
-        // Red for Yes, Green for No
-        drawChart('chartHypertension', 'pie', '', Object.keys(hypertensionData), Object.values(hypertensionData), ['#dc3545', '#28a745']);
-    } else { clearChart('chartHypertension', 'Blood Pressure columns (BP1/BP2) not found.'); }
-    
-    // Chart 5: Diabetes/BS (NEW DEDICATED LOGIC)
-    const diabetesData = calculateDiabetesData(data, header);
-    if (diabetesData) {
-        preDrawCleanup('chartDiabetes');
-        // Red for Yes, Green for No
-        drawChart('chartDiabetes', 'pie', '', Object.keys(diabetesData), Object.values(diabetesData), ['#dc3545', '#28a745']);
-    } else { clearChart('chartDiabetes', 'Required blood sugar columns (BS1/BS2) not found.'); }
-    
-    // Chart 6: Dyslipidemia (NEW DEDICATED LOGIC)
-    const dyslipidemiaData = calculateDyslipidemiaData(data, header);
-    if (dyslipidemiaData) {
-        preDrawCleanup('chartCholestrol');
-        // Red for Yes, Green for No
-        drawChart('chartCholestrol', 'pie', '', Object.keys(dyslipidemiaData), Object.values(dyslipidemiaData), ['#dc3545', '#28a745']);
-    } else { clearChart('chartCholestrol', 'Cholesterol/Lipid columns not found.'); }
+function renderChart(canvasId, config) {
+    // 1. Find the canvas
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
 
-    // Chart 7: Obesity/BMI (NEW DEDICATED LOGIC)
-    const obesityData = calculateObesityData(data, header);
-    if (obesityData) {
-        preDrawCleanup('chartObesity');
-        // Red for Yes, Green for No
-        drawChart('chartObesity', 'pie', '', Object.keys(obesityData), Object.values(obesityData), ['#dc3545', '#28a745']);
-    } else { clearChart('chartObesity', 'BMI column not found.'); }
+    // 2. Kill the old chart if it exists
+    if (chartInstances[canvasId]) {
+        chartInstances[canvasId].destroy();
+    }
 
-    // Chart 8: Fitness/Exercise (Keep Existing Generic Logic)
-    const fitnessData = calculateFitnessData(data, header);
-    if (fitnessData) {
-        preDrawCleanup('chartFitness');
-        // Green for Active/Fit, Red for Less Active
-        drawChart('chartFitness', 'pie', '', Object.keys(fitnessData), Object.values(fitnessData), ['#28a745', '#dc3545']); 
-    } else { clearChart('chartFitness', 'Exercise columns (EXE1-3) not found.'); }
-    
-    // Chart 9: Stress (Keep Existing Generic Logic)
-    const stressData = calculateStressData(data, header);
-    if (stressData) {
-        preDrawCleanup('chartStress');
-        // Green for Active/Fit, Red for Less Active
-        drawChart('chartStress', 'pie', '', Object.keys(stressData), Object.values(stressData), ['#28a745', '#dc3545']); 
-    } else { clearChart('chartStress', 'Exercise columns (STR1-4) not found.'); }
-
-    // Chart 10: Chronic Medication (NEW DEDICATED LOGIC)
-    const medicationData = calculateMedicationData(data, header);
-    if (medicationData) {
-        preDrawCleanup('chartMedication');
-        // Red for Yes, Green for No
-        drawChart('chartMedication', 'pie', '', Object.keys(medicationData), Object.values(medicationData), ['#dc3545', '#28a745']); 
-    } else { clearChart('chartMedication', 'MEDICATION column not found.'); }
+    // 3. Create the new one
+    chartInstances[canvasId] = new Chart(canvas.getContext('2d'), config);
 }
 
 // --- NEW FUNCTION: Populate the Company Dropdown ---
@@ -735,21 +728,40 @@ function filterData(ignoreLocation = false) {
 }
 
 
-function handleFilterChange() {
-    if (allLoadedData.length === 0) return;
+ async function handleFilterChange() {
+    if (!allLoadedData || allLoadedData.length === 0) return;
+
+    const fullData = allLoadedData[0].data;
+    const header = allLoadedData[0].header;
+
+    // --- NEW: Populate Company List if it's empty ---
+    if (companyNames.size === 0) {
+        const cIdx = findCol(header, 'COMPANY');
+        if (cIdx !== -1) {
+            fullData.slice(1).forEach(row => {
+                const val = String(row[cIdx] || '').trim();
+                if (val) companyNames.add(val);
+            });
+            populateCompanyDropdown(); // Call the specific company populator
+        }
+    }
 
     // Step 1: Filter raw data by Company & Date ONLY to see available locations
-    const companyDateFiltered = filterData(true); // Helper flag to ignore location
+    const companyDateFiltered = filterData(true); 
     
     // Step 2: Update the Location Dropdown based on those results
     populateLocationDropdown(companyDateFiltered);
 
-    // Step 3: Apply the FINAL filter (Company + Date + the now-valid Location)
+    // Step 3: Apply FINAL filter (Company + Date + Location + Search)
     lastFilteredData = filterData(false); 
     
     // Step 4: Refresh UI
-    updateDashboardAndCharts(lastFilteredData);
-    populateDataTable(lastFilteredData);
+    setTimeout(() => {
+        updateDashboardAndCharts(lastFilteredData);
+    }, 0);
+    setTimeout(() => {
+        populateDataTable(lastFilteredData);
+    }, 50);
 }
 
 // --- File Upload Logic (MODIFIED) ---
@@ -822,34 +834,68 @@ function handleFileUpload(event) {
 }
 
 
-function populateCompanyDropdown(data) {
-    if (!data || data.length <= 1) return;
-    
-    // Use the existing findCol helper
-    const companyColIndex = findCol(data[0], 'COMPANY');
-    if (companyColIndex === -1) {
-        console.warn("Company column not found. Cannot populate Company filter.");
-        return;
-    }
-    
-    // Extract unique company names
-    companyNames = new Set(data.slice(1).map(row => row[companyColIndex]).filter(Boolean));
-    const companySelect = document.getElementById('companySelect');
-    
-    if (companySelect) {
-        companySelect.innerHTML = '<option value="ALL">ALL</option>';
-        companyNames.forEach(company => {
-            const option = document.createElement('option');
-            option.value = company;
-            option.textContent = company;
-            companySelect.appendChild(option);
-        });
-        // Select the initial value ('ALL')
-        companySelect.value = selectedCompany; 
-    }
+
+
+function populateCompanyDropdown() {
+    const select = document.getElementById('companySelect');
+    if (!select) return;
+    select.innerHTML = '<option value="ALL">ALL COMPANIES</option>';
+    Array.from(companyNames).sort().forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+    });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function transformToExcelStyle(json) {
+    if (json.length === 0) return [];
+    const headers = Object.keys(json[0]);
+    const rows = json.map(obj => headers.map(header => obj[header]));
+    return [headers, ...rows];
+}
+
+
+
+document.addEventListener('DOMContentLoaded', async function () {
+
+    const data = await loadWellnessData();
+    
+    if (data && data.length > 0) {
+        // 2. Set the global variables your existing charts need
+        headerRow = data[0]; 
+        allLoadedData = [{ data: data, header: headerRow }];
+        
+        // 3. Kick off your existing dashboard logic
+        populateDropdowns(); 
+        handleFilterChange(); 
+        
+        console.log("Dashboard populated automatically!");
+    } else {
+        alert("No data found on the server.");
+    }
+
+fetch('http://localhost:3000/get-my-data')
+        .then(response => response.json())
+        .then(data => {
+            console.log("Data received automatically!", data);
+            
+            // Set the global variables your charts use
+            headerRow = data[0]; 
+            allLoadedData = [{ data: data, header: headerRow }];
+            
+            // Run your existing logic to fill the dashboard
+            populateDropdowns(); 
+            handleFilterChange(); 
+            document.getElementById('loadingOverlay').style.display = 'none';
+        })
+        
+        .catch(err => {
+            console.error("Server error:", err);
+            alert("Could not connect to the server. Make sure 'node server.js' is running!");
+        });
+
+
     // 1. Initial date and stat setup
     const dateElement = document.getElementById('currentDate');
     const currentYearDisplay = document.getElementById('currentYearDisplay');
@@ -868,13 +914,6 @@ document.addEventListener('DOMContentLoaded', () => {
         currentYearDisplay.textContent = '2025'; 
     }
     
-    // 2. Initial Filter Listeners (File Upload)
-    const fileUploadElement = document.getElementById('fileUpload');
-    if (fileUploadElement) {
-        fileUploadElement.addEventListener('change', handleFileUpload);
-    } else {
-        console.error("Error: 'fileUpload' element not found.");
-    }
 
     // 3. Date Range Picker (Flatpickr)
     const datePickerInput = document.getElementById('dosDateRangePicker');
@@ -965,12 +1004,15 @@ document.getElementById('clearMonthFilter').addEventListener('click', () => {
     }
 
     // Search Function
-
+    let searchTimeout;
     const employeeSearch = document.getElementById('employeeSearch');
     if (employeeSearch) {
-    employeeSearch.addEventListener('input', (e) => {
-        searchQuery = e.target.value.toLowerCase().trim();
-        handleFilterChange(); // Triggers re-filtering and chart updates
+            employeeSearch.addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase().trim();
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    handleFilterChange();
+             }, 300)
     });
 }
     
@@ -993,4 +1035,26 @@ document.getElementById('clearMonthFilter').addEventListener('click', () => {
             clearChart(id, 'Upload data to begin analysis.');
         }
     });
+
+    const savedName = localStorage.getItem('adminName');
+    const nameDisplayElement = document.getElementById('adminDisplayName');
+
+    // 2. If a name exists, show it; otherwise default to "Admin"
+    if (nameDisplayElement) {
+        nameDisplayElement.textContent = savedName ? savedName : "Admin";
+    }
+
 });
+
+window.addEventListener('load', async () => {
+    // This calls the server's "cached" data, so it won't lag the login transition
+    const data = await loadWellnessData();
+    
+    if (data) {
+        allLoadedData = data;
+        headerRow = data[0];
+        
+        // Populate the table and charts immediately
+        handleFilterChange(); 
+        console.log("Admin page populated instantly from server cache.");
+    }});

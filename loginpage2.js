@@ -15,6 +15,26 @@ document.getElementById('back-btn').addEventListener('click', () => {
     document.getElementById('step-select').classList.remove('hidden');
 });
 
+function handleLogin() {
+    const username = document.getElementById('username').value.toLowerCase().trim();
+    let displayName = "";
+
+    // Map usernames to Display Names
+    if (username === 'wilkhoo') {
+        displayName = "Dr. Wilkhoo";
+    } else if (username === 'yadu') {
+        displayName = "Yadu";
+    } else {
+        displayName = "Guest User";
+    }
+
+    // Save the name to the browser's memory
+    localStorage.setItem('adminName', displayName);
+
+    // Redirect to the admin page
+    window.location.href = 'adminpage2.html'; 
+}
+
 // **NEW: Form Submission Handler**
 document.getElementById('login-form').addEventListener('submit', (event) => {
     // 1. Prevent the default form submission (which causes the page reload)

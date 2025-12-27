@@ -1,31 +1,30 @@
 // Global variables
 let allLoadedData = []; 
 let headerRow = null;
-let chartInstances = {}; // Object to store all Chart.js instances by their canvas ID
+let chartInstances = {}; 
 let lastFilteredData = null; 
 
 // --- Column Finder Helpers ---
-const findCol = (header, name) => header.findIndex(h => h.includes(name));
+const findCol = (header, name) => 
+    header.findIndex(h => h.toString().toLowerCase().trim() === name.toLowerCase());
+
 const findCols = (header, names) => names.map(name => findCol(header, name)).filter(i => i !== -1);
 
 function openLoginPopup() {
-            const url = 'loginpage2.html';
-            const name = 'LoginWindow';
-            // Window features: width, height, and disabling toolbars/location bar
-            const features = 'width=550,height=700,toolbar=no,location=,status=no,menubar=no,scrollbars=yes,resizable=yes';
-            window.open(url, name, features);
-        }
+    const url = 'loginpage2.html';
+    const name = 'LoginWindow';
+    const features = 'width=550,height=700,toolbar=no,location=,status=no,menubar=no,scrollbars=yes,resizable=yes';
+    window.open(url, name, features);
+}
 
 // --- Data Categorization Functions ---
 
-// (1) Participants - NEW DEDICATED LOGIC (For chartParticipants)
 function calculateParticipantsData(data) {
     const total = data.length - 1;
     if (total <= 0) return null;
     return { 'Participants': total };
 }
 
-// (2) Calculates Obesity (BMI) - UPDATED LOGIC (Yes/No based on BMI >= 30)
 function calculateObesityData(data, header) {
     let bmiCol = findCol(header, 'bmi');
     if (bmiCol === -1) { bmiCol = findCol(header, 'number'); } 
@@ -35,245 +34,129 @@ function calculateObesityData(data, header) {
     for (let i = 1; i < data.length; i++) {
         const bmiValue = parseFloat(data[i][bmiCol]);
         if (isNaN(bmiValue)) continue;
-
-        if (bmiValue >= 30.0) { // BMI >= 30 is Obesity
-            counts['Yes']++; 
-        } else { 
-            counts['No']++; 
-        }
+        if (bmiValue >= 30.0) { counts['Yes']++; } else { counts['No']++; }
     }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
+    return (counts['Yes'] + counts['No'] === 0) ? null : counts;
 }
 
-// (3) Calculates Diabetes - UPDATED LOGIC (Yes/No based on BS thresholds)
 function calculateDiabetesData(data, header) {
-    const fbsCol = findCol(header, 'bs1');
-    const rbsCol = findCol(header, 'bs2');
+    const fbsCol = findCol(header, 'fasting bs1');
+    const rbsCol = findCol(header, 'random bs2');
     if (fbsCol === -1 && rbsCol === -1) return null;
-
     const counts = { 'Yes': 0, 'No': 0 };
-    
     for (let i = 1; i < data.length; i++) {
         let isDiabetic = false;
         let hasData = false;
-        
         const fbsValue = parseFloat(data[i][fbsCol]);
         if (!isNaN(fbsValue)) {
             hasData = true;
-            if (fbsValue >= 112) { // FBS > 111 (>= 112)
-                isDiabetic = true;
-            }
+            if (fbsValue >= 112) isDiabetic = true;
         }
-
         const rbsValue = parseFloat(data[i][rbsCol]);
         if (!isNaN(rbsValue)) {
             hasData = true;
-            if (rbsValue >= 202) { // RBS > 201 (>= 202)
-                isDiabetic = true;
-            }
+            if (rbsValue >= 202) isDiabetic = true;
         }
-
-        if (isDiabetic) {
-            counts['Yes']++;
-        } else if (hasData) {
-            counts['No']++;
-        }
-        // Skip if neither FBS nor RBS data exists for the row
+        if (isDiabetic) counts['Yes']++;
+        else if (hasData) counts['No']++;
     }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
+    return (counts['Yes'] + counts['No'] === 0) ? null : counts;
 }
-
-
 
 function calculateFitnessData(data, header) {
-    const exeCols = findCols(header, ['exe1', 'exe2', 'exe3']);
-    if (exeCols.length === 0) return null;
-
-    // Change: Counts now represent the total number of 'Yes' and 'No' responses across all exercise columns.
-    const counts = { 'Yes': 0, 'No': 0 }; 
-
-    for (let i = 1; i < data.length; i++) {
-        for (const colIndex of exeCols) {
-            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
-
-            if (value.startsWith('Y')) {
-                counts['Yes']++;
-            } else if (value.startsWith('N')) { 
-                counts['No']++;
-            }
-        }
-    }
-
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
+    const exeCols = findCols(header, ['exe1', 'exe2', 'exe3']);
+    if (exeCols.length === 0) return null;
+    const counts = { 'Yes': 0, 'No': 0 }; 
+    for (let i = 1; i < data.length; i++) {
+        for (const colIndex of exeCols) {
+            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
+            if (value.startsWith('Y')) counts['Yes']++;
+            else if (value.startsWith('N')) counts['No']++;
+        }
+    }
+    return (counts['Yes'] + counts['No'] === 0) ? null : counts;
 }
 
-// **MODIFIED LOGIC: Count total 'Y's and 'N's across STR1, STR2, STR3, STR4**
 function calculateStressData(data, header) {
-    const strCols = findCols(header, ['str1', 'str2', 'str3', 'str4']);
+    const strCols = findCols(header, ['str1', 'str2', 'str3', 'str4']);
     const str4ColIndex = findCol(header, 'str4');
-    if (strCols.length === 0) return null;
-
-    // Change: Counts now represent the total number of 'Yes' and 'No' responses across all stress columns.
-    const counts = { 'Yes': 0, 'No': 0 }; 
-
-    for (let i = 1; i < data.length; i++) {
-        for (const colIndex of strCols) {
-            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
-
-            if (colIndex === str4ColIndex) {
-                // REVERSED LOGIC FOR STR4
-                if (value.startsWith('Y')) {
-                    // Y in STR4 means 'No' Stress
-                    counts['No']++; 
-                } else if (value.startsWith('N')) { 
-                    // N in STR4 means 'Yes' Stress
-                    counts['Yes']++;
-                }
-            } else {
-                // NORMAL LOGIC for STR1, STR2, STR3
-                if (value.startsWith('Y')) {
-                    // Y means 'Yes' Stress
-                    counts['Yes']++;
-                } else if (value.startsWith('N')) { 
-                    // N means 'No' Stress
-                    counts['No']++;
-                }
-            }
-        }
-    }
-
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
+    if (strCols.length === 0) return null;
+    const counts = { 'Yes': 0, 'No': 0 }; 
+    for (let i = 1; i < data.length; i++) {
+        for (const colIndex of strCols) {
+            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
+            if (colIndex === str4ColIndex) {
+                if (value.startsWith('Y')) counts['No']++; 
+                else if (value.startsWith('N')) counts['Yes']++;
+            } else {
+                if (value.startsWith('Y')) counts['Yes']++;
+                else if (value.startsWith('N')) counts['No']++;
+            }
+        }
+    }
+    return (counts['Yes'] + counts['No'] === 0) ? null : counts;
 }
-    
 
-// (5) Hypertension - UPDATED LOGIC (Yes/No based on BP thresholds)
 function calculateHypertensionData(data, header) {
-    const bp1Col = findCol(header, 'bp1');
-    const bp2Col = findCol(header, 'bp2');
+    const bp1Col = findCol(header, 'systolic bp1');
+    const bp2Col = findCol(header, 'diastolic bp2');
     if (bp1Col === -1 || bp2Col === -1) return null;
-
     const counts = { 'Yes': 0, 'No': 0 };
-    
     for (let i = 1; i < data.length; i++) {
         const bp1 = parseInt(data[i][bp1Col]);
         const bp2 = parseInt(data[i][bp2Col]);
-        
         if (isNaN(bp1) || isNaN(bp2)) continue;
-
-        if (bp1 >= 142 || bp2 >= 91) { // BP1 > 141 (>= 142) OR BP2 > 90 (>= 91)
-            counts['Yes']++;
-        } else {
-            counts['No']++;
-        }
+        if (bp1 >= 142 || bp2 >= 91) counts['Yes']++;
+        else counts['No']++;
     }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
+    return (counts['Yes'] + counts['No'] === 0) ? null : counts;
 }
 
-// (6) Chronic Disease Status - NEW DEDICATED LOGIC (Based on MED_DETAILS content)
 function calculateChronicData(data, header) {
     const medDetailsCol = findCol(header, 'med_details');
     if (medDetailsCol === -1) return null;
-
     const counts = { 'Yes': 0, 'No': 0 };
     for (let i = 1; i < data.length; i++) {
         const value = (data[i][medDetailsCol] || '').toString().toUpperCase().trim();
-        
-        if (value.length > 0 && value !== 'NONE' && value !== 'N/A' && value !== 'N') {
-            counts['Yes']++;
-        } else if (value.length > 0) {
-             counts['No']++; 
-        }
-        // Skip if the cell is completely empty (no data points)
+        if (value.length > 0 && value !== 'NONE' && value !== 'N/A' && value !== 'N') counts['Yes']++;
+        else if (value.length > 0) counts['No']++; 
     }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
+    return (counts['Yes'] + counts['No'] === 0) ? null : counts;
 }
 
-// (7) Chronic Medication Status - NEW DEDICATED LOGIC (Based on MEDICATION column Y/N)
 function calculateMedicationData(data, header) {
     const medicationCol = findCol(header, 'medication');
     if (medicationCol === -1) return null;
-
     const counts = { 'Yes': 0, 'No': 0 }; 
     for (let i = 1; i < data.length; i++) {
         const value = (data[i][medicationCol] || '').toString().toUpperCase().trim();
-
-        if (value.startsWith('Y')) { 
-            counts['Yes']++; 
-        } else if (value.startsWith('N')) { 
-            counts['No']++; 
-        }
-        // Skip if value is empty or anything else
+        if (value.startsWith('Y')) counts['Yes']++; 
+        else if (value.startsWith('N')) counts['No']++; 
     }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
+    return (counts['Yes'] + counts['No'] === 0) ? null : counts;
 }
 
-// (8) Dyslipidemia - NEW DEDICATED LOGIC (For chartCholestrol)
 function calculateDyslipidemiaData(data, header) {
-    // Look for the user-specified column: 'CHOLESTEROL'
     const cholCol = findCol(header, 'cholesterol');
-    
-    // Fallback logic to check other cholesterol column names if 'CHOLESTEROL' is missing
     const genericCholCol = findCol(header, 'chol');
-
     if (cholCol === -1 && genericCholCol === -1) return null;
-
-    const counts = { 'Yes': 0, 'No': 0 }; // Yes: Dyslipidemia/High Chol
-    
+    const counts = { 'Yes': 0, 'No': 0 }; 
     for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        
-        // Prioritize the specific 'CHOLESTEROL' column if it exists
-        let cholValue = NaN;
-        if (cholCol !== -1) {
-            cholValue = parseFloat(row[cholCol]);
-        } else if (genericCholCol !== -1) {
-            // Fallback to 'chol' if 'cholesterol' is not found
-            cholValue = parseFloat(row[genericCholCol]);
-        }
-
+        let cholValue = parseFloat(data[i][cholCol !== -1 ? cholCol : genericCholCol]);
         if (isNaN(cholValue)) continue;
-        
-        // User-defined rule: above 220 is 'Yes' (High Cholesterol)
-        if (cholValue > 220) { 
-            counts['Yes']++;
-        } else {
-            counts['No']++;
-        }
+        if (cholValue > 220) counts['Yes']++; else counts['No']++;
     }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
-}   
+    return (counts['Yes'] + counts['No'] === 0) ? null : counts;
+}   
 
-// --- Chart Drawing Functions (Unchanged) ---
+// --- Chart Drawing Functions ---
 
-/**
- * Draws or updates any chart.
- */
 function drawChart(chartId, type, title, labels, data, colors) {
     const ctx = document.getElementById(chartId);
     if (!ctx) return;
-
-    if (chartInstances[chartId]) {
-        chartInstances[chartId].destroy();
-    }
-    
+    if (chartInstances[chartId]) chartInstances[chartId].destroy();
     ctx.style.display = 'block';
-
     const isPie = (type === 'pie');
-    
     chartInstances[chartId] = new Chart(ctx, {
         type: type,
         data: {
@@ -289,21 +172,12 @@ function drawChart(chartId, type, title, labels, data, colors) {
         options: {
             responsive: true,
             maintainAspectRatio: false, 
-            plugins: {
-                legend: { position: isPie ? 'right' : 'top' },
-                title: { display: false } 
-            },
-            scales: isPie ? {} : {
-                y: { beginAtZero: true, title: { display: true, text: 'Count' } },
-                x: { ticks: { autoSkip: true, maxRotation: 0 } }
-            }
+            plugins: { legend: { position: isPie ? 'right' : 'top' } },
+            scales: isPie ? {} : { y: { beginAtZero: true } }
         }
     });
 }
 
-/**
- * Clears a chart and hides the canvas, replacing it with a message.
- */
 function clearChart(chartId, message = 'No data available.') {
     if (chartInstances[chartId]) {
         chartInstances[chartId].destroy();
@@ -326,393 +200,100 @@ function clearChart(chartId, message = 'No data available.') {
     }
 }
 
-/**
- * Clears the placeholder message before drawing a new chart.
- */
 function preDrawCleanup(chartId) {
     const canvas = document.getElementById(chartId);
     if (canvas) {
         const container = canvas.closest('.chart-container');
         const message = container.querySelector('.placeholder-message');
-        if (message) {
-            message.remove();
-        }
+        if (message) message.remove();
         canvas.style.display = 'block';
     }
 }
 
-
 // --- Dashboard Update Logic ---
 
 function updateDashboardAndCharts(data) {
+    if (!data || data.length <= 1) return;
     const totalEmployees = data.length - 1; 
-    
-    const allChartIds = ['chartParticipants','chartGender', 'chartChronic', 'chartHypertension', 'chartDiabetes', 
-                         'chartCholestrol','chartObesity', 'chartFitness', 'chartStress', 'chartMedication'];
-
-    if (totalEmployees <= 0) {
-        // Only update the one stat card we have in the HTML
-        document.getElementById('numScreenedValue').textContent = '0';
-        
-        allChartIds.forEach(id => clearChart(id, 'No data available for the current filters.'));
-        return;
-    }
-    
     document.getElementById('numScreenedValue').textContent = totalEmployees.toLocaleString();
 
     const header = data[0].map(h => String(h || '').toLowerCase().trim());
     const genderCol = findCol(header, 'gender');
     let genderData = { Male: 0, Female: 0 };
 
-    // 1. Calculate Gender Data
     for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        
-        // Gender
         if (genderCol !== -1) {
-            const gender = (row[genderCol] || '').toString().toLowerCase();
-
-            if (gender.startsWith('m')) {
-                genderData.Male++;
-            } else if (gender.startsWith('f')) {
-                genderData.Female++;
-            }
+            const gender = (data[i][genderCol] || '').toString().toLowerCase();
+            if (gender.startsWith('m')) genderData.Male++;
+            else if (gender.startsWith('f')) genderData.Female++;
         }
     }
 
-    
-    // --- 2. Draw All 10 Charts ---
-    
-    const participantsData = calculateParticipantsData(data);
-    if (participantsData) {
-        preDrawCleanup('chartParticipants');
-        // Use 'doughnut' for a better look for a single total, making the total count visible in the card above.
-        drawChart('chartParticipants', 'doughnut', 'Total Participants', Object.keys(participantsData), Object.values(participantsData), ['#4e73df']); 
-    } else { clearChart('chartParticipants', 'No employees found in selection.'); }
+    // Process all charts
+    const charts = [
+        { id: 'chartParticipants', type: 'doughnut', func: calculateParticipantsData, colors: ['#4e73df'] },
+        { id: 'chartGender', type: 'pie', data: genderData, colors: ['#4e73df', '#e74a3b'] },
+        { id: 'chartChronic', type: 'pie', func: calculateChronicData, colors: ['#dc3545', '#28a745'] },
+        { id: 'chartHypertension', type: 'pie', func: calculateHypertensionData, colors: ['#dc3545', '#28a745'] },
+        { id: 'chartDiabetes', type: 'pie', func: calculateDiabetesData, colors: ['#dc3545', '#28a745'] },
+        { id: 'chartCholestrol', type: 'pie', func: calculateDyslipidemiaData, colors: ['#dc3545', '#28a745'] },
+        { id: 'chartObesity', type: 'pie', func: calculateObesityData, colors: ['#dc3545', '#28a745'] },
+        { id: 'chartFitness', type: 'pie', func: calculateFitnessData, colors: ['#28a745', '#dc3545'] },
+        { id: 'chartStress', type: 'pie', func: calculateStressData, colors: ['#28a745', '#dc3545'] },
+        { id: 'chartMedication', type: 'pie', func: calculateMedicationData, colors: ['#dc3545', '#28a745'] }
+    ];
 
-    // Chart 2: Gender (Pie)
-    preDrawCleanup('chartGender');
-    drawChart('chartGender', 'pie', 'Gender Distribution', Object.keys(genderData), Object.values(genderData), ['#4e73df', '#e74a3b']);
-
-    // Chart 3: Chronic Disease (NEW DEDICATED LOGIC)
-    const chronicData = calculateChronicData(data, header);
-    if (chronicData) {
-        preDrawCleanup('chartChronic');
-        // Red for Yes, Green for No
-        drawChart('chartChronic', 'pie', 'Chronic Disease Status', Object.keys(chronicData), Object.values(chronicData), ['#dc3545', '#28a745']); 
-    } else { clearChart('chartChronic', 'MED_DETAILS column not found.'); }
-
-    // Chart 4: Hypertension/BP (NEW DEDICATED LOGIC)
-    const hypertensionData = calculateHypertensionData(data, header);
-    if (hypertensionData) {
-        preDrawCleanup('chartHypertension');
-        // Red for Yes, Green for No
-        drawChart('chartHypertension', 'pie', 'Hypertension Risk (BP)', Object.keys(hypertensionData), Object.values(hypertensionData), ['#dc3545', '#28a745']);
-    } else { clearChart('chartHypertension', 'Blood Pressure columns (BP1/BP2) not found.'); }
-    
-    // Chart 5: Diabetes/BS (NEW DEDICATED LOGIC)
-    const diabetesData = calculateDiabetesData(data, header);
-    if (diabetesData) {
-        preDrawCleanup('chartDiabetes');
-        // Red for Yes, Green for No
-        drawChart('chartDiabetes', 'pie', 'Diabetes (Blood Sugar)', Object.keys(diabetesData), Object.values(diabetesData), ['#dc3545', '#28a745']);
-    } else { clearChart('chartDiabetes', 'Required blood sugar columns (BS1/BS2) not found.'); }
-    
-    // Chart 6: Dyslipidemia (NEW DEDICATED LOGIC)
-    const dyslipidemiaData = calculateDyslipidemiaData(data, header);
-    if (dyslipidemiaData) {
-        preDrawCleanup('chartCholestrol');
-        // Red for Yes, Green for No
-        drawChart('chartCholestrol', 'pie', 'Dyslipidemia', Object.keys(dyslipidemiaData), Object.values(dyslipidemiaData), ['#dc3545', '#28a745']);
-    } else { clearChart('chartCholestrol', 'Cholesterol/Lipid columns not found.'); }
-
-    // Chart 7: Obesity/BMI (NEW DEDICATED LOGIC)
-    const obesityData = calculateObesityData(data, header);
-    if (obesityData) {
-        preDrawCleanup('chartObesity');
-        // Red for Yes, Green for No
-        drawChart('chartObesity', 'pie', 'Obesity/BMI Classification', Object.keys(obesityData), Object.values(obesityData), ['#dc3545', '#28a745']);
-    } else { clearChart('chartObesity', 'BMI column not found.'); }
-
-    // Chart 8: Fitness/Exercise (Keep Existing Generic Logic)
-    const fitnessData = calculateFitnessData(data, header);
-    if (fitnessData) {
-        preDrawCleanup('chartFitness');
-        // Green for Active/Fit, Red for Less Active
-        drawChart('chartFitness', 'pie', 'Fitness/Exercise Level', Object.keys(fitnessData), Object.values(fitnessData), ['#28a745', '#dc3545']); 
-    } else { clearChart('chartFitness', 'Exercise columns (EXE1-3) not found.'); }
-    
-    // Chart 9: Stress (Keep Existing Generic Logic)
-    const stressData = calculateStressData(data, header);
-    if (stressData) {
-        preDrawCleanup('chartStress');
-        // Green for Active/Fit, Red for Less Active
-        drawChart('chartStress', 'pie', 'Stress', Object.keys(stressData), Object.values(stressData), ['#28a745', '#dc3545']); 
-    } else { clearChart('chartStress', 'Exercise columns (STR1-4) not found.'); }
-
-    // Chart 10: Chronic Medication (NEW DEDICATED LOGIC)
-    const medicationData = calculateMedicationData(data, header);
-    if (medicationData) {
-        preDrawCleanup('chartMedication');
-        // Red for Yes, Green for No
-        drawChart('chartMedication', 'pie', 'Chronic Medication Status', Object.keys(medicationData), Object.values(medicationData), ['#dc3545', '#28a745']); 
-    } else { clearChart('chartMedication', 'MEDICATION column not found.'); }
-}
-
-function filterData() {
-    if (allLoadedData.length === 0) return [];
-
-    let combinedFilteredData = [];
-    if (allLoadedData[0] && allLoadedData[0].data.length > 0) {
-        combinedFilteredData.push(allLoadedData[0].data[0]); // Add Header from the first file
-    } else { return []; }
-    
-    // This is where we combine all the employee rows from all files
-    for (const dataObj of allLoadedData) {
-        // Start from the first row after the header (index 1)
-        for (let i = 1; i < dataObj.data.length; i++) {
-            combinedFilteredData.push(dataObj.data[i]);
+    charts.forEach(c => {
+        const chartData = c.func ? c.func(data, header) : c.data;
+        if (chartData) {
+            preDrawCleanup(c.id);
+            drawChart(c.id, c.type, '', Object.keys(chartData), Object.values(chartData), c.colors);
+        } else {
+            clearChart(c.id);
         }
-    }
-    
-    // NOTE: We no longer update the dashboard or company counts here. 
-    // That happens on the admin page using the stored data.
-    return combinedFilteredData;
+    });
 }
-
 
 function handleFilterChange() {
-    // This is now purely a data consolidation step before saving.
-    if (allLoadedData.length === 0) return;
+    if (!allLoadedData || allLoadedData.length === 0) return;
     
-    const finalDataArray = filterData();
-
-    if (finalDataArray.length <= 1) {
-        // Only header row present
-        localStorage.removeItem('corporateWellnessData');
-        alert('No employee data found after processing files.');
-        return;
-    }
-    
-    // --- 🚨 STEP 1: PREPARE AND SAVE TO LOCALSTORAGE 🚨 ---
-    const dataToStore = {
-        // The first element is the Header Row
-        header: finalDataArray[0].map(h => String(h || '').trim()), 
-        // The rest are the Employee Rows
-        employeeRows: finalDataArray.slice(1) 
-    };
-
-    localStorage.setItem('corporateWellnessData', JSON.stringify(dataToStore));
-    
-    alert(`Successfully loaded ${dataToStore.employeeRows.length} employee records and saved to local storage. You can now log in.`);
-    
-    // The dashboard update logic is now on the Admin Page.
-}
-
-// --- File Upload Logic (MODIFIED for LocalStorage) ---
-function handleFileUpload(event) {
-    const files = event.target.files;
-    if (files.length === 0) return;
-
-    allLoadedData = []; 
-    
-    // Use the SheetJS library (XLSX.js) for parsing
-    const processFile = (file) => {
-        return new Promise(resolve => {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                
-                // Read sheet into array of arrays format
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-
-                if (jsonData.length <= 1) {
-                    console.warn(`File ${file.name} contained no employee data.`);
-                    return resolve();
-                }
-
-                const fileHeader = jsonData[0].map(h => String(h || '').toLowerCase().trim());
-                
-                // Store the parsed data temporarily
-                allLoadedData.push({ data: jsonData, header: fileHeader });
-                resolve();
-            };
-            reader.readAsArrayBuffer(file);
-        });
-    };
-
-    // Process all uploaded files
-    Promise.all(Array.from(files).map(processFile))
-        .then(() => {
-            if (allLoadedData.length === 0) {
-                alert('No valid data found in the uploaded files. Please check file format.');
-                localStorage.removeItem('corporateWellnessData'); // Clear any previous data
-                return;
-            }
-
-            // Once all files are processed, consolidate and save data to storage
-            handleFilterChange();
-        });
-}
-
-
-document.addEventListener('DOMContentLoaded', () => {
-    // Initial date and stat setup (Keep for the index page)
-    const dateElement = document.getElementById('currentDate');
-    const today = new Date();
-
-    if (dateElement) {
-        dateElement.textContent = today.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
-    
-    // Ensure the file upload listener is attached
-    const fileUploadElement = document.getElementById('fileUpload');
-    if (fileUploadElement) {
-        fileUploadElement.addEventListener('change', handleFileUpload);
-    } else {
-         console.error("Error: 'fileUpload' element not found. Cannot attach file listener.");
-    }
-    
-    // The following elements/logic should ONLY exist on the Admin Page:
-    // document.getElementById('numCompaniesValue').textContent = '0';
-    // document.getElementById('numScreenedValue').textContent = '0';
-    // Chart clearing logic
-    
-    // If the index page also has the stats, ensure they are reset until the user logs in.
-    document.getElementById('numCompaniesValue').textContent = '0';
-    document.getElementById('numScreenedValue').textContent = '0';
-});
-
-
-// --- Filtering Logic (MODIFIED) ---
-
-function filterData() {
-    if (allLoadedData.length === 0) return [];
-
-    // No year/company filters now, combine all data.
-    let combinedFilteredData = [];
-    if (allLoadedData[0] && allLoadedData[0].data.length > 0) {
-        combinedFilteredData.push(allLoadedData[0].data[0]); // Add Header
-    } else { return []; }
+    // Server data is always in allLoadedData[0].data
+    const dataToProcess = allLoadedData[0].data;
+    const header = dataToProcess[0].map(h => String(h || '').toLowerCase().trim());
+    const companyCol = header.findIndex(h => h.includes('company'));
     
     let companiesInSelection = new Set();
-    
-    for (const dataObj of allLoadedData) {
-        const data = dataObj.data;
-        const companyCol = dataObj.header.findIndex(h => h.includes('company'));
-        
-        for (let i = 1; i < data.length; i++) {
-            const row = data[i];
-            const rowCompany = (row[companyCol] || '').toString().toUpperCase();
-            
-            combinedFilteredData.push(row);
-            if (companyCol !== -1 && rowCompany.trim().length > 0) {
-                companiesInSelection.add(rowCompany.trim());
-            }
+    if (companyCol !== -1) {
+        for (let i = 1; i < dataToProcess.length; i++) {
+            const rowCompany = (dataToProcess[i][companyCol] || '').toString().toUpperCase().trim();
+            if (rowCompany) companiesInSelection.add(rowCompany);
         }
     }
-    
-    // Update the 'Total Corporates' card
     document.getElementById('numCompaniesValue').textContent = companiesInSelection.size.toLocaleString();
-    
-    return combinedFilteredData;
+    updateDashboardAndCharts(dataToProcess);
 }
 
-
-function handleFilterChange() {
-    if (allLoadedData.length === 0) {
-        const allChartIds = ['chartParticipants','chartGender', 'chartChronic', 'chartHypertension', 'chartDiabetes', 
-                             'chartCholestrol','chartObesity', 'chartFitness', 'chartStress', 'chartMedication'];
-        allChartIds.forEach(id => clearChart(id, 'Upload data to begin analysis.'));
-        return;
-    }
-    
-    lastFilteredData = filterData();
-    updateDashboardAndCharts(lastFilteredData);
-}
-
-// --- File Upload Logic (MODIFIED) ---
-function handleFileUpload(event) {
-    const files = event.target.files;
-    if (files.length === 0) return;
-
-    allLoadedData = []; 
-    // Removed all dropdown-related variables (companyNames, yearSelect, years)
-    
-    const processFile = (file) => {
-        return new Promise(resolve => {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-
-                if (jsonData.length <= 1) return resolve();
-
-                const fileHeader = jsonData[0].map(h => String(h || '').toLowerCase().trim());
-                const companyCol = fileHeader.findIndex(h => h.includes('company'));
-                
-                let inferredCompany = 'UNKNOWN';
-                if (jsonData.length > 1 && companyCol !== -1) {
-                    inferredCompany = (jsonData[1][companyCol] || 'UNKNOWN').toString().toUpperCase().trim();
-                }
-                
-                let inferredYear = 'UNKNOWN';
-                const match = file.name.match(/(\d{4})/);
-                if (match) { inferredYear = match[0]; }
-                
-                allLoadedData.push({ data: jsonData, header: fileHeader, company: inferredCompany, year: inferredYear });
-                resolve();
-            };
-            reader.readAsArrayBuffer(file);
-        });
-    };
-
-    Promise.all(Array.from(files).map(processFile))
-        .then(() => {
-            if (allLoadedData.length === 0) {
-                alert('No valid data found in the uploaded files.');
-                handleFilterChange();
-                return;
-            }
-
-            headerRow = allLoadedData[0].header;
-            
-            // Removed dropdown population logic
-            
-            handleFilterChange();
-        });
-}
-
-
-document.addEventListener('DOMContentLoaded', () => {
-    // Initial date and stat setup
+// --- Initialize ---
+document.addEventListener('DOMContentLoaded', async () => {
     const dateElement = document.getElementById('currentDate');
-    const currentYearDisplay = document.getElementById('currentYearDisplay');
     const today = new Date();
+    
+    // Set UI Defaults
+    if (dateElement) dateElement.textContent = today.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const yearDisplay = document.getElementById('currentYearDisplay');
+    if (yearDisplay) yearDisplay.textContent = '2025';
 
-    if (dateElement) {
-        dateElement.textContent = today.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
-    
-    // Set the current year display based on the HTML
-    if (currentYearDisplay) {
-        currentYearDisplay.textContent = '2025'; 
-    }
-    
-    // Initial Filter Listeners
-    document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
-    // Removed yearSelect and companySelect listeners
-    
-    // Initial placeholder setup
-    document.getElementById('numCompaniesValue').textContent = '0';
-    document.getElementById('numScreenedValue').textContent = '0';
-    
-    // Set initial messages for all charts
+    // Clear Charts initially
     const allChartIds = ['chartParticipants','chartGender', 'chartChronic', 'chartHypertension', 'chartDiabetes', 
                          'chartCholestrol','chartObesity', 'chartFitness', 'chartStress', 'chartMedication'];
-    allChartIds.forEach(id => clearChart(id, 'Upload data to begin analysis.'));
+    allChartIds.forEach(id => clearChart(id, 'Loading server data...'));
+
+    // Fetch from server
+    const data = await loadWellnessData(); 
+    if (data) {
+        allLoadedData = data;
+        handleFilterChange();
+    } else {
+        allChartIds.forEach(id => clearChart(id, 'Failed to connect to server.'));
+    }
 });
