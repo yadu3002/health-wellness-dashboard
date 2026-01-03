@@ -56,6 +56,58 @@ function calculateObesityData(data, header) {
     return counts;
 }
 
+function openObesityPopup() {
+    if (!lastFilteredData || lastFilteredData.length <= 1) return;
+    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
+    const bmiIdx = findCol(header, 'bmi');
+
+    const stages = [
+        { name: 'Underweight', color: '#36b9cc', check: (v) => v < 18.5, count: 0 },
+        { name: 'Normal', color: '#1cc88a', check: (v) => v >= 18.5 && v <= 24.9, count: 0 },
+        { name: 'Overweight', color: '#f6c23e', check: (v) => v >= 25.0 && v <= 29.9, count: 0 },
+        { name: 'Obesity Gr 1', color: '#fd7e14', check: (v) => v >= 30.0 && v <= 34.9, count: 0 },
+        { name: 'Obesity Gr 2', color: '#e74a3b', check: (v) => v >= 35.0 && v <= 39.9, count: 0 },
+        { name: 'Grossly Obese', color: '#851010', check: (v) => v >= 40.0, count: 0 }
+    ];
+
+    lastFilteredData.slice(1).forEach(row => {
+        const val = parseFloat(row[bmiIdx]);
+        if (isNaN(val)) return;
+        for (let i = 0; i < stages.length; i++) {
+            if (stages[i].check(val)) { stages[i].count++; break; }
+        }
+    });
+
+    const popup = window.open('', '_blank', 'width=1000,height=600');
+    popup.document.write(`
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
+            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <h2 style="text-align:center; margin-bottom:20px;">BMI & Obesity Classification</h2>
+                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
+            </div>
+            <script>
+                new Chart(document.getElementById('mainChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ${JSON.stringify(stages.map(s => s.name))},
+                        datasets: [{
+                            label: 'Participants',
+                            data: ${JSON.stringify(stages.map(s => s.count))},
+                            backgroundColor: ${JSON.stringify(stages.map(s => s.color))},
+                            borderRadius: 5
+                        }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            </script>
+        </body>`);
+}
+
 // (3) Calculates Diabetes - UPDATED LOGIC (Yes/No based on BS thresholds)
 function calculateDiabetesData(data, header) {
     const fbsCol = findCol(header, 'bs1');
@@ -94,6 +146,56 @@ function calculateDiabetesData(data, header) {
     
     if (counts['Yes'] + counts['No'] === 0) return null;
     return counts;
+}
+
+function openDiabetesPopup() {
+    if (!lastFilteredData || lastFilteredData.length <= 1) return;
+    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
+    const fbsIdx = findCol(header, 'bs1'), rbsIdx = findCol(header, 'bs2');
+    
+    const stages = [
+        { name: 'Normal', color: '#1cc88a', check: (f, r) => (f >= 70 && f <= 100) || (r >= 100 && r <= 160), count: 0 },
+        { name: 'Pre-Diabetic', color: '#f6c23e', check: (f, r) => (f >= 101 && f <= 110) || (r >= 161 && r <= 200), count: 0 },
+        { name: 'Moderate', color: '#fd7e14', check: (f, r) => (f >= 111 && f <= 129) || (r >= 201 && r <= 250), count: 0 },
+        { name: 'Diabetic', color: '#e74a3b', check: (f, r) => (f >= 130) || (r >= 251), count: 0 }
+    ];
+
+    lastFilteredData.slice(1).forEach(row => {
+        const f = parseFloat(row[fbsIdx]), r = parseFloat(row[rbsIdx]);
+        if (isNaN(f) && isNaN(r)) return;
+        for (let i = stages.length - 1; i >= 0; i--) {
+            if (stages[i].check(f, r)) { stages[i].count++; break; }
+        }
+    });
+
+    const popup = window.open('', '_blank', 'width=900,height=600');
+    popup.document.write(`
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
+            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <h2 style="text-align:center; margin-bottom:20px;">Diabetes Risk Distribution</h2>
+                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
+            </div>
+            <script>
+                new Chart(document.getElementById('mainChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ${JSON.stringify(stages.map(s => s.name))},
+                        datasets: [{
+                            label: 'Participants',
+                            data: ${JSON.stringify(stages.map(s => s.count))},
+                            backgroundColor: ${JSON.stringify(stages.map(s => s.color))},
+                            borderRadius: 5
+                        }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            </script>
+        </body>`);
 }
 
 function calculateFitnessData(data, header) {
@@ -157,6 +259,63 @@ function calculateStressData(data, header) {
     if (counts['Yes'] + counts['No'] === 0) return null;
     return counts;
 }
+
+function openStressHabitsPopup() {
+    if (!lastFilteredData || lastFilteredData.length <= 1) return;
+    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
+    
+    const indicators = [
+        { id: 'str1', name: 'Work Stress', color: '#e74a3b', isReversed: false },
+        { id: 'str2', name: 'Family Stress', color: '#e74a3b', isReversed: false },
+        { id: 'str3', name: 'Financial Stress', color: '#e74a3b', isReversed: false },
+        { id: 'str4', name: 'Poor Sleep', color: '#e74a3b', isReversed: true },
+        { id: 'hab1', name: 'Smoking', color: '#f6c23e', isReversed: false },
+        { id: 'hab2', name: 'Alcohol', color: '#f6c23e', isReversed: false },
+        { id: 'hab3', name: 'Other Habits', color: '#f6c23e', isReversed: false }
+    ];
+
+    indicators.forEach(ind => {
+        const colIdx = findCol(header, ind.id);
+        ind.count = 0;
+        if (colIdx !== -1) {
+            lastFilteredData.slice(1).forEach(row => {
+                const val = (row[colIdx] || '').toString().toUpperCase().trim();
+                // Reversed logic: For Sleep, 'N' counts as the issue
+                if (!ind.isReversed && val.startsWith('Y')) ind.count++;
+                else if (ind.isReversed && val.startsWith('N')) ind.count++;
+            });
+        }
+    });
+
+    const popup = window.open('', '_blank', 'width=1100,height=600');
+    popup.document.write(`
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
+            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <h2 style="text-align:center; margin-bottom:20px;">Stressors & Lifestyle Risk Factors</h2>
+                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
+            </div>
+            <script>
+                new Chart(document.getElementById('mainChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ${JSON.stringify(indicators.map(i => i.name))},
+                        datasets: [{
+                            label: 'Count of Reported Issues',
+                            data: ${JSON.stringify(indicators.map(i => i.count))},
+                            backgroundColor: ${JSON.stringify(indicators.map(i => i.color))},
+                            borderRadius: 5
+                        }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            </script>
+        </body>`);
+}
     
 // (5) Hypertension - UPDATED LOGIC (Yes/No based on BP thresholds)
 function calculateHypertensionData(data, header) {
@@ -181,6 +340,55 @@ function calculateHypertensionData(data, header) {
     
     if (counts['Yes'] + counts['No'] === 0) return null;
     return counts;
+}
+function openHypertensionPopup() {
+    if (!lastFilteredData || lastFilteredData.length <= 1) return;
+    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
+    const bp1Idx = findCol(header, 'bp1'), bp2Idx = findCol(header, 'bp2');
+
+    const grades = [
+        { name: 'Pre-HTN', color: '#f6c23e', check: (s, d) => (s >= 135 && s <= 140) || (d >= 85 && d <= 89), count: 0 },
+        { name: 'Gr I HTN', color: '#fd7e14', check: (s, d) => (s >= 141 && s <= 159) || (d >= 90 && d <= 99), count: 0 },
+        { name: 'Gr II HTN', color: '#e74a3b', check: (s, d) => (s >= 160 && s <= 179) || (d >= 100 && d <= 109), count: 0 },
+        { name: 'Gr III HTN', color: '#851010', check: (s, d) => (s > 180 || d > 110), count: 0 }
+    ];
+
+    lastFilteredData.slice(1).forEach(row => {
+        const s = parseFloat(row[bp1Idx]), d = parseFloat(row[bp2Idx]);
+        if (isNaN(s) || isNaN(d)) return;
+        for (let i = grades.length - 1; i >= 0; i--) {
+            if (grades[i].check(s, d)) { grades[i].count++; break; }
+        }
+    });
+
+    const popup = window.open('', '_blank', 'width=900,height=600');
+    popup.document.write(`
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
+            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <h2 style="text-align:center; margin-bottom:20px;">Hypertension Severity Distribution</h2>
+                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
+            </div>
+            <script>
+                new Chart(document.getElementById('mainChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ${JSON.stringify(grades.map(g => g.name))},
+                        datasets: [{
+                            label: 'Number of Participants',
+                            data: ${JSON.stringify(grades.map(g => g.count))},
+                            backgroundColor: ${JSON.stringify(grades.map(g => g.color))},
+                            borderRadius: 5
+                        }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, title: { display: true, text: 'Count' } } }
+                    }
+                });
+            </script>
+        </body>`);
 }
 
 // (6) Chronic Disease Status - NEW DEDICATED LOGIC (Based on MED_DETAILS content)
@@ -428,7 +636,7 @@ function updateDashboardFilters() {
 /**
  * Draws or updates any chart.
  */
-function drawChart(chartId, type, title, labels, data, colors) {
+function drawChart(chartId, type, title, labels, data, colors,onClickHandler = null) {
     const ctx = document.getElementById(chartId);
     if (!ctx) return;
 
@@ -484,7 +692,19 @@ function drawChart(chartId, type, title, labels, data, colors) {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false, 
+            maintainAspectRatio: false,
+            onClick: (e, elements) => {
+                // If the chart has an onClickHandler and a slice/bar was clicked
+                if (onClickHandler && elements.length > 0) {
+                    onClickHandler();
+                }
+            },
+            onHover: (event, chartElement) => {
+                // Change cursor to pointer if the chart is clickable
+                if (onClickHandler) {
+                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                }
+            }, 
             plugins: {
                 legend: { position: isPie ? 'right' : 'top' },
                 title: { display: false },
@@ -590,17 +810,17 @@ async function updateDashboardAndCharts(data) {
         }},
         { id: 'chartChronic', fn: () => {
             const d = calculateChronicData(data, header);
-            if (d) { preDrawCleanup('chartChronic'); drawChart('chartChronic', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745']); }
+            if (d) { preDrawCleanup('chartChronic'); drawChart('chartChronic', 'pie', '', Object.keys(d), Object.values(d), ['#e74a3b', '#4e73df'], openPDetailsPopup); }
             else { clearChart('chartChronic', 'Data missing.'); }
         }},
         { id: 'chartHypertension', fn: () => {
             const d = calculateHypertensionData(data, header);
-            if (d) { preDrawCleanup('chartHypertension'); drawChart('chartHypertension', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745']); }
+            if (d) { preDrawCleanup('chartHypertension'); drawChart('chartHypertension', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745'],openHypertensionPopup); }
             else { clearChart('chartHypertension', 'Data missing.'); }
         }},
         { id: 'chartDiabetes', fn: () => {
             const d = calculateDiabetesData(data, header);
-            if (d) { preDrawCleanup('chartDiabetes'); drawChart('chartDiabetes', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745']); }
+            if (d) { preDrawCleanup('chartDiabetes'); drawChart('chartDiabetes', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745'],openDiabetesPopup); }
             else { clearChart('chartDiabetes', 'Data missing.'); }
         }},
         { id: 'chartCholestrol', fn: () => {
@@ -610,7 +830,7 @@ async function updateDashboardAndCharts(data) {
         }},
         { id: 'chartObesity', fn: () => {
             const d = calculateObesityData(data, header);
-            if (d) { preDrawCleanup('chartObesity'); drawChart('chartObesity', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745']); }
+            if (d) { preDrawCleanup('chartObesity'); drawChart('chartObesity', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745'],openObesityPopup); }
             else { clearChart('chartObesity', 'Data missing.'); }
         }},
         { id: 'chartFitness', fn: () => {
@@ -620,14 +840,18 @@ async function updateDashboardAndCharts(data) {
         }},
         { id: 'chartStress', fn: () => {
             const d = calculateStressData(data, header);
-            if (d) { preDrawCleanup('chartStress'); drawChart('chartStress', 'pie', '', Object.keys(d), Object.values(d), ['#28a745', '#dc3545']); }
+            if (d) { preDrawCleanup('chartStress'); drawChart('chartStress', 'pie', '', Object.keys(d), Object.values(d), ['#28a745', '#dc3545'],openStressHabitsPopup); }
             else { clearChart('chartStress', 'Data missing.'); }
         }},
         { id: 'chartMedication', fn: () => {
-            const d = calculateMedicationData(data, header);
-            if (d) { preDrawCleanup('chartMedication'); drawChart('chartMedication', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745']); }
-            else { clearChart('chartMedication', 'Data missing.'); }
-        }}
+    const d = calculateMedicationData(data, header);
+    if (d) { 
+        preDrawCleanup('chartMedication'); 
+        // We pass openPDetailsPopup as the final argument here
+        drawChart('chartMedication', 'pie', '', Object.keys(d), Object.values(d), ['#4e73df', '#1cc88a']);
+    }
+    else { clearChart('chartMedication', 'No medication data.'); }
+}},
     ];
 
     // Execute each chart render one by one, allowing UI updates in between
@@ -675,6 +899,84 @@ function populateDropdowns() {
     companySelect.value = selectedCompany;
 }
 
+// --- NEW: Detailed Medication Popup Logic ---
+// --- UPDATED: Detailed Medication Popup with Multiple Pie Charts ---
+function openPDetailsPopup() {
+    if (!lastFilteredData || lastFilteredData.length <= 1) return;
+
+    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
+    const pDetailsIdx = findCol(header, 'p_details');
+    if (pDetailsIdx === -1) return alert("Medication/Chronic details column not found.");
+
+    const rows = lastFilteredData.slice(1);
+    const conditionCounts = {};
+    let totalParticipantsWithConditions = 0;
+
+    // 1. Extract and count unique conditions from text
+    rows.forEach(row => {
+        const details = (row[pDetailsIdx] || '').toString().trim();
+        if (details && details.toLowerCase() !== 'no' && details !== '0') {
+            totalParticipantsWithConditions++;
+            // Split by comma or space and clean up words
+            const words = details.split(/[\s,]+/).map(w => w.toUpperCase().trim()).filter(w => w.length > 1);
+            const uniqueWordsInRow = [...new Set(words)]; // Avoid counting same word twice for one person
+            
+            uniqueWordsInRow.forEach(word => {
+                conditionCounts[word] = (conditionCounts[word] || 0) + 1;
+            });
+        }
+    });
+
+    // Convert to array and sort by highest count
+    const sortedConditions = Object.entries(conditionCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10); // Show top 10 conditions for clarity
+
+    if (sortedConditions.length === 0) return alert("No chronic conditions recorded in the data.");
+
+    // 2. UI Generation
+    const popup = window.open('', '_blank', 'width=1000,height=600');
+    popup.document.write(`
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
+            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <h2 style="text-align:center; margin-bottom:10px;">Chronic Disease & Medication Breakdown</h2>
+                <p style="text-align:center; color:#666; margin-bottom:20px;">
+                    Showing top ${sortedConditions.length} conditions from ${totalParticipantsWithConditions} affected participants.
+                </p>
+                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
+            </div>
+            <script>
+                new Chart(document.getElementById('mainChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ${JSON.stringify(sortedConditions.map(c => c[0]))},
+                        datasets: [{
+                            label: 'Number of Reports',
+                            data: ${JSON.stringify(sortedConditions.map(c => c[1]))},
+                            backgroundColor: '#4e73df',
+                            hoverBackgroundColor: '#2e59d9',
+                            borderColor: '#4e73df',
+                            borderRadius: 5
+                        }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false,
+                        indexAxis: 'y', // Horizontal bars are easier to read for text labels
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: (ctx) => 'Count: ' + ctx.raw } }
+                        },
+                        scales: { 
+                            x: { beginAtZero: true, grid: { display: false } },
+                            y: { grid: { display: false } }
+                        }
+                    }
+                });
+            </script>
+        </body>`);
+}
+
 
 // --- MODIFIED FUNCTION: Apply Dynamic Filter ---
 function filterData(ignoreLocation = false) {
@@ -686,24 +988,46 @@ function filterData(ignoreLocation = false) {
     const locIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('FACTORY'));
     const doscIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('DOSC'));
 
-
     const refIdx = headerRow.findIndex(h => String(h||'').toUpperCase().includes('REFID'));
     const empIdx = headerRow.findIndex(h => String(h||'').toUpperCase().includes('EMPID'));
     const nameIdx = headerRow.findIndex(h => String(h||'').toUpperCase().includes('EMPNAME'));
     const phoneIdx = headerRow.findIndex(h => String(h||'').toUpperCase().includes('PHONE'));
 
+    // --- NEW: Date Parsing Helper ---
+    // Converts "DD.MM.YYYY" string from Excel into a comparable Date object
+    const parseDateStr = (str) => {
+        if (!str) return null;
+        const parts = str.split('.');
+        if (parts.length !== 3) return null;
+        return new Date(parts[2], parts[1] - 1, parts[0]);
+    };
     
     allLoadedData.forEach(obj => {
         obj.data.slice(1).forEach(row => {
             const rowComp = String(row[compIdx] || '').toUpperCase().trim();
             const rowLoc = String(row[locIdx] || '').trim();
-            const rowDate = String(row[doscIdx] || '').trim(); // Gets the date from Excel
+            const rowDateRaw = String(row[doscIdx] || '').trim(); // "DD.MM.YYYY"
             
             const compMatch = (selectedCompany === 'ALL' || rowComp === selectedCompany);
             const locMatch = ignoreLocation || (selectedLocation === 'ALL' || rowLoc === selectedLocation);
             
-            // NEW: Logic to check if the row date matches the selected picker date
-            const dateMatch = !selectedDateRange || (rowDate === selectedDateRange);
+            // --- UPDATED: Range Filtering Logic ---
+            let dateMatch = true;
+            if (selectedDateRange) {
+                const rowDateObj = parseDateStr(rowDateRaw);
+
+                if (selectedDateRange.includes(" to ")) {
+                    // It's a range: "01.01.2025 to 07.01.2025"
+                    const [startStr, endStr] = selectedDateRange.split(" to ");
+                    const startDate = parseDateStr(startStr);
+                    const endDate = parseDateStr(endStr);
+                    
+                    dateMatch = rowDateObj && rowDateObj >= startDate && rowDateObj <= endDate;
+                } else {
+                    // It's a single date
+                    dateMatch = (rowDateRaw === selectedDateRange);
+                }
+            }
             
             let searchMatch = true;
             if (searchQuery) {
@@ -718,7 +1042,6 @@ function filterData(ignoreLocation = false) {
                               valPhone.includes(searchQuery);
             }
 
-
             if (compMatch && locMatch && searchMatch && dateMatch) {
                 combined.push(row);
             }
@@ -726,8 +1049,6 @@ function filterData(ignoreLocation = false) {
     });
     return combined;
 }
-
-
  async function handleFilterChange() {
     if (!allLoadedData || allLoadedData.length === 0) return;
 
@@ -916,20 +1237,20 @@ fetch('http://localhost:3000/get-my-data')
     
 
     // 3. Date Range Picker (Flatpickr)
-    const datePickerInput = document.getElementById('dosDateRangePicker');
+const datePickerInput = document.getElementById('dosDateRangePicker');
 if (datePickerInput) {
     flatpickr(datePickerInput, {
-        mode: "single", // Changed from "range"
-        dateFormat: "d.m.Y", // Matches your Excel date format
-        onChange: function(selectedDates, dateStr) {
-            if (selectedDates.length === 1) {
-                selectedDateRange = dateStr; // Store the single date string
-            } else {
-                selectedDateRange = null;
+        mode: "range", // Changed from "single"
+        dateFormat: "d.m.Y",
+        onClose: function(selectedDates, dateStr) {
+            // Only update and filter if a single date OR a full range is selected
+            if (selectedDates.length > 0) {
+                selectedDateRange = dateStr; 
+                handleFilterChange();
             }
-            handleFilterChange();
         }
     });
+
 
     // X. Clear button
     // Clear Date Filter Logic
