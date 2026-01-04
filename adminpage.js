@@ -221,6 +221,90 @@ function calculateFitnessData(data, header) {
     return counts;
 }
 
+function openFitnessPopup() {
+    if (!lastFilteredData || lastFilteredData.length <= 1) return;
+    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
+    
+    // 1. Setup Metrics & HR Categories
+    const metrics = [
+        { id: 'exe1', name: 'Regular Exercise', color: '#1cc88a', type: 'binary', count: 0 },
+        { id: 'breath', name: 'Good Lung Cap.', color: '#36b9cc', type: 'numeric', threshold: 30, isLess: false, count: 0 },
+        { id: 'exe3', name: 'Good Strength', color: '#4e73df', type: 'binary', count: 0 },
+        { id: 'exe2', name: 'Good Flexibility', color: '#858796', type: 'binary', count: 0 }
+    ];
+
+    // Dedicated Heart Rate Breakdown
+    const hrCategories = [
+        { name: 'HR: Resting (<60)', color: '#4e73df', check: (v) => v < 60, count: 0 },
+        { name: 'HR: Normal (60-100)', color: '#1cc88a', check: (v) => v >= 60 && v <= 100, count: 0 },
+        { name: 'HR: High (101-120)', color: '#f6c23e', check: (v) => v >= 101 && v <= 120, count: 0 },
+        { name: 'HR: Tachy (>120)', color: '#e74a3b', check: (v) => v > 120, count: 0 }
+    ];
+
+    const rows = lastFilteredData.slice(1);
+    const pulseIdx = findCol(header, 'pulse');
+
+    // 2. Single Pass Data Processing
+    rows.forEach(row => {
+        // Process standard metrics
+        metrics.forEach(m => {
+            const colIdx = findCol(header, m.id);
+            if (colIdx === -1) return;
+            const rawVal = (row[colIdx] || '').toString().trim();
+            if (m.type === 'binary' && rawVal.toUpperCase().startsWith('Y')) m.count++;
+            if (m.type === 'numeric') {
+                const val = parseFloat(rawVal);
+                if (!isNaN(val) && (m.isLess ? val < m.threshold : val >= m.threshold)) m.count++;
+            }
+        });
+
+        // Process Pulse into 4 specific bars
+        if (pulseIdx !== -1) {
+            const pulseVal = parseFloat(row[pulseIdx]);
+            if (!isNaN(pulseVal)) {
+                for (let cat of hrCategories) {
+                    if (cat.check(pulseVal)) { cat.count++; break; }
+                }
+            }
+        }
+    });
+
+    // Combine all for the chart
+    const finalLabels = [...metrics.map(m => m.name), ...hrCategories.map(c => c.name)];
+    const finalData = [...metrics.map(m => m.count), ...hrCategories.map(c => c.count)];
+    const finalColors = [...metrics.map(m => m.color), ...hrCategories.map(c => c.color)];
+
+    // 3. UI Generation
+    const popup = window.open('', '_blank', 'width=1100,height=600');
+    popup.document.write(`
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
+            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <h2 style="text-align:center; margin-bottom:20px;">Fitness & Heart Rate Detailed Analysis</h2>
+                <div style="height:450px;"><canvas id="fitnessChart"></canvas></div>
+            </div>
+            <script>
+                new Chart(document.getElementById('fitnessChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ${JSON.stringify(finalLabels)},
+                        datasets: [{
+                            label: 'Participants',
+                            data: ${JSON.stringify(finalData)},
+                            backgroundColor: ${JSON.stringify(finalColors)},
+                            borderRadius: 5
+                        }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            </script>
+        </body>`);
+}
+
 // **MODIFIED LOGIC: Count total 'Y's and 'N's across STR1, STR2, STR3, STR4**
 function calculateStressData(data, header) {
     const strCols = findCols(header, ['str1', 'str2', 'str3', 'str4']);
@@ -471,6 +555,75 @@ function calculateDyslipidemiaData(data, header) {
     return counts;
 }   
 
+function openCholesterolPopup() {
+    if (!lastFilteredData || lastFilteredData.length <= 1) return;
+
+    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
+    const cholIdx = findCol(header, 'cholesterol');
+    
+    if (cholIdx === -1) return alert("Cholesterol column not found.");
+
+    // 1. Clinical Categories & Thresholds (mg/dL)
+    const stages = [
+        { name: 'Normal (<200)', color: '#1cc88a', check: (v) => v < 200, count: 0 },
+        { name: 'Mild Hyper (200-239)', color: '#f6c23e', check: (v) => v >= 200 && v <= 239, count: 0 },
+        { name: 'Moderate Hyper (240-299)', color: '#fd7e14', check: (v) => v >= 240 && v <= 299, count: 0 },
+        { name: 'Hyper (≥300)', color: '#e74a3b', check: (v) => v >= 300, count: 0 }
+    ];
+
+    const rows = lastFilteredData.slice(1);
+    let totalValid = 0;
+
+    // 2. Data Processing
+    rows.forEach(row => {
+        const val = parseFloat(row[cholIdx]);
+        if (isNaN(val)) return;
+        totalValid++;
+
+        // Priority check: Highest severity first
+        for (let i = stages.length - 1; i >= 0; i--) {
+            if (stages[i].check(val)) {
+                stages[i].count++;
+                break;
+            }
+        }
+    });
+
+    // 3. UI Generation
+    const popup = window.open('', '_blank', 'width=900,height=600');
+    popup.document.write(`
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
+            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <h2 style="text-align:center; margin-bottom:20px;">Hypercholesterolemia Classification</h2>
+                <div style="height:450px;"><canvas id="cholChart"></canvas></div>
+            </div>
+            <script>
+                new Chart(document.getElementById('cholChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ${JSON.stringify(stages.map(s => s.name))},
+                        datasets: [{
+                            label: 'Participants',
+                            data: ${JSON.stringify(stages.map(s => s.count))},
+                            backgroundColor: ${JSON.stringify(stages.map(s => s.color))},
+                            borderRadius: 5
+                        }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: { callbacks: { label: (ctx) => 'Count: ' + ctx.raw } }
+                        },
+                        scales: { 
+                            y: { beginAtZero: true, title: { display: true, text: 'No. of People' } } 
+                        }
+                    }
+                });
+            </script>
+        </body>`);
+}
 
 /**
  * Populates the data table with the filtered participant records.
@@ -825,7 +978,7 @@ async function updateDashboardAndCharts(data) {
         }},
         { id: 'chartCholestrol', fn: () => {
             const d = calculateDyslipidemiaData(data, header);
-            if (d) { preDrawCleanup('chartCholestrol'); drawChart('chartCholestrol', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745']); }
+            if (d) { preDrawCleanup('chartCholestrol'); drawChart('chartCholestrol', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745'],openCholesterolPopup); }
             else { clearChart('chartCholestrol', 'Data missing.'); }
         }},
         { id: 'chartObesity', fn: () => {
@@ -835,7 +988,7 @@ async function updateDashboardAndCharts(data) {
         }},
         { id: 'chartFitness', fn: () => {
             const d = calculateFitnessData(data, header);
-            if (d) { preDrawCleanup('chartFitness'); drawChart('chartFitness', 'pie', '', Object.keys(d), Object.values(d), ['#28a745', '#dc3545']); }
+            if (d) { preDrawCleanup('chartFitness'); drawChart('chartFitness', 'pie', '', Object.keys(d), Object.values(d), ['#28a745', '#dc3545'],openFitnessPopup); }
             else { clearChart('chartFitness', 'Data missing.'); }
         }},
         { id: 'chartStress', fn: () => {
@@ -977,6 +1130,71 @@ function openPDetailsPopup() {
         </body>`);
 }
 
+async function generateUserReport() {
+    console.log("Button clicked! Calculating data...");
+
+    // 1. Get current filtered data from the dashboard
+    const filteredRows = filterData(); 
+    // filteredRows[0] is header, so length - 1 is the count
+    const employeeCount = filteredRows.length > 0 ? filteredRows.length - 1 : 0; 
+    
+    // 2. Format Date Range
+    let s_date = "_______";
+    let e_date = "_______";
+    
+    if (selectedDateRange) {
+        if (selectedDateRange.includes(" to ")) {
+            const parts = selectedDateRange.split(" to ");
+            s_date = parts[0];
+            e_date = parts[1];
+        } else {
+            s_date = e_date = selectedDateRange;
+        }
+    }
+
+    console.log(`Sending to server: Count=${employeeCount}, Start=${s_date}, End=${e_date}`);
+
+    try {
+        // 3. Send to Node.js server
+        const response = await fetch('http://localhost:3000/generate-report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                count: employeeCount,
+                s_date: s_date,
+                e_date: e_date
+            })
+        });
+
+        if (!response.ok) throw new Error("Server responded with error");
+
+        // 4. Handle the file download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Health_Report_${s_date}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        
+    } catch (err) {
+        console.error("Report Error:", err);
+        alert("Could not generate report. Is the Node.js server running?");
+    }
+}
+
+// Ensure the listener is attached after the page is ready
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('generateUserReportBtn');
+    if (btn) {
+        btn.addEventListener('click', generateUserReport);
+    } else {
+        console.error("Could not find button with ID 'generateUserReportBtn'");
+    }
+});
+
 
 // --- MODIFIED FUNCTION: Apply Dynamic Filter ---
 function filterData(ignoreLocation = false) {
@@ -1054,6 +1272,7 @@ function filterData(ignoreLocation = false) {
 
     const fullData = allLoadedData[0].data;
     const header = allLoadedData[0].header;
+    
 
     // --- NEW: Populate Company List if it's empty ---
     if (companyNames.size === 0) {
@@ -1066,6 +1285,8 @@ function filterData(ignoreLocation = false) {
             populateCompanyDropdown(); // Call the specific company populator
         }
     }
+
+    
 
     // Step 1: Filter raw data by Company & Date ONLY to see available locations
     const companyDateFiltered = filterData(true); 
@@ -1083,6 +1304,9 @@ function filterData(ignoreLocation = false) {
     setTimeout(() => {
         populateDataTable(lastFilteredData);
     }, 50);
+
+    
+
 }
 
 // --- File Upload Logic (MODIFIED) ---
@@ -1276,34 +1500,36 @@ if (datePickerInput) {
 
 }
 }
-   // User Report
-   let selectedMonth = null;
 
-// Initialize Month Picker
+
+let selectedUserReportDate = null; // Use a dedicated variable or share selectedDateRange
+
 const monthPickerInput = document.getElementById('monthPicker');
 if (monthPickerInput) {
+    // We destroy the old month-only picker and create a date range picker
     flatpickr(monthPickerInput, {
-        plugins: [
-            new monthSelectPlugin({
-                shorthand: true, // "Jan" instead of "January"
-                dateFormat: "m.Y", // Matches format like "10.2025"
-                altFormat: "F Y" // Displays as "October 2025"
-            })
-        ],
-        onChange: function(selectedDates, dateStr) {
-            selectedMonth = dateStr; // e.g., "10.2025"
-            handleFilterChange();
+        mode: "range", 
+        dateFormat: "d.m.Y",
+        onClose: function(selectedDates, dateStr) {
+            if (selectedDates.length > 0) {
+                // To keep them synced, we update the same global variable
+                selectedDateRange = dateStr; 
+                handleFilterChange();
+            }
         }
     });
 }
 
 // Clear Month Button
-document.getElementById('clearMonthFilter').addEventListener('click', () => {
-    selectedMonth = null;
-    monthPickerInput.value = '';
-    if (monthPickerInput._flatpickr) monthPickerInput._flatpickr.clear();
-    handleFilterChange();
-});
+const clearMonthBtn = document.getElementById('clearMonthFilter');
+if (clearMonthBtn) {
+    clearMonthBtn.addEventListener('click', () => {
+        selectedDateRange = null;
+        monthPickerInput.value = '';
+        if (monthPickerInput._flatpickr) monthPickerInput._flatpickr.clear();
+        handleFilterChange();
+    });
+}
 
     // 4. Company Dropdown
     const companySelect = document.getElementById('companySelect');
