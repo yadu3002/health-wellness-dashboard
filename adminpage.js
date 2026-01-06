@@ -25,610 +25,6 @@ function openLoginPopup() {
     window.open(url, name, features);
 }
 
-// --- Data Categorization Functions (No Change) ---
-
-// (1) Participants - NEW DEDICATED LOGIC (For chartParticipants)
-function calculateParticipantsData(data) {
-    const total = data.length - 1;
-    if (total <= 0) return null;
-    return { 'Participants': total };
-}
-
-// (2) Calculates Obesity (BMI) - UPDATED LOGIC (Yes/No based on BMI >= 30)
-function calculateObesityData(data, header) {
-    let bmiCol = findCol(header, 'bmi');
-    if (bmiCol === -1) { bmiCol = findCol(header, 'number'); } 
-    if (bmiCol === -1) return null;
-
-    const counts = { 'Yes': 0, 'No': 0 }; 
-    for (let i = 1; i < data.length; i++) {
-        const bmiValue = parseFloat(data[i][bmiCol]);
-        if (isNaN(bmiValue)) continue;
-
-        if (bmiValue >= 30.0) { // BMI >= 30 is Obesity
-            counts['Yes']++; 
-        } else { 
-            counts['No']++; 
-        }
-    }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
-}
-
-function openObesityPopup() {
-    if (!lastFilteredData || lastFilteredData.length <= 1) return;
-    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
-    const bmiIdx = findCol(header, 'bmi');
-
-    const stages = [
-        { name: 'Underweight', color: '#36b9cc', check: (v) => v < 18.5, count: 0 },
-        { name: 'Normal', color: '#1cc88a', check: (v) => v >= 18.5 && v <= 24.9, count: 0 },
-        { name: 'Overweight', color: '#f6c23e', check: (v) => v >= 25.0 && v <= 29.9, count: 0 },
-        { name: 'Obesity Gr 1', color: '#fd7e14', check: (v) => v >= 30.0 && v <= 34.9, count: 0 },
-        { name: 'Obesity Gr 2', color: '#e74a3b', check: (v) => v >= 35.0 && v <= 39.9, count: 0 },
-        { name: 'Grossly Obese', color: '#851010', check: (v) => v >= 40.0, count: 0 }
-    ];
-
-    lastFilteredData.slice(1).forEach(row => {
-        const val = parseFloat(row[bmiIdx]);
-        if (isNaN(val)) return;
-        for (let i = 0; i < stages.length; i++) {
-            if (stages[i].check(val)) { stages[i].count++; break; }
-        }
-    });
-
-    const popup = window.open('', '_blank', 'width=1000,height=600');
-    popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">BMI & Obesity Classification</h2>
-                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('mainChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(stages.map(s => s.name))},
-                        datasets: [{
-                            label: 'Participants',
-                            data: ${JSON.stringify(stages.map(s => s.count))},
-                            backgroundColor: ${JSON.stringify(stages.map(s => s.color))},
-                            borderRadius: 5
-                        }]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
-                    }
-                });
-            </script>
-        </body>`);
-}
-
-// (3) Calculates Diabetes - UPDATED LOGIC (Yes/No based on BS thresholds)
-function calculateDiabetesData(data, header) {
-    const fbsCol = findCol(header, 'bs1');
-    const rbsCol = findCol(header, 'bs2');
-    if (fbsCol === -1 && rbsCol === -1) return null;
-
-    const counts = { 'Yes': 0, 'No': 0 };
-    
-    for (let i = 1; i < data.length; i++) {
-        let isDiabetic = false;
-        let hasData = false;
-        
-        const fbsValue = parseFloat(data[i][fbsCol]);
-        if (!isNaN(fbsValue)) {
-            hasData = true;
-            if (fbsValue >= 112) { // FBS > 111 (>= 112)
-                isDiabetic = true;
-            }
-        }
-
-        const rbsValue = parseFloat(data[i][rbsCol]);
-        if (!isNaN(rbsValue)) {
-            hasData = true;
-            if (rbsValue >= 202) { // RBS > 201 (>= 202)
-                isDiabetic = true;
-            }
-        }
-
-        if (isDiabetic) {
-            counts['Yes']++;
-        } else if (hasData) {
-            counts['No']++;
-        }
-        // Skip if neither FBS nor RBS data exists for the row
-    }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
-}
-
-function openDiabetesPopup() {
-    if (!lastFilteredData || lastFilteredData.length <= 1) return;
-    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
-    const fbsIdx = findCol(header, 'bs1'), rbsIdx = findCol(header, 'bs2');
-    
-    const stages = [
-        { name: 'Normal', color: '#1cc88a', check: (f, r) => (f >= 70 && f <= 100) || (r >= 100 && r <= 160), count: 0 },
-        { name: 'Pre-Diabetic', color: '#f6c23e', check: (f, r) => (f >= 101 && f <= 110) || (r >= 161 && r <= 200), count: 0 },
-        { name: 'Moderate', color: '#fd7e14', check: (f, r) => (f >= 111 && f <= 129) || (r >= 201 && r <= 250), count: 0 },
-        { name: 'Diabetic', color: '#e74a3b', check: (f, r) => (f >= 130) || (r >= 251), count: 0 }
-    ];
-
-    lastFilteredData.slice(1).forEach(row => {
-        const f = parseFloat(row[fbsIdx]), r = parseFloat(row[rbsIdx]);
-        if (isNaN(f) && isNaN(r)) return;
-        for (let i = stages.length - 1; i >= 0; i--) {
-            if (stages[i].check(f, r)) { stages[i].count++; break; }
-        }
-    });
-
-    const popup = window.open('', '_blank', 'width=900,height=600');
-    popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">Diabetes Risk Distribution</h2>
-                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('mainChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(stages.map(s => s.name))},
-                        datasets: [{
-                            label: 'Participants',
-                            data: ${JSON.stringify(stages.map(s => s.count))},
-                            backgroundColor: ${JSON.stringify(stages.map(s => s.color))},
-                            borderRadius: 5
-                        }]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
-                    }
-                });
-            </script>
-        </body>`);
-}
-
-function calculateFitnessData(data, header) {
-    const exeCols = findCols(header, ['exe1', 'exe2', 'exe3']);
-    if (exeCols.length === 0) return null;
-
-    // Change: Counts now represent the total number of 'Yes' and 'No' responses across all exercise columns.
-    const counts = { 'Yes': 0, 'No': 0 }; 
-
-    for (let i = 1; i < data.length; i++) {
-        for (const colIndex of exeCols) {
-            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
-
-            if (value.startsWith('Y')) {
-                counts['Yes']++;
-            } else if (value.startsWith('N')) { 
-                counts['No']++;
-            }
-        }
-    }
-
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
-}
-
-function openFitnessPopup() {
-    if (!lastFilteredData || lastFilteredData.length <= 1) return;
-    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
-    
-    // 1. Setup Metrics & HR Categories
-    const metrics = [
-        { id: 'exe1', name: 'Regular Exercise', color: '#1cc88a', type: 'binary', count: 0 },
-        { id: 'breath', name: 'Good Lung Cap.', color: '#36b9cc', type: 'numeric', threshold: 30, isLess: false, count: 0 },
-        { id: 'exe3', name: 'Good Strength', color: '#4e73df', type: 'binary', count: 0 },
-        { id: 'exe2', name: 'Good Flexibility', color: '#858796', type: 'binary', count: 0 }
-    ];
-
-    // Dedicated Heart Rate Breakdown
-    const hrCategories = [
-        { name: 'HR: Resting (<60)', color: '#4e73df', check: (v) => v < 60, count: 0 },
-        { name: 'HR: Normal (60-100)', color: '#1cc88a', check: (v) => v >= 60 && v <= 100, count: 0 },
-        { name: 'HR: High (101-120)', color: '#f6c23e', check: (v) => v >= 101 && v <= 120, count: 0 },
-        { name: 'HR: Tachy (>120)', color: '#e74a3b', check: (v) => v > 120, count: 0 }
-    ];
-
-    const rows = lastFilteredData.slice(1);
-    const pulseIdx = findCol(header, 'pulse');
-
-    // 2. Single Pass Data Processing
-    rows.forEach(row => {
-        // Process standard metrics
-        metrics.forEach(m => {
-            const colIdx = findCol(header, m.id);
-            if (colIdx === -1) return;
-            const rawVal = (row[colIdx] || '').toString().trim();
-            if (m.type === 'binary' && rawVal.toUpperCase().startsWith('Y')) m.count++;
-            if (m.type === 'numeric') {
-                const val = parseFloat(rawVal);
-                if (!isNaN(val) && (m.isLess ? val < m.threshold : val >= m.threshold)) m.count++;
-            }
-        });
-
-        // Process Pulse into 4 specific bars
-        if (pulseIdx !== -1) {
-            const pulseVal = parseFloat(row[pulseIdx]);
-            if (!isNaN(pulseVal)) {
-                for (let cat of hrCategories) {
-                    if (cat.check(pulseVal)) { cat.count++; break; }
-                }
-            }
-        }
-    });
-
-    // Combine all for the chart
-    const finalLabels = [...metrics.map(m => m.name), ...hrCategories.map(c => c.name)];
-    const finalData = [...metrics.map(m => m.count), ...hrCategories.map(c => c.count)];
-    const finalColors = [...metrics.map(m => m.color), ...hrCategories.map(c => c.color)];
-
-    // 3. UI Generation
-    const popup = window.open('', '_blank', 'width=1100,height=600');
-    popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">Fitness & Heart Rate Detailed Analysis</h2>
-                <div style="height:450px;"><canvas id="fitnessChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('fitnessChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(finalLabels)},
-                        datasets: [{
-                            label: 'Participants',
-                            data: ${JSON.stringify(finalData)},
-                            backgroundColor: ${JSON.stringify(finalColors)},
-                            borderRadius: 5
-                        }]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
-                    }
-                });
-            </script>
-        </body>`);
-}
-
-// **MODIFIED LOGIC: Count total 'Y's and 'N's across STR1, STR2, STR3, STR4**
-function calculateStressData(data, header) {
-    const strCols = findCols(header, ['str1', 'str2', 'str3', 'str4']);
-    const str4ColIndex = findCol(header, 'str4');
-    if (strCols.length === 0) return null;
-
-    // Change: Counts now represent the total number of 'Yes' and 'No' responses across all stress columns.
-    const counts = { 'Yes': 0, 'No': 0 }; 
-
-    for (let i = 1; i < data.length; i++) {
-        for (const colIndex of strCols) {
-            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
-
-            if (colIndex === str4ColIndex) {
-                // REVERSED LOGIC FOR STR4
-                if (value.startsWith('Y')) {
-                    // Y in STR4 means 'No' Stress
-                    counts['No']++; 
-                } else if (value.startsWith('N')) { 
-                    // N in STR4 means 'Yes' Stress
-                    counts['Yes']++;
-                }
-            } else {
-                // NORMAL LOGIC for STR1, STR2, STR3
-                if (value.startsWith('Y')) {
-                    // Y means 'Yes' Stress
-                    counts['Yes']++;
-                } else if (value.startsWith('N')) { 
-                    // N means 'No' Stress
-                    counts['No']++;
-                }
-            }
-        }
-    }
-
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
-}
-
-function openStressHabitsPopup() {
-    if (!lastFilteredData || lastFilteredData.length <= 1) return;
-    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
-    
-    const indicators = [
-        { id: 'str1', name: 'Work Stress', color: '#e74a3b', isReversed: false },
-        { id: 'str2', name: 'Family Stress', color: '#e74a3b', isReversed: false },
-        { id: 'str3', name: 'Financial Stress', color: '#e74a3b', isReversed: false },
-        { id: 'str4', name: 'Poor Sleep', color: '#e74a3b', isReversed: true },
-        { id: 'hab1', name: 'Smoking', color: '#f6c23e', isReversed: false },
-        { id: 'hab2', name: 'Alcohol', color: '#f6c23e', isReversed: false },
-        { id: 'hab3', name: 'Other Habits', color: '#f6c23e', isReversed: false }
-    ];
-
-    indicators.forEach(ind => {
-        const colIdx = findCol(header, ind.id);
-        ind.count = 0;
-        if (colIdx !== -1) {
-            lastFilteredData.slice(1).forEach(row => {
-                const val = (row[colIdx] || '').toString().toUpperCase().trim();
-                // Reversed logic: For Sleep, 'N' counts as the issue
-                if (!ind.isReversed && val.startsWith('Y')) ind.count++;
-                else if (ind.isReversed && val.startsWith('N')) ind.count++;
-            });
-        }
-    });
-
-    const popup = window.open('', '_blank', 'width=1100,height=600');
-    popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">Stressors & Lifestyle Risk Factors</h2>
-                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('mainChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(indicators.map(i => i.name))},
-                        datasets: [{
-                            label: 'Count of Reported Issues',
-                            data: ${JSON.stringify(indicators.map(i => i.count))},
-                            backgroundColor: ${JSON.stringify(indicators.map(i => i.color))},
-                            borderRadius: 5
-                        }]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
-                    }
-                });
-            </script>
-        </body>`);
-}
-    
-// (5) Hypertension - UPDATED LOGIC (Yes/No based on BP thresholds)
-function calculateHypertensionData(data, header) {
-    const bp1Col = findCol(header, 'bp1');
-    const bp2Col = findCol(header, 'bp2');
-    if (bp1Col === -1 || bp2Col === -1) return null;
-
-    const counts = { 'Yes': 0, 'No': 0 };
-    
-    for (let i = 1; i < data.length; i++) {
-        const bp1 = parseInt(data[i][bp1Col]);
-        const bp2 = parseInt(data[i][bp2Col]);
-        
-        if (isNaN(bp1) || isNaN(bp2)) continue;
-
-        if (bp1 >= 142 || bp2 >= 91) { // BP1 > 141 (>= 142) OR BP2 > 90 (>= 91)
-            counts['Yes']++;
-        } else {
-            counts['No']++;
-        }
-    }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
-}
-function openHypertensionPopup() {
-    if (!lastFilteredData || lastFilteredData.length <= 1) return;
-    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
-    const bp1Idx = findCol(header, 'bp1'), bp2Idx = findCol(header, 'bp2');
-
-    const grades = [
-        { name: 'Pre-HTN', color: '#f6c23e', check: (s, d) => (s >= 135 && s <= 140) || (d >= 85 && d <= 89), count: 0 },
-        { name: 'Gr I HTN', color: '#fd7e14', check: (s, d) => (s >= 141 && s <= 159) || (d >= 90 && d <= 99), count: 0 },
-        { name: 'Gr II HTN', color: '#e74a3b', check: (s, d) => (s >= 160 && s <= 179) || (d >= 100 && d <= 109), count: 0 },
-        { name: 'Gr III HTN', color: '#851010', check: (s, d) => (s > 180 || d > 110), count: 0 }
-    ];
-
-    lastFilteredData.slice(1).forEach(row => {
-        const s = parseFloat(row[bp1Idx]), d = parseFloat(row[bp2Idx]);
-        if (isNaN(s) || isNaN(d)) return;
-        for (let i = grades.length - 1; i >= 0; i--) {
-            if (grades[i].check(s, d)) { grades[i].count++; break; }
-        }
-    });
-
-    const popup = window.open('', '_blank', 'width=900,height=600');
-    popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">Hypertension Severity Distribution</h2>
-                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('mainChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(grades.map(g => g.name))},
-                        datasets: [{
-                            label: 'Number of Participants',
-                            data: ${JSON.stringify(grades.map(g => g.count))},
-                            backgroundColor: ${JSON.stringify(grades.map(g => g.color))},
-                            borderRadius: 5
-                        }]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true, title: { display: true, text: 'Count' } } }
-                    }
-                });
-            </script>
-        </body>`);
-}
-
-// (6) Chronic Disease Status - NEW DEDICATED LOGIC (Based on MED_DETAILS content)
-function calculateChronicData(data, header) {
-    const medDetailsCol = findCol(header, 'med_details');
-    if (medDetailsCol === -1) return null;
-
-    const counts = { 'Yes': 0, 'No': 0 };
-    for (let i = 1; i < data.length; i++) {
-        const value = (data[i][medDetailsCol] || '').toString().toUpperCase().trim();
-        
-        if (value.length > 0 && value !== 'NONE' && value !== 'N/A' && value !== 'N') {
-            counts['Yes']++;
-        } else if (value.length > 0) {
-             counts['No']++; 
-        }
-        // Skip if the cell is completely empty (no data points)
-    }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
-}
-
-// (7) Chronic Medication Status - NEW DEDICATED LOGIC (Based on MEDICATION column Y/N)
-function calculateMedicationData(data, header) {
-    const medicationCol = findCol(header, 'medication');
-    if (medicationCol === -1) return null;
-
-    const counts = { 'Yes': 0, 'No': 0 }; 
-    for (let i = 1; i < data.length; i++) {
-        const value = (data[i][medicationCol] || '').toString().toUpperCase().trim();
-
-        if (value.startsWith('Y')) { 
-            counts['Yes']++; 
-        } else if (value.startsWith('N')) { 
-            counts['No']++; 
-        }
-        // Skip if value is empty or anything else
-    }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
-}
-
-// (8) Dyslipidemia - NEW DEDICATED LOGIC (For chartCholestrol)
-function calculateDyslipidemiaData(data, header) {
-    // Look for the user-specified column: 'CHOLESTEROL'
-    const cholCol = findCol(header, 'cholesterol');
-    
-    // Fallback logic to check other cholesterol column names if 'CHOLESTEROL' is missing
-    const genericCholCol = findCol(header, 'chol');
-
-    if (cholCol === -1 && genericCholCol === -1) return null;
-
-    const counts = { 'Yes': 0, 'No': 0 }; // Yes: Dyslipidemia/High Chol
-    
-    for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        
-        // Prioritize the specific 'CHOLESTEROL' column if it exists
-        let cholValue = NaN;
-        if (cholCol !== -1) {
-            cholValue = parseFloat(row[cholCol]);
-        } else if (genericCholCol !== -1) {
-            // Fallback to 'chol' if 'cholesterol' is not found
-            cholValue = parseFloat(row[genericCholCol]);
-        }
-
-        if (isNaN(cholValue)) continue;
-        
-        // User-defined rule: above 220 is 'Yes' (High Cholesterol)
-        if (cholValue > 220) { 
-            counts['Yes']++;
-        } else {
-            counts['No']++;
-        }
-    }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
-}   
-
-function openCholesterolPopup() {
-    if (!lastFilteredData || lastFilteredData.length <= 1) return;
-
-    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
-    const cholIdx = findCol(header, 'cholesterol');
-    
-    if (cholIdx === -1) return alert("Cholesterol column not found.");
-
-    // 1. Clinical Categories & Thresholds (mg/dL)
-    const stages = [
-        { name: 'Normal (<200)', color: '#1cc88a', check: (v) => v < 200, count: 0 },
-        { name: 'Mild Hyper (200-239)', color: '#f6c23e', check: (v) => v >= 200 && v <= 239, count: 0 },
-        { name: 'Moderate Hyper (240-299)', color: '#fd7e14', check: (v) => v >= 240 && v <= 299, count: 0 },
-        { name: 'Hyper (≥300)', color: '#e74a3b', check: (v) => v >= 300, count: 0 }
-    ];
-
-    const rows = lastFilteredData.slice(1);
-    let totalValid = 0;
-
-    // 2. Data Processing
-    rows.forEach(row => {
-        const val = parseFloat(row[cholIdx]);
-        if (isNaN(val)) return;
-        totalValid++;
-
-        // Priority check: Highest severity first
-        for (let i = stages.length - 1; i >= 0; i--) {
-            if (stages[i].check(val)) {
-                stages[i].count++;
-                break;
-            }
-        }
-    });
-
-    // 3. UI Generation
-    const popup = window.open('', '_blank', 'width=900,height=600');
-    popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">Hypercholesterolemia Classification</h2>
-                <div style="height:450px;"><canvas id="cholChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('cholChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(stages.map(s => s.name))},
-                        datasets: [{
-                            label: 'Participants',
-                            data: ${JSON.stringify(stages.map(s => s.count))},
-                            backgroundColor: ${JSON.stringify(stages.map(s => s.color))},
-                            borderRadius: 5
-                        }]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { 
-                            legend: { display: false },
-                            tooltip: { callbacks: { label: (ctx) => 'Count: ' + ctx.raw } }
-                        },
-                        scales: { 
-                            y: { beginAtZero: true, title: { display: true, text: 'No. of People' } } 
-                        }
-                    }
-                });
-            </script>
-        </body>`);
-}
-
-/**
- * Populates the data table with the filtered participant records.
- * @param {Array<Array<any>>} data - The filtered data array (including the header row).
- */
 
 /**
  * Populates the data table with the filtered participant records.
@@ -780,15 +176,12 @@ function populateLocationDropdown(filteredData) {
 // --- Placeholder for Dashboard Filter Update ---
 function updateDashboardFilters() {
     console.log("Date range selected:", selectedDateRange);
-    // When you implement filtering, this function will contain the logic
-    // to filter your data based on the selectedDateRange.
+
 }
 
 // --- Chart Drawing Functions (No Change) ---
 
-/**
- * Draws or updates any chart.
- */
+
 function drawChart(chartId, type, title, labels, data, colors,onClickHandler = null) {
     const ctx = document.getElementById(chartId);
     if (!ctx) return;
@@ -871,9 +264,7 @@ function drawChart(chartId, type, title, labels, data, colors,onClickHandler = n
     });
 }
 
-/**
- * Clears a chart and hides the canvas, replacing it with a message.
- */
+
 function clearChart(chartId, message = 'No data available.') {
     if (chartInstances[chartId]) {
         chartInstances[chartId].destroy();
@@ -914,6 +305,7 @@ function preDrawCleanup(chartId) {
 // --- Dashboard Update Logic (No Change) ---
 
 async function updateDashboardAndCharts(data) {
+    
     const totalEmployees = data.length - 1; 
     const allChartIds = [
         'chartParticipants','chartGender', 'chartChronic', 'chartHypertension', 
@@ -931,20 +323,10 @@ async function updateDashboardAndCharts(data) {
         allChartIds.forEach(id => clearChart(id, 'No data available for the current filters.'));
         return;
     }
+    lastFilteredData = data;
     
     // --- PRE-CALCULATION BLOCK (Runs quickly) ---
     const header = data[0].map(h => String(h || '').toLowerCase().trim());
-    const genderCol = findCol(header, 'gender');
-    let genderData = { Male: 0, Female: 0 };
-
-    for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        if (genderCol !== -1) {
-            const gender = (row[genderCol] || '').toString().toLowerCase();
-            if (gender.startsWith('m')) genderData.Male++;
-            else if (gender.startsWith('f')) genderData.Female++;
-        }
-    }
 
     // --- ASYNCHRONOUS RENDERING BLOCK ---
     // This helper allows the browser to "breathe" so the search bar doesn't freeze
@@ -958,9 +340,15 @@ async function updateDashboardAndCharts(data) {
             else { clearChart('chartParticipants', 'No employees found.'); }
         }},
         { id: 'chartGender', fn: () => {
-            preDrawCleanup('chartGender');
-            drawChart('chartGender', 'pie', '', Object.keys(genderData), Object.values(genderData), ['#4e73df', '#e74a3b']);
-        }},
+    // Calling the function we created in charts-logic.js
+    const d = calculateGenderData(data, header); 
+    if (d) { 
+        preDrawCleanup('chartGender'); 
+        drawChart('chartGender', 'pie', '', Object.keys(d), Object.values(d), ['#4e73df', '#fb7185']); 
+    } else { 
+        clearChart('chartGender', 'Gender data missing.'); 
+    }
+}},
         { id: 'chartChronic', fn: () => {
             const d = calculateChronicData(data, header);
             if (d) { preDrawCleanup('chartChronic'); drawChart('chartChronic', 'pie', '', Object.keys(d), Object.values(d), ['#e74a3b', '#4e73df'], openPDetailsPopup); }
@@ -1054,135 +442,138 @@ function populateDropdowns() {
 
 // --- NEW: Detailed Medication Popup Logic ---
 // --- UPDATED: Detailed Medication Popup with Multiple Pie Charts ---
-function openPDetailsPopup() {
-    if (!lastFilteredData || lastFilteredData.length <= 1) return;
 
-    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
-    const pDetailsIdx = findCol(header, 'p_details');
-    if (pDetailsIdx === -1) return alert("Medication/Chronic details column not found.");
 
-    const rows = lastFilteredData.slice(1);
-    const conditionCounts = {};
-    let totalParticipantsWithConditions = 0;
+// Updated generateUserReport to enforce BOTH dates and handle Excel date formats
+async function generateUserReport() {
+    const userReportInput = document.getElementById('monthPicker'); // For Data Grid
+    const groupProfileInput = document.getElementById('groupProfile'); // For Word Doc
 
-    // 1. Extract and count unique conditions from text
-    rows.forEach(row => {
-        const details = (row[pDetailsIdx] || '').toString().trim();
-        if (details && details.toLowerCase() !== 'no' && details !== '0') {
-            totalParticipantsWithConditions++;
-            // Split by comma or space and clean up words
-            const words = details.split(/[\s,]+/).map(w => w.toUpperCase().trim()).filter(w => w.length > 1);
-            const uniqueWordsInRow = [...new Set(words)]; // Avoid counting same word twice for one person
-            
-            uniqueWordsInRow.forEach(word => {
-                conditionCounts[word] = (conditionCounts[word] || 0) + 1;
-            });
-        }
-    });
+    // 1. STRICT CLAUSE: Both date ranges must be selected
+    if (!userReportInput || !groupProfileInput || !userReportInput.value || !groupProfileInput.value) {
+        alert("Action Required:\n1. Select a date range for 'User Report' (for Data Grid).\n2. Select a date range for 'Group Profile' (for Word Doc).");
+        return; 
+    }
 
-    // Convert to array and sort by highest count
-    const sortedConditions = Object.entries(conditionCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10); // Show top 10 conditions for clarity
+    console.log("Validation passed. Both dates selected.");
 
-    if (sortedConditions.length === 0) return alert("No chronic conditions recorded in the data.");
+    // 2. DATA GRID PROCESSING (Uses 'User Report' Date)
+    const gridData = filterDataBySpecificRange(userReportInput.value);
+    
+    // Check if data was actually found
+    if (gridData.length <= 1) {
+        alert("No records found for the 'User Report' date range. The grid will be empty.");
+    }
+    openDataGridPopup(gridData, userReportInput.value);
 
-    // 2. UI Generation
-    const popup = window.open('', '_blank', 'width=1000,height=600');
-    popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:10px;">Chronic Disease & Medication Breakdown</h2>
-                <p style="text-align:center; color:#666; margin-bottom:20px;">
-                    Showing top ${sortedConditions.length} conditions from ${totalParticipantsWithConditions} affected participants.
-                </p>
-                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('mainChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(sortedConditions.map(c => c[0]))},
-                        datasets: [{
-                            label: 'Number of Reports',
-                            data: ${JSON.stringify(sortedConditions.map(c => c[1]))},
-                            backgroundColor: '#4e73df',
-                            hoverBackgroundColor: '#2e59d9',
-                            borderColor: '#4e73df',
-                            borderRadius: 5
-                        }]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        indexAxis: 'y', // Horizontal bars are easier to read for text labels
-                        plugins: { 
-                            legend: { display: false },
-                            tooltip: { callbacks: { label: (ctx) => 'Count: ' + ctx.raw } }
-                        },
-                        scales: { 
-                            x: { beginAtZero: true, grid: { display: false } },
-                            y: { grid: { display: false } }
-                        }
-                    }
-                });
-            </script>
-        </body>`);
+    // 3. WORD DOC PROCESSING (Uses 'Group Profile' Date)
+    const reportData = filterDataBySpecificRange(groupProfileInput.value);
+    const employeeCount = reportData.length > 0 ? reportData.length - 1 : 0;
+
+    let s_date = "_______", e_date = "_______";
+    if (groupProfileInput.value.includes(" to ")) {
+        [s_date, e_date] = groupProfileInput.value.split(" to ");
+    } else {
+        s_date = e_date = groupProfileInput.value;
+    }
+
+    // Call server to generate file
+    generateWordFileOnServer(employeeCount, s_date, e_date, reportData);
 }
 
-async function generateUserReport() {
-    console.log("Button clicked! Calculating data...");
+/**
+ * Filter helper that uses your existing parseDateStr to handle DD.MM.YYYY
+ */
+function filterDataBySpecificRange(rangeStr) {
+    if (!headerRow || !allLoadedData.length) return [headerRow];
 
-    // 1. Get current filtered data from the dashboard
-    const filteredRows = filterData(); 
-    // filteredRows[0] is header, so length - 1 is the count
-    const employeeCount = filteredRows.length > 0 ? filteredRows.length - 1 : 0; 
-    
-    // 2. Format Date Range
-    let s_date = "_______";
-    let e_date = "_______";
-    
-    if (selectedDateRange) {
-        if (selectedDateRange.includes(" to ")) {
-            const parts = selectedDateRange.split(" to ");
-            s_date = parts[0];
-            e_date = parts[1];
-        } else {
-            s_date = e_date = selectedDateRange;
-        }
+    // Reuse your existing date parser from adminpage.js
+    const parseDateStr = (str) => {
+        if (!str) return null;
+        const parts = str.split('.');
+        if (parts.length !== 3) return null;
+        return new Date(parts[2], parts[1] - 1, parts[0]);
+    };
+
+    let startDate, endDate;
+    if (rangeStr.includes(" to ")) {
+        const parts = rangeStr.split(" to ");
+        // Flatpickr date is often D.M.Y, convert to Date Objects
+        const sParts = parts[0].split('.');
+        const eParts = parts[1].split('.');
+        startDate = new Date(sParts[2], sParts[1]-1, sParts[0]);
+        endDate = new Date(eParts[2], eParts[1]-1, eParts[0]);
+    } else {
+        const p = rangeStr.split('.');
+        startDate = endDate = new Date(p[2], p[1]-1, p[0]);
     }
 
-    console.log(`Sending to server: Count=${employeeCount}, Start=${s_date}, End=${e_date}`);
+    const doscIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('DOSC'));
+    let combined = [headerRow];
 
-    try {
-        // 3. Send to Node.js server
-        const response = await fetch('http://localhost:3000/generate-report', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                count: employeeCount,
-                s_date: s_date,
-                e_date: e_date
-            })
-        });
-
-        if (!response.ok) throw new Error("Server responded with error");
-
-        // 4. Handle the file download
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Health_Report_${s_date}.docx`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        a.remove();
+    allLoadedData.forEach(obj => {
+        // Handle both simple arrays or your object structure {data: [...]}
+        const rows = obj.data ? obj.data.slice(1) : obj.slice(1);
         
-    } catch (err) {
-        console.error("Report Error:", err);
-        alert("Could not generate report. Is the Node.js server running?");
-    }
+        rows.forEach(row => {
+            const rowDateRaw = String(row[doscIdx] || '').trim();
+            const rowDateObj = parseDateStr(rowDateRaw);
+
+            if (rowDateObj) {
+                rowDateObj.setHours(0,0,0,0);
+                startDate.setHours(0,0,0,0);
+                endDate.setHours(0,0,0,0);
+
+                if (rowDateObj >= startDate && rowDateObj <= endDate) {
+                    combined.push(row);
+                }
+            }
+        });
+    });
+
+    return combined;
+}
+
+/**
+ * Popup helper using Blob to avoid SecurityErrors
+ */
+function openDataGridPopup(data, rangeText) {
+    const popupWidth = 1100;
+    const popupHeight = 700;
+    const left = (screen.width / 2) - (popupWidth / 2);
+    const top = (screen.height / 2) - (popupHeight / 2);
+
+    // Build Table Rows
+    const tableRows = data.slice(1).map(row => 
+        `<tr>${row.map(cell => `<td>${cell || '-'}</td>`).join('')}</tr>`
+    ).join('');
+
+    const tableHtml = `
+        <html>
+        <head>
+            <title>Preview: ${rangeText}</title>
+            <style>
+                body { font-family: sans-serif; padding: 20px; font-size: 12px; }
+                table { border-collapse: collapse; width: 100%; }
+                th { background: #2563eb; color: white; padding: 10px; position: sticky; top: 0; text-align: left; }
+                td { border: 1px solid #ddd; padding: 6px; }
+                tr:nth-child(even) { background: #f8fafc; }
+            </style>
+        </head>
+        <body>
+            <h3>User Report Data Grid (${data.length - 1} Records)</h3>
+            <p>Filter Range: ${rangeText}</p>
+            <table>
+                <thead><tr>${data[0].map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                <tbody>${tableRows}</tbody>
+            </table>
+        </body>
+        </html>
+    `;
+
+    const blob = new Blob([tableHtml], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, "ReportDataGrid", `width=${popupWidth},height=${popupHeight},left=${left},top=${top},scrollbars=yes,resizable=yes`);
 }
 
 // Ensure the listener is attached after the page is ready
@@ -1194,6 +585,31 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Could not find button with ID 'generateUserReportBtn'");
     }
 });
+
+async function generateWordFileOnServer(count, s_date, e_date, data) {
+    try {
+        const response = await fetch('http://localhost:3000/generate-report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ count, s_date, e_date, data })
+        });
+
+        if (!response.ok) throw new Error("Server Error - check payload size");
+
+        const docBlob = await response.blob();
+        const docUrl = window.URL.createObjectURL(docBlob);
+        const a = document.createElement('a');
+        a.href = docUrl;
+        a.download = `Group_Profile_Report_${s_date}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(docUrl);
+    } catch (err) {
+        console.error(err);
+        alert("The Word Doc could not be generated. Check if the server body-parser limit is increased.");
+    }
+}
 
 
 // --- MODIFIED FUNCTION: Apply Dynamic Filter ---
@@ -1391,6 +807,10 @@ function populateCompanyDropdown() {
         opt.textContent = name;
         select.appendChild(opt);
     });
+    const numCompaniesEl = document.getElementById('numCompaniesValue');
+    if (numCompaniesEl) {
+        numCompaniesEl.textContent = companyNames.size.toLocaleString();
+    }
 }
 
 function transformToExcelStyle(json) {
@@ -1497,9 +917,31 @@ if (datePickerInput) {
         // 4. Trigger the filter refresh
         handleFilterChange(); 
     });
+}}
 
+
+
+    const generateReportInput = document.getElementById('groupProfile');
+    if (generateReportInput) {
+        flatpickr(generateReportInput, {
+            mode: "range", // Set to range mode
+            dateFormat: "d.m.Y",
+            onClose: function(selectedDates, dateStr) {
+            if (selectedDates.length > 0) {
+                selectedDateRange = dateStr; 
+            }
+        }
+        });
+    }
+    const clearGroupBtn = document.getElementById('clearGroupFilter');
+if (clearGroupBtn) {
+    clearGroupBtn.addEventListener('click', () => {
+        selectedDateRange = null;
+        generateReportInput.value = '';
+        if (generateReportInput._flatpickr) generateReportInput._flatpickr.clear();
+    });
 }
-}
+
 
 
 let selectedUserReportDate = null; // Use a dedicated variable or share selectedDateRange
@@ -1514,20 +956,18 @@ if (monthPickerInput) {
             if (selectedDates.length > 0) {
                 // To keep them synced, we update the same global variable
                 selectedDateRange = dateStr; 
-                handleFilterChange();
             }
         }
     });
 }
 
-// Clear Month Button
+// Clear User Button
 const clearMonthBtn = document.getElementById('clearMonthFilter');
 if (clearMonthBtn) {
     clearMonthBtn.addEventListener('click', () => {
         selectedDateRange = null;
         monthPickerInput.value = '';
         if (monthPickerInput._flatpickr) monthPickerInput._flatpickr.clear();
-        handleFilterChange();
     });
 }
 
