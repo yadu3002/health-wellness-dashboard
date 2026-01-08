@@ -442,7 +442,114 @@ function populateDropdowns() {
 
 
 
+// Updated generateUserReport to enforce BOTH dates and handle Excel date formats
+async function generateUserReport() {
+    const userReportInput = document.getElementById('monthPicker'); 
+    const groupProfileInput = document.getElementById('groupProfile'); 
 
+    let maleCount = 0;
+    let femaleCount = 0;
+
+    const userDateValue = userReportInput ? userReportInput.value : '';
+    const wordDateValue = groupProfileInput ? groupProfileInput.value : '';
+
+    if (!userDateValue && !wordDateValue) {
+        alert("Please select a date range for either the User Report (Data Grid) or Group Profile (Word Doc).");
+        return;
+    }
+
+    // --- USER REPORT / DATA GRID LOGIC ---
+    if (userDateValue) {
+        const gridData = filterDataBySpecificRange(userDateValue);
+        
+        // Check if data contains only the header (length 1) or is null
+        if (!gridData || gridData.length <= 1) {
+            alert(`No records found for the User Report date range: ${userDateValue}. The data grid will not be opened.`);
+        } else {
+            console.log(`Found ${gridData.length - 1} records. Opening Data Grid...`);
+            openDataGridPopup(gridData, userDateValue);
+        }
+    }
+
+    // --- WORD DOC LOGIC ---
+    if (wordDateValue) {
+        const reportData = filterDataBySpecificRange(wordDateValue);
+        
+        if (!reportData || reportData.length <= 1) {
+            alert(`No records found for the Word Doc date range: ${wordDateValue}. Download cancelled.`);
+        } else {
+            const employeeCount = reportData.length - 1;
+            let s_date = "_______", e_date = "_______";
+            if (wordDateValue.includes(" to ")) {
+                [s_date, e_date] = wordDateValue.split(" to ");
+            } else {
+                s_date = e_date = wordDateValue;
+            }
+            generateWordFileOnServer(employeeCount, s_date, e_date, reportData);
+        }
+    }
+}
+
+/**
+ * Filter helper that uses your existing parseDateStr to handle DD.MM.YYYY
+ */
+function filterDataBySpecificRange(rangeStr) {
+    if (!headerRow || !allLoadedData.length) return [headerRow];
+
+    // Reuse your existing date parser from adminpage.js
+    const parseDateStr = (str) => {
+        if (!str) return null;
+        const parts = str.split('.');
+        if (parts.length !== 3) return null;
+        return new Date(parts[2], parts[1] - 1, parts[0]);
+    };
+
+    let startDate, endDate;
+    if (rangeStr.includes(" to ")) {
+        const parts = rangeStr.split(" to ");
+        // Flatpickr date is often D.M.Y, convert to Date Objects
+        const sParts = parts[0].split('.');
+        const eParts = parts[1].split('.');
+        startDate = new Date(sParts[2], sParts[1]-1, sParts[0]);
+        endDate = new Date(eParts[2], eParts[1]-1, eParts[0]);
+    } else {
+        const p = rangeStr.split('.');
+        startDate = endDate = new Date(p[2], p[1]-1, p[0]);
+    }
+
+    const doscIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('DOSC'));
+    let combined = [headerRow];
+
+    allLoadedData.forEach(obj => {
+        // Handle both simple arrays or your object structure {data: [...]}
+        const rows = obj.data ? obj.data.slice(1) : obj.slice(1);
+        
+        rows.forEach(row => {
+            const rowDateRaw = String(row[doscIdx] || '').trim();
+            const rowDateObj = parseDateStr(rowDateRaw);
+
+            if (rowDateObj) {
+                rowDateObj.setHours(0,0,0,0);
+                startDate.setHours(0,0,0,0);
+                endDate.setHours(0,0,0,0);
+
+                if (rowDateObj >= startDate && rowDateObj <= endDate) {
+                    combined.push(row);
+                }
+            }
+        });
+    });
+
+    return combined;
+}
+
+/**
+ * Popup helper using Blob to avoid SecurityErrors
+ */
+/**
+ * Updated Popup helper using Blob to avoid SecurityErrors
+ * Includes a "Print to PDF" button and PDF-optimized styling.
+ */
 /**
  * Updated Popup helper with Column Filtering and PDF/Print Button
  */
