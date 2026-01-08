@@ -11,10 +11,12 @@ body {
     line-height: 1.5;
 }
 
+/* adminpage.css */
+
 .container {
-    max-width: 1600px;
+    max-width: 98%; /* Changed from 1600px to utilize full width */
     margin: 0 auto;
-    padding: 1rem;
+    padding: 0.5rem 1rem; /* Reduced top padding to tighten the look */
 }
 
 td:nth-child(6) { /* Assuming BMI is the 6th column */
@@ -165,6 +167,7 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     border: 2px solid #cbd5e1;
     background-color: #ffffff;
     padding: 1rem;
+    
 }
 
 .metrics-container {
@@ -194,6 +197,13 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     height: 7rem;
     margin: 0 auto;
     position: relative;
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+    gap: 1rem;
+    width: 100%;
 }
 
 .chart-labels {
@@ -236,16 +246,16 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 
 /* Data Table */
 .data-table-container {
-    border: 2px solid #cbd5e1;
-    background-color: #ffffff;
-    overflow: auto;
-    max-height: 600px;
+    width: 100%;
+    overflow-x: auto; /* Keeps it responsive if the screen is small */
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
 }
 
 table {
-    width: 100%;
+    width: 100%; /* Ensure table stretches to the new container width */
     border-collapse: collapse;
-    min-width: 1400px;
 }
 
 thead {

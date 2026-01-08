@@ -27,10 +27,8 @@ console.log("Data loaded! Server is now lightning fast.");
 
 app.post('/generate-report', (req, res) => {
     try {
-        // Destructure the names sent from adminpage.js
-        const { count, s_date, e_date } = req.body;
-
-        console.log(`Generating report for ${count} employees from ${s_date} to ${e_date}`);
+        // Use the spread operator to get all variables sent from the frontend
+        const data = req.body; 
 
         const content = fs.readFileSync(
             path.resolve(__dirname, 'Group Profile CorporateHRA Scan.docx'),
@@ -40,24 +38,19 @@ app.post('/generate-report', (req, res) => {
         const zip = new PizZip(content);
         const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
 
-        // These keys must match the {tags} inside your Word File
-        doc.render({
-            count: count,
-            s_date: s_date,
-            e_date: e_date
-        });
+        // This will now automatically map m_per, f_per, and any new ones you add
+        doc.render(data);
 
         const buf = doc.getZip().generate({ type: 'nodebuffer' });
-
         res.set({
             'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'Content-Disposition': 'attachment; filename=Report.docx'
+            'Content-Disposition': `attachment; filename=Analysis_${data.s_date}.docx`
         });
         res.send(buf);
 
     } catch (error) {
         console.error(error);
-        res.status(500).send("Error");
+        res.status(500).send("Internal Server Error");
     }
 });
 

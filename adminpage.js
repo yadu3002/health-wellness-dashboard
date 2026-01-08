@@ -440,131 +440,128 @@ function populateDropdowns() {
     companySelect.value = selectedCompany;
 }
 
-// --- NEW: Detailed Medication Popup Logic ---
-// --- UPDATED: Detailed Medication Popup with Multiple Pie Charts ---
 
 
-// Updated generateUserReport to enforce BOTH dates and handle Excel date formats
-async function generateUserReport() {
-    const userReportInput = document.getElementById('monthPicker'); // For Data Grid
-    const groupProfileInput = document.getElementById('groupProfile'); // For Word Doc
-
-    // 1. STRICT CLAUSE: Both date ranges must be selected
-    if (!userReportInput || !groupProfileInput || !userReportInput.value || !groupProfileInput.value) {
-        alert("Action Required:\n1. Select a date range for 'User Report' (for Data Grid).\n2. Select a date range for 'Group Profile' (for Word Doc).");
-        return; 
-    }
-
-    console.log("Validation passed. Both dates selected.");
-
-    // 2. DATA GRID PROCESSING (Uses 'User Report' Date)
-    const gridData = filterDataBySpecificRange(userReportInput.value);
-    
-    // Check if data was actually found
-    if (gridData.length <= 1) {
-        alert("No records found for the 'User Report' date range. The grid will be empty.");
-    }
-    openDataGridPopup(gridData, userReportInput.value);
-
-    // 3. WORD DOC PROCESSING (Uses 'Group Profile' Date)
-    const reportData = filterDataBySpecificRange(groupProfileInput.value);
-    const employeeCount = reportData.length > 0 ? reportData.length - 1 : 0;
-
-    let s_date = "_______", e_date = "_______";
-    if (groupProfileInput.value.includes(" to ")) {
-        [s_date, e_date] = groupProfileInput.value.split(" to ");
-    } else {
-        s_date = e_date = groupProfileInput.value;
-    }
-
-    // Call server to generate file
-    generateWordFileOnServer(employeeCount, s_date, e_date, reportData);
-}
 
 /**
- * Filter helper that uses your existing parseDateStr to handle DD.MM.YYYY
- */
-function filterDataBySpecificRange(rangeStr) {
-    if (!headerRow || !allLoadedData.length) return [headerRow];
-
-    // Reuse your existing date parser from adminpage.js
-    const parseDateStr = (str) => {
-        if (!str) return null;
-        const parts = str.split('.');
-        if (parts.length !== 3) return null;
-        return new Date(parts[2], parts[1] - 1, parts[0]);
-    };
-
-    let startDate, endDate;
-    if (rangeStr.includes(" to ")) {
-        const parts = rangeStr.split(" to ");
-        // Flatpickr date is often D.M.Y, convert to Date Objects
-        const sParts = parts[0].split('.');
-        const eParts = parts[1].split('.');
-        startDate = new Date(sParts[2], sParts[1]-1, sParts[0]);
-        endDate = new Date(eParts[2], eParts[1]-1, eParts[0]);
-    } else {
-        const p = rangeStr.split('.');
-        startDate = endDate = new Date(p[2], p[1]-1, p[0]);
-    }
-
-    const doscIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('DOSC'));
-    let combined = [headerRow];
-
-    allLoadedData.forEach(obj => {
-        // Handle both simple arrays or your object structure {data: [...]}
-        const rows = obj.data ? obj.data.slice(1) : obj.slice(1);
-        
-        rows.forEach(row => {
-            const rowDateRaw = String(row[doscIdx] || '').trim();
-            const rowDateObj = parseDateStr(rowDateRaw);
-
-            if (rowDateObj) {
-                rowDateObj.setHours(0,0,0,0);
-                startDate.setHours(0,0,0,0);
-                endDate.setHours(0,0,0,0);
-
-                if (rowDateObj >= startDate && rowDateObj <= endDate) {
-                    combined.push(row);
-                }
-            }
-        });
-    });
-
-    return combined;
-}
-
-/**
- * Popup helper using Blob to avoid SecurityErrors
+ * Updated Popup helper with Column Filtering and PDF/Print Button
  */
 function openDataGridPopup(data, rangeText) {
-    const popupWidth = 1100;
+    const popupWidth = 1200;
     const popupHeight = 700;
     const left = (screen.width / 2) - (popupWidth / 2);
     const top = (screen.height / 2) - (popupHeight / 2);
 
-    // Build Table Rows
-    const tableRows = data.slice(1).map(row => 
-        `<tr>${row.map(cell => `<td>${cell || '-'}</td>`).join('')}</tr>`
-    ).join('');
+    if (!data || data.length <= 1) return;
 
+    const header = data[0];
+    const rows = data.slice(1);
+
+    // 1. REUSE YOUR EXACT COLUMN FINDER LOGIC
+    const getCol = (name) => header.findIndex(h => h.toUpperCase().replace(/\s/g, '').includes(name.toUpperCase()));
+    const colIdx = {
+        ref: getCol('REFID'), emp: getCol('EMPID'), name: getCol('EMPNAME'), phone: getCol('PHONE'),
+        dept: getCol('DEPART'), bmi: getCol('BMI'), bp1: getCol('BP1'), bp2: getCol('BP2'),
+        bs1: getCol('BS1'), bs2: getCol('BS2'), chol: getCol('CHOLESTEROL'), med: getCol('MEDICATION'),
+        orgs: [getCol('ORG1'), getCol('ORG2'), getCol('ORG3')],
+        habs: [getCol('HAB1'), getCol('HAB2')],
+        exes: [getCol('EXE1'), getCol('EXE2'), getCol('EXE3')],
+        strs: [getCol('STR1'), getCol('STR2'), getCol('STR3'), getCol('STR4')],
+        dosc: getCol('DOSC')
+    };
+
+    // 2. HELPER FOR FLAGS (Directly copied from your style logic)
+    const getFlagHtml = (isIssue, labelIssue, labelNormal) => {
+        const label = isIssue ? labelIssue : labelNormal;
+        const className = isIssue ? 'flag-issue' : 'flag-normal';
+        return `<td><span class="flag-indicator ${className}">${label}</span></td>`;
+    };
+
+    // 3. GENERATE ROWS USING YOUR LOGIC
+    const tableRows = rows.map(row => {
+        // BMI Logic
+        let rawBMI = row[colIdx.bmi];
+        let formattedBMI = '-';
+        if (rawBMI !== undefined && rawBMI !== null && rawBMI !== '') {
+            let bmiNum = parseFloat(rawBMI);
+            if (!isNaN(bmiNum)) formattedBMI = bmiNum.toFixed(2);
+        }
+
+        // BP/BG Combined Logic
+        const bp = (row[colIdx.bp1] && row[colIdx.bp2]) ? `${row[colIdx.bp1]}/${row[colIdx.bp2]}` : '-';
+        const bs = (row[colIdx.bs1] || row[colIdx.bs2]) ? ` (${row[colIdx.bs1] || row[colIdx.bs2]})` : '';
+        const bpBg = bp + bs;
+
+        return `
+            <tr>
+                <td>${row[colIdx.ref] || '-'}</td>
+                <td>${row[colIdx.emp] || '-'}</td>
+                <td>${row[colIdx.name] || '-'}</td>
+                <td>${row[colIdx.phone] || '-'}</td>
+                <td>${row[colIdx.dept] || '-'}</td>
+                <td>${formattedBMI}</td>
+                <td>${bpBg}</td>
+                <td>${row[colIdx.chol] || '0'}</td>
+                ${getFlagHtml(row[colIdx.med] === 'Y', 'YES', 'NO')}
+                ${getFlagHtml(colIdx.orgs.some(i => row[i] === 'Y'), 'HIGH', 'LOW')}
+                ${getFlagHtml(colIdx.habs.some(i => row[i] === 'N'), 'POOR', 'GOOD')}
+                ${getFlagHtml(colIdx.exes.some(i => row[i] === 'N'), 'LOW', 'ACTIVE')}
+                ${getFlagHtml(colIdx.strs.some(i => row[i] === 'Y'), 'HIGH', 'NORMAL')}
+                <td>${row[colIdx.dosc] || '-'}</td>
+            </tr>`;
+    }).join('');
+
+    // 4. GENERATE THE FINAL HTML WITH THE "WAY BETTER" CSS
     const tableHtml = `
         <html>
         <head>
-            <title>Preview: ${rangeText}</title>
+            <title>User Report Preview - ${rangeText}</title>
             <style>
-                body { font-family: sans-serif; padding: 20px; font-size: 12px; }
-                table { border-collapse: collapse; width: 100%; }
-                th { background: #2563eb; color: white; padding: 10px; position: sticky; top: 0; text-align: left; }
-                td { border: 1px solid #ddd; padding: 6px; }
-                tr:nth-child(even) { background: #f8fafc; }
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; }
+                .no-print { 
+                    display: flex; justify-content: space-between; align-items: center; 
+                    background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;
+                    margin-bottom: 20px;
+                }
+                .btn-pdf {
+                    background: #e11d48; color: white; border: none; padding: 10px 20px;
+                    border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px;
+                }
+                .btn-pdf:hover { background: #be123c; }
+                
+                table { border-collapse: collapse; width: 100%; font-size: 10px; }
+                th { background: #2563eb; color: white; padding: 12px 8px; text-align: left; position: sticky; top: 0; }
+                td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
+                tr:nth-child(even) { background: #f9fafb; }
+                
+                /* Flag styling to match your dashboard */
+                .flag-indicator { padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 9px; display: inline-block; text-align: center; min-width: 45px; }
+                .flag-issue { background: #fee2e2; color: #991b1b; }
+                .flag-normal { background: #dcfce7; color: #166534; }
+
+                @media print {
+                    .no-print { display: none !important; }
+                    th { background-color: #2563eb !important; -webkit-print-color-adjust: exact; }
+                    body { padding: 0; }
+                }
             </style>
         </head>
         <body>
-            <h3>User Report Data Grid (${data.length - 1} Records)</h3>
-            <p>Filter Range: ${rangeText}</p>
+            <div class="no-print">
+                <div>
+                    <h2 style="margin:0; color: #1e40af;">User Report: Data Preview</h2>
+                    <p style="margin:5px 0 0 0;">Range: ${rangeText} | Records: ${rows.length}</p>
+                </div>
+                <button class="btn-pdf" onclick="window.print()">Download as PDF</button>
+            </div>
             <table>
-                <thead><tr>${data[0].map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                <thead>
+                    <tr>
+                        <th>Ref ID</th><th>Emp ID</th><th>Name</th><th>Mobile</th><th>Depart</th>
+                        <th>BMI</th><th>BP/BG</th><th>Cholestrol</th><th>Medication</th>
+                        <th>Cardiac</th><th>Habit</th><th>Fitness</th><th>Stress</th><th>DOSC</th>
+                    </tr>
+                </thead>
                 <tbody>${tableRows}</tbody>
             </table>
         </body>
