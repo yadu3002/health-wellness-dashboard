@@ -265,7 +265,7 @@ function drawChart(chartId, type, title, labels, data, colors,onClickHandler = n
 }
 
 // Dedicated renderer for the age-by-gender chart
-function drawAgeChart(chartId, ageData) {
+function drawAgeChart(chartId, ageData, onClickHandler = null) {
     const ctx = document.getElementById(chartId);
     if (!ctx) return;
 
@@ -296,21 +296,19 @@ function drawAgeChart(chartId, ageData) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            onClick: (e, elements) => {
+                if (onClickHandler && elements.length > 0) {
+                    onClickHandler();
+                }
+            },
+            onHover: (event, chartElement) => {
+                if (onClickHandler) {
+                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                }
+            },
             plugins: {
                 legend: { position: 'right' },
-                datalabels: {
-                    anchor: 'center',
-                    align: 'center',
-                    color: '#111827',
-                    formatter: (value, ctx) => {
-                        if (value <= 0) return '';
-                        const dataArr = ctx.chart.data.datasets[ctx.datasetIndex].data;
-                        const sum = dataArr.reduce((s, v) => s + v, 0);
-                        const pct = sum ? ((value * 100) / sum).toFixed(1) + '%' : '';
-                        return `${value}\n${pct}`;
-                    },
-                    font: { weight: 'bold', size: 10 }
-                }
+                datalabels: { display: false } // Remove datalabels for cleaner display
             }
         }
     });
@@ -388,7 +386,7 @@ async function updateDashboardAndCharts(data) {
     const tasks = [
         { id: 'chartParticipants', fn: () => {
             const d = calculateParticipantsData(data, header);
-            if (d) { preDrawCleanup('chartParticipants'); drawAgeChart('chartParticipants', d); }
+            if (d) { preDrawCleanup('chartParticipants'); drawAgeChart('chartParticipants', d, openAgePopup); }
             else { clearChart('chartParticipants', 'Age data missing.'); }
         }},
         { id: 'chartGender', fn: () => {
@@ -441,7 +439,7 @@ async function updateDashboardAndCharts(data) {
     if (d) { 
         preDrawCleanup('chartMedication'); 
         // We pass openPDetailsPopup as the final argument here
-        drawChart('chartMedication', 'pie', '', Object.keys(d), Object.values(d), ['#4e73df', '#1cc88a']);
+        drawChart('chartMedication', 'pie', '', Object.keys(d), Object.values(d), ['#4e73df', '#1cc88a'],openChronicMedicationPopup);
     }
     else { clearChart('chartMedication', 'No medication data.'); }
 }},
@@ -1007,28 +1005,51 @@ if (datePickerInput) {
     });
 
 
-    // X. Clear button
-    // Clear Date Filter Logic
-    const clearDateBtn = document.getElementById('clearDateFilter');
-    const dateInput = document.getElementById('dosDateRangePicker');
+    // Master Clear All Filters Button
+    const clearAllBtn = document.getElementById('clearAllFilters');
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', () => {
+            // Reset all global variables
+            selectedDateRange = null;
+            selectedCompany = 'ALL';
+            selectedLocation = 'ALL';
+            searchQuery = '';
 
-    if (clearDateBtn && dateInput) {
-    clearDateBtn.addEventListener('click', () => {
-        // 1. Reset the global variable
-        selectedDateRange = null; 
-        
-        // 2. Clear the input field text
-        dateInput.value = ''; 
-        
-        // 3. Clear the Flatpickr instance (if it exists)
-        if (dateInput._flatpickr) {
-            dateInput._flatpickr.clear();
-        }
+            // Clear all input fields
+            const dateInput = document.getElementById('dosDateRangePicker');
+            const monthPickerInput = document.getElementById('monthPicker');
+            const groupProfileInput = document.getElementById('groupProfile');
+            const employeeSearch = document.getElementById('employeeSearch');
+            const departmentInput = document.getElementById('departmentInput');
+            const companySelect = document.getElementById('companySelect');
+            const locationSelect = document.getElementById('locationSelect');
 
-        // 4. Trigger the filter refresh
-        handleFilterChange(); 
-    });
-}}
+            // Clear date inputs
+            if (dateInput) {
+                dateInput.value = '';
+                if (dateInput._flatpickr) dateInput._flatpickr.clear();
+            }
+            if (monthPickerInput) {
+                monthPickerInput.value = '';
+                if (monthPickerInput._flatpickr) monthPickerInput._flatpickr.clear();
+            }
+            if (groupProfileInput) {
+                groupProfileInput.value = '';
+                if (groupProfileInput._flatpickr) groupProfileInput._flatpickr.clear();
+            }
+
+            // Clear text inputs
+            if (employeeSearch) employeeSearch.value = '';
+            if (departmentInput) departmentInput.value = '';
+
+            // Reset dropdowns to default values
+            if (companySelect) companySelect.value = 'ALL';
+            if (locationSelect) locationSelect.value = 'ALL';
+
+            // Trigger the filter refresh
+            handleFilterChange();
+        });
+    }
 
 
 
@@ -1044,14 +1065,6 @@ if (datePickerInput) {
         }
         });
     }
-    const clearGroupBtn = document.getElementById('clearGroupFilter');
-if (clearGroupBtn) {
-    clearGroupBtn.addEventListener('click', () => {
-        selectedDateRange = null;
-        generateReportInput.value = '';
-        if (generateReportInput._flatpickr) generateReportInput._flatpickr.clear();
-    });
-}
 
 
 
@@ -1072,15 +1085,6 @@ if (monthPickerInput) {
     });
 }
 
-// Clear User Button
-const clearMonthBtn = document.getElementById('clearMonthFilter');
-if (clearMonthBtn) {
-    clearMonthBtn.addEventListener('click', () => {
-        selectedDateRange = null;
-        monthPickerInput.value = '';
-        if (monthPickerInput._flatpickr) monthPickerInput._flatpickr.clear();
-    });
-}
 
     // 4. Company Dropdown
     const companySelect = document.getElementById('companySelect');
@@ -1142,7 +1146,7 @@ if (clearMonthBtn) {
         nameDisplayElement.textContent = savedName ? savedName : "Admin";
     }
 
-});
+}});
 
 window.addEventListener('load', async () => {
     // This calls the server's "cached" data, so it won't lag the login transition

@@ -249,26 +249,43 @@ function openDiabetesPopup() {
 }
 
 function calculateFitnessData(data, header) {
-    const exeCols = findCols(header, ['exe1', 'exe2', 'exe3']);
-    if (exeCols.length === 0) return null;
+    const exe1Col = findCol(header, 'EXE1');
+    const exe2Col = findCol(header, 'EXE2');
+    const exe3Col = findCol(header, 'EXE3');
 
-    // Change: Counts now represent the total number of 'Yes' and 'No' responses across all exercise columns.
-    const counts = { 'Yes': 0, 'No': 0 }; 
+    // If columns aren't found, exit
+    if (exe1Col === -1 && exe2Col === -1 && exe3Col === -1) return null;
 
+    const counts = { 'Yes': 0, 'No': 0 };
+
+    // Start from 1 to skip the header row
     for (let i = 1; i < data.length; i++) {
-        for (const colIndex of exeCols) {
-            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
+        const row = data[i];
+        let personYCount = 0;
 
-            if (value.startsWith('Y')) {
-                counts['Yes']++;
-            } else if (value.startsWith('N')) { 
-                counts['No']++;
-            }
+        // Check EXE1
+        if (row[exe1Col] && row[exe1Col].toString().toUpperCase().trim() === 'Y') {
+            personYCount++;
+        }
+        // Check EXE2
+        if (row[exe2Col] && row[exe2Col].toString().toUpperCase().trim() === 'Y') {
+            personYCount++;
+        }
+        // Check EXE3
+        if (row[exe3Col] && row[exe3Col].toString().toUpperCase().trim() === 'Y') {
+            personYCount++;
+        }
+
+        // Logic: More than 1 "Y" (meaning 2 or 3) counts as Yes/Fit
+        if (personYCount > 1) {
+            counts['Yes']++;
+        } else {
+            counts['No']++;
         }
     }
 
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
+    // Return null if no data was processed to avoid empty charts
+    return (counts['Yes'] === 0 && counts['No'] === 0) ? null : counts;
 }
 
 
@@ -357,43 +374,108 @@ function openFitnessPopup() {
 }
 
 function calculateStressData(data, header) {
-    const strCols = findCols(header, ['str1', 'str2', 'str3', 'str4']);
-    const str4ColIndex = findCol(header, 'str4');
-    if (strCols.length === 0) return null;
+    const str1Col = findCol(header, 'STR1');
+    const str2Col = findCol(header, 'STR2');
+    const str3Col = findCol(header, 'STR3');
+    const str4Col = findCol(header, 'STR4');
 
-    // Change: Counts now represent the total number of 'Yes' and 'No' responses across all stress columns.
-    const counts = { 'Yes': 0, 'No': 0 }; 
+    // If none of the stress columns are found, exit
+    if (str1Col === -1 && str2Col === -1 && str3Col === -1 && str4Col === -1) return null;
 
+    const counts = { 'Yes': 0, 'No': 0 };
+
+    // Start from index 1 to skip the header row
     for (let i = 1; i < data.length; i++) {
-        for (const colIndex of strCols) {
-            const value = (data[i][colIndex] || '').toString().toUpperCase().trim();
+        const row = data[i];
+        let personYCount = 0;
 
-            if (colIndex === str4ColIndex) {
-                // REVERSED LOGIC FOR STR4
-                if (value.startsWith('Y')) {
-                    // Y in STR4 means 'No' Stress
-                    counts['No']++; 
-                } else if (value.startsWith('N')) { 
-                    // N in STR4 means 'Yes' Stress
-                    counts['Yes']++;
-                }
-            } else {
-                // NORMAL LOGIC for STR1, STR2, STR3
-                if (value.startsWith('Y')) {
-                    // Y means 'Yes' Stress
-                    counts['Yes']++;
-                } else if (value.startsWith('N')) { 
-                    // N means 'No' Stress
-                    counts['No']++;
+        // Check each column for a 'Y'
+        const colsToCheck = [str1Col, str2Col, str3Col, str4Col];
+        colsToCheck.forEach(colIdx => {
+            if (colIdx !== -1 && row[colIdx]) {
+                const val = row[colIdx].toString().toUpperCase().trim();
+                if (val === 'Y') {
+                    personYCount++;
                 }
             }
+        });
+
+        // Threshold logic: More than 1 "Y" counts as Yes (Stressed)
+        if (personYCount > 2) {
+            counts['Yes']++;
+        } else {
+            counts['No']++;
         }
     }
 
-    if (counts['Yes'] + counts['No'] === 0) return null;
-    return counts;
+    // Return null if no data was processed
+    return (counts['Yes'] === 0 && counts['No'] === 0) ? null : counts;
 }
 
+function openChronicMedicationPopup() {
+    if (!lastFilteredData || lastFilteredData.length <= 1) return;
+    
+    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
+    const medIdx = findCol(header, 'medication');
+    const fbsIdx = findCol(header, 'bs1');
+    const rbsIdx = findCol(header, 'bs2');
+    const bp1Idx = findCol(header, 'bp1');
+    const cholIdx = findCol(header, 'cholesterol');
+
+    const counts = { diabetes: 0, hypertension: 0, cholesterol: 0 };
+
+    lastFilteredData.slice(1).forEach(row => {
+        // Only count if MEDICATION is 'N' (No)
+        if (String(row[medIdx]).toUpperCase() === 'N') {
+            const fbs = parseFloat(row[fbsIdx]);
+            const rbs = parseFloat(row[rbsIdx]);
+            const sys = parseFloat(row[bp1Idx]);
+            const chol = parseFloat(row[cholIdx]);
+
+            // Diabetes: Fasting > 126 or Random > 200
+            if (fbs >= 126 || rbs >= 200) counts.diabetes++;
+            // Hypertension: Systolic >= 140
+            if (sys >= 140) counts.hypertension++;
+            // Cholesterol: Total >= 200
+            if (chol >= 200) counts.cholesterol++;
+        }
+    });
+
+    const popup = window.open('', '_blank', 'width=900,height=600');
+    popup.document.write(`
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <body style="font-family:sans-serif; background:#f8fafc; padding:40px;">
+            <div style="background:white; padding:25px; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.1);">
+                <h2 style="text-align:center; color:#1e293b;">At-Risk & Unmedicated Population</h2>
+                <p style="text-align:center; color:#64748b; margin-bottom:30px;">
+                    Count of people with clinical conditions who reported <b>NOT</b> taking chronic medication.
+                </p>
+                <div style="height:400px;"><canvas id="chronicRiskChart"></canvas></div>
+            </div>
+            <script>
+                new Chart(document.getElementById('chronicRiskChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Diabetes Risk', 'Hypertension Risk', 'High Cholesterol'],
+                        datasets: [{
+                            label: 'Unmedicated Participants',
+                            data: [${counts.diabetes}, ${counts.hypertension}, ${counts.cholesterol}],
+                            backgroundColor: ['#f87171', '#fb923c', '#fbbf24'],
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { 
+                            y: { beginAtZero: true, title: { display: true, text: 'Number of People' } } 
+                        }
+                    }
+                });
+            </script>
+        </body>
+    `);
+}
 
 function openStressHabitsPopup() {
     if (!lastFilteredData || lastFilteredData.length <= 1) return;
@@ -742,4 +824,107 @@ function openCholesterolPopup() {
                 });
             </script>
         </body>`);
+}
+
+function openAgePopup() {
+    if (!lastFilteredData || lastFilteredData.length <= 1) return;
+
+    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
+    const ageCol = findCol(header, 'age');
+    const dobCol = findCol(header, 'dob'); // fallback if only DOB is provided
+    const genderCol = findCol(header, 'gender');
+
+    if (genderCol === -1 || (ageCol === -1 && dobCol === -1)) return alert("Age or Gender column not found.");
+
+    const ageDetails = {
+        'Under 30': { M: 0, F: 0, total: 0, color: '#4e73df' },
+        '30-40': { M: 0, F: 0, total: 0, color: '#1cc88a' },
+        '40+': { M: 0, F: 0, total: 0, color: '#f6c23e' }
+    };
+
+    const parseAge = (ageVal, dobVal) => {
+        const asNumber = parseFloat(ageVal);
+        if (!isNaN(asNumber) && asNumber > 0 && asNumber < 120) return asNumber;
+
+        const rawDate = dobVal ?? ageVal;
+        const dateVal = new Date(rawDate);
+        if (!isNaN(dateVal)) {
+            const today = new Date();
+            let computed = today.getFullYear() - dateVal.getFullYear();
+            const monthDiff = today.getMonth() - dateVal.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dateVal.getDate())) {
+                computed--;
+            }
+            if (computed >= 0 && computed < 120) return computed;
+        }
+        return null;
+    };
+
+    lastFilteredData.slice(1).forEach(row => {
+        const age = parseAge(
+            ageCol !== -1 ? row[ageCol] : null,
+            dobCol !== -1 ? row[dobCol] : null
+        );
+        if (age === null) return;
+
+        const genderRaw = (row[genderCol] || '').toString().toLowerCase().trim();
+        const genderKey = genderRaw.startsWith('m') ? 'M' : genderRaw.startsWith('f') ? 'F' : null;
+        if (!genderKey) return;
+
+        let bucketKey;
+        if (age < 30) bucketKey = 'Under 30';
+        else if (age <= 40) bucketKey = '30-40'; // Changed to <= 40 for accurate bucket
+        else bucketKey = '40+';
+
+        ageDetails[bucketKey][genderKey]++;
+        ageDetails[bucketKey].total++;
+    });
+
+    const labels = Object.keys(ageDetails);
+    const maleData = labels.map(l => ageDetails[l].M);
+    const femaleData = labels.map(l => ageDetails[l].F);
+    const totalData = labels.map(l => ageDetails[l].total);
+    const colors = labels.map(l => ageDetails[l].color);
+
+    const popup = window.open('', '_blank', 'width=900,height=600');
+    popup.document.write(`
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
+            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                <h2 style="text-align:center; margin-bottom:20px;">Age Distribution by Gender</h2>
+                <div style="height:450px;"><canvas id="ageChartDetail"></canvas></div>
+            </div>
+            <script>
+                new Chart(document.getElementById('ageChartDetail'), {
+                    type: 'bar',
+                    data: {
+                        labels: ${JSON.stringify(labels)},
+                        datasets: [
+                            {
+                                label: 'Male',
+                                data: ${JSON.stringify(maleData)},
+                                backgroundColor: '#4e73df',
+                                borderColor: '#4e73df',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Female',
+                                data: ${JSON.stringify(femaleData)},
+                                backgroundColor: '#fb7185',
+                                borderColor: '#fb7185',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            x: { stacked: false },
+                            y: { beginAtZero: true, stacked: false, title: { display: true, text: 'Number of Participants' } }
+                        }
+                    }
+                });
+            </script>
+        </body>
+    `);
 }
