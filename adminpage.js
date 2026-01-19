@@ -264,6 +264,58 @@ function drawChart(chartId, type, title, labels, data, colors,onClickHandler = n
     });
 }
 
+// Dedicated renderer for the age-by-gender chart
+function drawAgeChart(chartId, ageData) {
+    const ctx = document.getElementById(chartId);
+    if (!ctx) return;
+
+    if (chartInstances[chartId]) {
+        chartInstances[chartId].destroy();
+    }
+
+    ctx.style.display = 'block';
+
+    chartInstances[chartId] = new Chart(ctx, {
+        type: 'doughnut',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: ageData.labels,
+            datasets: [
+                {
+                    label: 'Male',
+                    data: ageData.male,
+                    backgroundColor: ageData.labels.map(() => '#4e73df')
+                },
+                {
+                    label: 'Female',
+                    data: ageData.female,
+                    backgroundColor: ageData.labels.map(() => '#fb7185')
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right' },
+                datalabels: {
+                    anchor: 'center',
+                    align: 'center',
+                    color: '#111827',
+                    formatter: (value, ctx) => {
+                        if (value <= 0) return '';
+                        const dataArr = ctx.chart.data.datasets[ctx.datasetIndex].data;
+                        const sum = dataArr.reduce((s, v) => s + v, 0);
+                        const pct = sum ? ((value * 100) / sum).toFixed(1) + '%' : '';
+                        return `${value}\n${pct}`;
+                    },
+                    font: { weight: 'bold', size: 10 }
+                }
+            }
+        }
+    });
+}
+
 
 function clearChart(chartId, message = 'No data available.') {
     if (chartInstances[chartId]) {
@@ -335,9 +387,9 @@ async function updateDashboardAndCharts(data) {
     // Define all drawing tasks
     const tasks = [
         { id: 'chartParticipants', fn: () => {
-            const d = calculateParticipantsData(data);
-            if (d) { preDrawCleanup('chartParticipants'); drawChart('chartParticipants', 'doughnut', '', Object.keys(d), Object.values(d), ['#4e73df']); }
-            else { clearChart('chartParticipants', 'No employees found.'); }
+            const d = calculateParticipantsData(data, header);
+            if (d) { preDrawCleanup('chartParticipants'); drawAgeChart('chartParticipants', d); }
+            else { clearChart('chartParticipants', 'Age data missing.'); }
         }},
         { id: 'chartGender', fn: () => {
     // Calling the function we created in charts-logic.js
@@ -443,52 +495,7 @@ function populateDropdowns() {
 
 
 // Updated generateUserReport to enforce BOTH dates and handle Excel date formats
-async function generateUserReport() {
-    const userReportInput = document.getElementById('monthPicker'); 
-    const groupProfileInput = document.getElementById('groupProfile'); 
 
-    let maleCount = 0;
-    let femaleCount = 0;
-
-    const userDateValue = userReportInput ? userReportInput.value : '';
-    const wordDateValue = groupProfileInput ? groupProfileInput.value : '';
-
-    if (!userDateValue && !wordDateValue) {
-        alert("Please select a date range for either the User Report (Data Grid) or Group Profile (Word Doc).");
-        return;
-    }
-
-    // --- USER REPORT / DATA GRID LOGIC ---
-    if (userDateValue) {
-        const gridData = filterDataBySpecificRange(userDateValue);
-        
-        // Check if data contains only the header (length 1) or is null
-        if (!gridData || gridData.length <= 1) {
-            alert(`No records found for the User Report date range: ${userDateValue}. The data grid will not be opened.`);
-        } else {
-            console.log(`Found ${gridData.length - 1} records. Opening Data Grid...`);
-            openDataGridPopup(gridData, userDateValue);
-        }
-    }
-
-    // --- WORD DOC LOGIC ---
-    if (wordDateValue) {
-        const reportData = filterDataBySpecificRange(wordDateValue);
-        
-        if (!reportData || reportData.length <= 1) {
-            alert(`No records found for the Word Doc date range: ${wordDateValue}. Download cancelled.`);
-        } else {
-            const employeeCount = reportData.length - 1;
-            let s_date = "_______", e_date = "_______";
-            if (wordDateValue.includes(" to ")) {
-                [s_date, e_date] = wordDateValue.split(" to ");
-            } else {
-                s_date = e_date = wordDateValue;
-            }
-            generateWordFileOnServer(employeeCount, s_date, e_date, reportData);
-        }
-    }
-}
 
 /**
  * Filter helper that uses your existing parseDateStr to handle DD.MM.YYYY
@@ -692,7 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function generateWordFileOnServer(count, s_date, e_date, data) {
     try {
-        const response = await fetch('http://localhost:3000/generate-report', {
+        const response = await fetch('/generate-report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ count, s_date, e_date, data })
@@ -944,7 +951,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         alert("No data found on the server.");
     }
 
-fetch('http://localhost:3000/get-my-data')
+fetch('/get-my-data')
         .then(response => response.json())
         .then(data => {
             console.log("Data received automatically!", data);

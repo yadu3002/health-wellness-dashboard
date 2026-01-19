@@ -19,10 +19,64 @@ function calculateGenderData(data, header) {
     return (counts.Male === 0 && counts.Female === 0) ? null : counts;
 }
 
-function calculateParticipantsData(data) {
-    const total = data.length - 1;
-    if (total <= 0) return null;
-    return { 'Participants': total };
+function calculateParticipantsData(data, header = null) {
+    if (!data || data.length <= 1) return null;
+
+    const headerRow = header || data[0].map(h => String(h || '').toLowerCase().trim());
+    const ageCol = findCol(headerRow, 'age');
+    const dobCol = findCol(headerRow, 'dob'); // fallback if only DOB is provided
+    const genderCol = findCol(headerRow, 'gender');
+
+    if (genderCol === -1 || (ageCol === -1 && dobCol === -1)) return null;
+
+    const buckets = [
+        { label: 'Under 30', male: 0, female: 0 },
+        { label: '30-40', male: 0, female: 0 },
+        { label: '40+', male: 0, female: 0 }
+    ];
+
+    const parseAge = (ageVal, dobVal) => {
+        const asNumber = parseFloat(ageVal);
+        if (!isNaN(asNumber) && asNumber > 0 && asNumber < 120) return asNumber;
+
+        const rawDate = dobVal ?? ageVal;
+        const dateVal = new Date(rawDate);
+        if (!isNaN(dateVal)) {
+            const today = new Date();
+            let computed = today.getFullYear() - dateVal.getFullYear();
+            const monthDiff = today.getMonth() - dateVal.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dateVal.getDate())) {
+                computed--;
+            }
+            if (computed >= 0 && computed < 120) return computed;
+        }
+        return null;
+    };
+
+    for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const age = parseAge(
+            ageCol !== -1 ? row[ageCol] : null,
+            dobCol !== -1 ? row[dobCol] : null
+        );
+        if (age === null) continue;
+
+        const genderRaw = (row[genderCol] || '').toString().toLowerCase().trim();
+        const genderKey = genderRaw.startsWith('m') ? 'male' : genderRaw.startsWith('f') ? 'female' : null;
+        if (!genderKey) continue;
+
+        const bucketIdx = age < 30 ? 0 : age < 40 ? 1 : 2;
+        buckets[bucketIdx][genderKey]++;
+    }
+
+    const totalCount = buckets.reduce((sum, b) => sum + b.male + b.female, 0);
+    if (totalCount === 0) return null;
+
+    return {
+        labels: buckets.map(b => b.label),
+        male: buckets.map(b => b.male),
+        female: buckets.map(b => b.female)
+    };
 }
 
 function calculateObesityData(data, header) {
@@ -497,7 +551,7 @@ function openPDetailsPopup() {
     if (!lastFilteredData || lastFilteredData.length <= 1) return;
 
     const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
-    const pDetailsIdx = findCol(header, 'p_details');
+    const pDetailsIdx = findCol(header, 'med_details');
     if (pDetailsIdx === -1) return alert("Medication/Chronic details column not found.");
 
     const rows = lastFilteredData.slice(1);

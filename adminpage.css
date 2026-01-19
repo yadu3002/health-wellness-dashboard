@@ -179,7 +179,7 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 .metric-card {
     border: 1px solid #cbd5e1;
     background-color: #f8fafc;
-    padding: 0.75rem;
+    padding: 0.5rem 0.5rem 0.75rem;
 }
 
 .metric-title {
@@ -193,9 +193,9 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 }
 
 .chart-container {
-    width: 7rem;
-    height: 7rem;
-    margin: 0 auto;
+    width: 100%;
+    height: 190px;
+    margin: 0;
     position: relative;
 }
 

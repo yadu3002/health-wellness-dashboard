@@ -61,6 +61,38 @@ function drawChart(chartId, type, title, labels, data, colors,onClickHandler=nul
     });
 }
 
+// Dedicated renderer for age distribution by gender
+function drawAgeChart(chartId, ageData) {
+    const ctx = document.getElementById(chartId);
+    if (!ctx) return;
+    if (chartInstances[chartId]) chartInstances[chartId].destroy();
+    ctx.style.display = 'block';
+
+    chartInstances[chartId] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ageData.labels,
+            datasets: [
+                {
+                    label: 'Male',
+                    data: ageData.male,
+                    backgroundColor: ageData.labels.map(() => '#4e73df')
+                },
+                {
+                    label: 'Female',
+                    data: ageData.female,
+                    backgroundColor: ageData.labels.map(() => '#fb7185')
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'right' } }
+        }
+    });
+}
+
 function clearChart(chartId, message = 'No data available.') {
     if (chartInstances[chartId]) {
         chartInstances[chartId].destroy();
@@ -119,8 +151,9 @@ function updateDashboardAndCharts(data) {
     // Inside updateDashboardAndCharts function in script.js
 const charts = [
     { id: 'chartParticipants', fn: () => {
-        const d = calculateParticipantsData(data);
-        if (d) { preDrawCleanup('chartParticipants'); drawChart('chartParticipants', 'bar', '', Object.keys(d), Object.values(d), ['#4e73df']); }
+        const d = calculateParticipantsData(data, header);
+        if (d) { preDrawCleanup('chartParticipants'); drawAgeChart('chartParticipants', d); }
+        else { clearChart('chartParticipants', 'Age data missing.'); }
     }},
     { id: 'chartGender', fn: () => {
         const d = calculateGenderData(data, header);

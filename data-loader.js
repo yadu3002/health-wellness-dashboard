@@ -1,6 +1,6 @@
 async function loadWellnessData() {
     try {
-        const response = await fetch('http://localhost:3000/get-my-data');
+        const response = await fetch('/get-my-data');
         if (!response.ok) throw new Error('Network response was not ok');
         
         const rawData = await response.json();
