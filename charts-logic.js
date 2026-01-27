@@ -1,23 +1,3 @@
-function calculateGenderData(data, header) {
-    const genderCol = findCol(header, 'gender');
-    if (genderCol === -1) return null;
-
-    const counts = { 'Male': 0, 'Female': 0 };
-
-    for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        const gender = (row[genderCol] || '').toString().toLowerCase().trim();
-        
-        if (gender.startsWith('m')) {
-            counts.Male++;
-        } else if (gender.startsWith('f')) {
-            counts.Female++;
-        }
-    }
-
-    // Return null if no gender data was found to avoid drawing an empty chart
-    return (counts.Male === 0 && counts.Female === 0) ? null : counts;
-}
 
 function calculateParticipantsData(data, header = null) {
     if (!data || data.length <= 1) return null;

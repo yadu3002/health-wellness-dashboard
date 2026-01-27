@@ -32,7 +32,7 @@ function handleLogin() {
     localStorage.setItem('adminName', displayName);
 
     // Redirect to the admin page
-    window.location.href = 'adminpage2.html'; 
+    window.parent.location.href = 'adminpage.html'; 
 }
 
 // **NEW: Form Submission Handler**
@@ -63,7 +63,7 @@ document.getElementById('login-form').addEventListener('submit', (event) => {
     }
 
     // 4. Navigate to the new page
-    window.location.href = destinationPage;
+    window.parent.location.href = destinationPage;
     
     // NOTE: In a real application, you would also perform an AJAX request here
     // to validate the user's credentials before redirecting.

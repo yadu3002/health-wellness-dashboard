@@ -12,12 +12,16 @@ const findCol = (header, name) => header.findIndex(h => h.toLowerCase().includes
 const findCols = (header, names) => names.map(name => findCol(header, name)).filter(i => i !== -1);
 
 function openLoginPopup() {
-    const url = 'loginpage2.html';
-    const name = 'LoginWindow';
-    const features = 'width=550,height=700,toolbar=no,location=,status=no,menubar=no,scrollbars=yes,resizable=yes';
-    window.open(url, name, features);
+    const modal = document.getElementById('loginModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
 }
 
+function closeLoginModal() {
+    const modal = document.getElementById('loginModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
 
 
 // --- Chart Drawing Functions ---

@@ -14,9 +14,11 @@ body {
 /* adminpage.css */
 
 .container {
-    max-width: 98%; /* Changed from 1600px to utilize full width */
+    width: 100%;
+    max-width: 100%;
     margin: 0 auto;
-    padding: 0.5rem 1rem; /* Reduced top padding to tighten the look */
+    padding: 1rem 1.5rem;
+    box-sizing: border-box; /* Reduced top padding to tighten the look */
 }
 
 td:nth-child(6) { /* Assuming BMI is the 6th column */
@@ -27,8 +29,10 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 /* Header */
 .dashboard-header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    gap: 1rem;
     background: linear-gradient(to right, #f1f5f9, #f8fafc);
     border: 2px solid #cbd5e1;
     padding: 1rem;
@@ -39,7 +43,8 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 .header-left {
     display: flex;
     align-items: center;
-    gap: 2rem;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .admin-label {
@@ -237,19 +242,20 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 }
 
 .chart-container {
+    position: relative; 
+    aspect-ratio: 1 / 1; /* Force a fixed height so it can't grow infinitely */
     width: 100%;
-    height: 190px;
-    margin: 0;
-    position: relative;
-    overflow: hidden;
+    overflow: hidden
 }
 
 .charts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
     width: 100%;
 }
+
 
 .chart-labels {
     position: absolute;
@@ -292,15 +298,19 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 /* Data Table */
 .data-table-container {
     width: 100%;
-    overflow-x: auto; /* Keeps it responsive if the screen is small */
+    max-width: 100%;
+    margin-top: 1rem;
+    overflow-x: auto;
     background: white;
     border: 1px solid #cbd5e1;
     border-radius: 8px;
+    -webkit-overflow-scrolling: touch;
 }
 
 table {
     width: 100%; /* Ensure table stretches to the new container width */
     border-collapse: collapse;
+    min-width: 1000px;
 }
 
 thead {
@@ -399,4 +409,8 @@ td:nth-child(7), /* BP/BG */
 td:nth-child(8) /* Cholestrol */
 {
     text-align: left; 
+}
+
+canvas {
+    max-width: 100% !important;
 }

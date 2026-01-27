@@ -358,7 +358,7 @@ async function updateDashboardAndCharts(data) {
     
     const totalEmployees = data.length - 1; 
     const allChartIds = [
-        'chartParticipants','chartGender', 'chartChronic', 'chartHypertension', 
+        'chartParticipants', 'chartChronic', 'chartHypertension', 
         'chartDiabetes', 'chartCholestrol','chartObesity', 'chartFitness', 
         'chartStress', 'chartMedication'
     ];
@@ -389,16 +389,7 @@ async function updateDashboardAndCharts(data) {
             if (d) { preDrawCleanup('chartParticipants'); drawAgeChart('chartParticipants', d, openAgePopup); }
             else { clearChart('chartParticipants', 'Age data missing.'); }
         }},
-        { id: 'chartGender', fn: () => {
-    // Calling the function we created in charts-logic.js
-    const d = calculateGenderData(data, header); 
-    if (d) { 
-        preDrawCleanup('chartGender'); 
-        drawChart('chartGender', 'pie', '', Object.keys(d), Object.values(d), ['#4e73df', '#fb7185']); 
-    } else { 
-        clearChart('chartGender', 'Gender data missing.'); 
-    }
-}},
+    
         { id: 'chartChronic', fn: () => {
             const d = calculateChronicData(data, header);
             if (d) { preDrawCleanup('chartChronic'); drawChart('chartChronic', 'pie', '', Object.keys(d), Object.values(d), ['#e74a3b', '#4e73df'], openPDetailsPopup); }
