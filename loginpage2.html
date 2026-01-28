@@ -16,9 +16,10 @@
         <div class="step step-select" id="step-select">
             <div class="header">
                 <div class="icon-circle" id="welcome-icon">
-                    <!-- User icon -->
+                    <!-- Health/Wellness icon -->
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="28" height="28">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.5 12h4l1.5-3 3 8 1.5-5h5.5"/>
                     </svg>
                 </div>
                 <h2>Welcome Back</h2>
@@ -88,8 +89,10 @@
 
             <form id="login-form"> 
                 <label>Username</label>
-                <input type="text" placeholder="Enter your username" required> <label>Password</label>
-                <input type="password" placeholder="Enter your password" required> <div class="options">
+                <input id="username" name="username" type="text" placeholder="Enter your username" autocomplete="off" required>
+                <label>Password</label>
+                <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="off" required>
+                <div class="options">
                     <label><input type="checkbox"> Remember me</label>
                     <a href="#">Forgot password?</a>
                 </div>

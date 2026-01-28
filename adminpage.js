@@ -91,7 +91,7 @@ function populateDataTable(data) {
     if (rawBMI !== undefined && rawBMI !== null && rawBMI !== '') {
         let bmiNum = parseFloat(rawBMI);
     if (!isNaN(bmiNum)) {
-        formattedBMI = bmiNum.toFixed(2); // Rounds to 2 decimal places
+        formattedBMI = bmiNum.toFixed(2);
     }
 }
         
@@ -680,7 +680,13 @@ function openDataGridPopup(data, rangeText) {
 document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('generateUserReportBtn');
     if (btn) {
-        btn.addEventListener('click', generateUserReport);
+        btn.addEventListener('click', (event) => { 
+            event.preventDefault(); // Prevent default form submission if any
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/1d97a748-68d6-4f07-a07e-26d0c0815749',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'adminpage.js:generateUserReportBtnClick',message:'Group Profile button clicked',data:{hasHeaderRowOnWindow:!!window.headerRow},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion agent log
+            generateUserReport(window.headerRow); // Pass headerRow here
+        });
     } else {
         console.error("Could not find button with ID 'generateUserReportBtn'");
     }
@@ -958,6 +964,10 @@ fetch('/get-my-data')
         .catch(err => {
             console.error("Server error:", err);
             alert("Could not connect to the server. Make sure 'node server.js' is running!");
+
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/1d97a748-68d6-4f07-a07e-26d0c0815749',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H3',location:'adminpage.js:/get-my-data.catch',message:'get-my-data failed',data:{error:String(err)},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion agent log
         });
 
 
@@ -1118,7 +1128,7 @@ if (monthPickerInput) {
     if (numScreenedValue) numScreenedValue.textContent = '0';
     
     const allChartIds = [
-        'chartParticipants','chartGender', 'chartChronic', 'chartHypertension', 
+        'chartParticipants','chartChronic', 'chartHypertension', 
         'chartDiabetes', 'chartCholestrol','chartObesity', 'chartFitness', 
         'chartStress', 'chartMedication'
     ];
@@ -1134,7 +1144,9 @@ if (monthPickerInput) {
 
     // 2. If a name exists, show it; otherwise default to "Admin"
     if (nameDisplayElement) {
-        nameDisplayElement.textContent = savedName ? savedName : "Admin";
+        nameDisplayElement.textContent = (savedUsername && savedUsername.trim())
+            ? savedUsername.trim()
+            : (savedName && savedName.trim()) ? savedName.trim() : "Admin";
     }
 
 }});

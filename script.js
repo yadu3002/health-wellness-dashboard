@@ -13,14 +13,20 @@ const findCols = (header, names) => names.map(name => findCol(header, name)).fil
 
 function openLoginPopup() {
     const modal = document.getElementById('loginModal');
+    const frame = document.getElementById('loginFrame');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    // Force a refresh so previously typed credentials never persist
+    if (frame) frame.src = 'loginpage2.html?embedded=1&_ts=' + Date.now();
 }
 
 function closeLoginModal() {
     const modal = document.getElementById('loginModal');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    // Clear the iframe DOM by unloading it (avoids cached input values)
+    const frame = document.getElementById('loginFrame');
+    if (frame) frame.src = 'about:blank';
 }
 
 
@@ -159,10 +165,6 @@ const charts = [
         if (d) { preDrawCleanup('chartParticipants'); drawAgeChart('chartParticipants', d); }
         else { clearChart('chartParticipants', 'Age data missing.'); }
     }},
-    { id: 'chartGender', fn: () => {
-        const d = calculateGenderData(data, header);
-        if (d) { preDrawCleanup('chartGender'); drawChart('chartGender', 'doughnut', '', Object.keys(d), Object.values(d), ['#4e73df', '#fb7185']); }
-    }},
     { id: 'chartChronic', fn: () => {
         const d = calculateChronicData(data, header);
         if (d) { preDrawCleanup('chartChronic'); drawChart('chartChronic', 'pie', '', Object.keys(d), Object.values(d), ['#4e73df', '#1cc88a'], openPDetailsPopup); }
@@ -245,7 +247,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (yearDisplay) yearDisplay.textContent = '2025';
 
     // Clear Charts initially
-    const allChartIds = ['chartParticipants','chartGender', 'chartChronic', 'chartHypertension', 'chartDiabetes', 
+    const allChartIds = ['chartParticipants', 'chartChronic', 'chartHypertension', 'chartDiabetes', 
                          'chartCholestrol','chartObesity', 'chartFitness', 'chartStress', 'chartMedication'];
     allChartIds.forEach(id => clearChart(id, 'Loading server data...'));
 

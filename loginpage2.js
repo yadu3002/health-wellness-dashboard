@@ -10,6 +10,14 @@ document.querySelectorAll('.role-item').forEach(item => {
     });
 });
 
+// If this page is embedded in an iframe (index.html modal), remove the inner overlay styling
+document.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('embedded') === '1') {
+        document.body.classList.add('embedded');
+    }
+});
+
 document.getElementById('back-btn').addEventListener('click', () => {
     document.getElementById('step-login').classList.add('hidden');
     document.getElementById('step-select').classList.remove('hidden');
@@ -42,6 +50,15 @@ document.getElementById('login-form').addEventListener('submit', (event) => {
     
     // 2. Get the selected role from the form's data attribute
     const selectedRole = event.currentTarget.dataset.selectedRole;
+
+    // 2b. Store the typed username for showing it on the admin page
+    const usernameInput = document.getElementById('username');
+    const rawUsername = (usernameInput?.value || '').trim();
+    if (rawUsername) {
+        localStorage.setItem('loggedInUsername', rawUsername);
+        // Backwards compatibility with existing admin page logic
+        localStorage.setItem('adminName', rawUsername);
+    }
 
     // 3. Determine the destination URL based on the role
     let destinationPage = '';
