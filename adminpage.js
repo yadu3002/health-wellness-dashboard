@@ -182,6 +182,28 @@ function updateDashboardFilters() {
 // --- Chart Drawing Functions (No Change) ---
 
 
+// Function to capture chart as base64 image
+function captureChartAsImage(chartId) {
+    const chartInstance = chartInstances[chartId];
+    if (!chartInstance) {
+        console.warn(`Chart ${chartId} not found in chartInstances`);
+        return null;
+    }
+    try {
+        const image = chartInstance.toBase64Image('image/png', 1.0);
+        if (image) {
+            console.log(`Successfully captured ${chartId}, image length: ${image.length}`);
+        }
+        return image;
+    } catch (error) {
+        console.error(`Error capturing chart ${chartId}:`, error);
+        return null;
+    }
+}
+
+// Expose function to window for report generator
+window.captureChartAsImage = captureChartAsImage;
+
 function drawChart(chartId, type, title, labels, data, colors,onClickHandler = null) {
     const ctx = document.getElementById(chartId);
     if (!ctx) return;
@@ -358,8 +380,8 @@ async function updateDashboardAndCharts(data) {
     
     const totalEmployees = data.length - 1; 
     const allChartIds = [
-        'chartParticipants', 'chartChronic', 'chartHypertension', 
-        'chartDiabetes', 'chartCholestrol','chartObesity', 'chartFitness', 
+        'chartParticipants', 'chartChronic', 'chartHypertension',
+        'chartDiabetes', 'chartCholestrol','chartObesity', 'chartFitness',
         'chartStress', 'chartMedication'
     ];
 
@@ -680,10 +702,18 @@ function openDataGridPopup(data, rangeText) {
 document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('generateUserReportBtn');
     if (btn) {
-        btn.addEventListener('click', (event) => { 
+        btn.addEventListener('click', (event) => {
             event.preventDefault(); // Prevent default form submission if any
+
+            // Validate that a company is selected
+            const companySelect = document.getElementById('companySelect');
+            if (!companySelect || companySelect.value === 'ALL' || companySelect.value === '') {
+                alert('Please select a specific company from the dropdown before generating the report.');
+                return;
+            }
+
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/1d97a748-68d6-4f07-a07e-26d0c0815749',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'adminpage.js:generateUserReportBtnClick',message:'Group Profile button clicked',data:{hasHeaderRowOnWindow:!!window.headerRow},timestamp:Date.now()})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/1d97a748-68d6-4f07-a07e-26d0c0815749',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'adminpage.js:generateUserReportBtnClick',message:'Group Profile button clicked',data:{hasHeaderRowOnWindow:!!window.headerRow,selectedCompany:companySelect.value},timestamp:Date.now()})}).catch(()=>{});
             // #endregion agent log
             generateUserReport(window.headerRow); // Pass headerRow here
         });
@@ -1128,8 +1158,8 @@ if (monthPickerInput) {
     if (numScreenedValue) numScreenedValue.textContent = '0';
     
     const allChartIds = [
-        'chartParticipants','chartChronic', 'chartHypertension', 
-        'chartDiabetes', 'chartCholestrol','chartObesity', 'chartFitness', 
+        'chartParticipants','chartChronic', 'chartHypertension',
+        'chartDiabetes', 'chartCholestrol','chartObesity', 'chartFitness',
         'chartStress', 'chartMedication'
     ];
     
@@ -1140,6 +1170,7 @@ if (monthPickerInput) {
     });
 
     const savedName = localStorage.getItem('adminName');
+    const savedUsername = localStorage.getItem('loggedInUsername');
     const nameDisplayElement = document.getElementById('adminDisplayName');
 
     // 2. If a name exists, show it; otherwise default to "Admin"

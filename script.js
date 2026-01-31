@@ -32,52 +32,111 @@ function closeLoginModal() {
 
 // --- Chart Drawing Functions ---
 
-function drawChart(chartId, type, title, labels, data, colors,onClickHandler=null) {
-    const ctx = document.getElementById(chartId);
-    if (!ctx) return;
-    if (chartInstances[chartId]) chartInstances[chartId].destroy();
-    ctx.style.display = 'block';
-    const isPie = (type === 'pie');
-    chartInstances[chartId] = new Chart(ctx, {
-        type: type,
-        data: {
-            labels: labels,
-            datasets: [{
-                label: isPie ? title : 'Employee Count',
-                data: data,
-                backgroundColor: colors,
-                borderColor: isPie ? 'white' : 'rgba(0, 0, 0, 0.1)',
-                borderWidth: isPie ? 2 : 1
-            }]
+/**
+ * Modern ApexCharts implementation for all charts except Age
+ */
+function drawChart(chartId, type, title, labels, data, colors, onClickHandler = null) {
+    const container = document.getElementById(chartId);
+    if (!container) return;
+
+    // Standard cleanup for ApexCharts
+    if (chartInstances[chartId] && typeof chartInstances[chartId].destroy === 'function') {
+        chartInstances[chartId].destroy();
+    }
+
+    const isPie = (type === 'pie' || type === 'doughnut');
+
+    const options = {
+        series: data,
+        chart: {
+            type: isPie ? 'donut' : 'bar',
+            height: 350,
+            fontFamily: 'Inter, sans-serif',
+            // --- FIX: INTEGRATE THE POPUP HANDLER HERE ---
+            events: {
+                dataPointSelection: (event, chartContext, config) => {
+                    // event: The mouse event
+                    // chartContext: The internal Apex instance
+                    // config: contains index of the clicked bar/slice
+                    if (onClickHandler) onClickHandler();
+                }
+            },
+            animations: {
+                enabled: true,
+                easing: 'easeinout',
+                speed: 1000,
+                animateGradually: { enabled: true, delay: 150 }
+            },
+            dropShadow: {
+                enabled: true,
+                blur: 5,
+                left: 0,
+                top: 2,
+                opacity: 0.1
+            }
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false, 
-            plugins: { legend: { position: isPie ? 'right' : 'top' } },
-            scales: isPie ? {} : { y: { beginAtZero: true } },
-            onClick: (e, elements) => {
-                // If the chart has an onClickHandler and a slice/bar was clicked
-                if (onClickHandler && elements.length > 0) {
-                    onClickHandler();
+        // --- ADDING COMPLEXITY: GRADIENTS ---
+        fill: {
+            type: 'gradient',
+            gradient: {
+                shade: 'dark',
+                type: "vertical",
+                shadeIntensity: 0.5,
+                gradientToColors: colors.map(c => c + 'CC'), // Slightly transparent ends
+                opacityFrom: 1,
+                opacityTo: 0.9,
+                stops: [0, 100]
+            }
+        },
+        plotOptions: {
+            pie: {
+                startAngle: -90, // Makes it a cool semi-circle arch
+                endAngle: 90,
+                offsetY: 40,
+                donut: {
+                    size: '75%',
+                    labels: {
+                        show: true,
+                        name: { show: true, fontSize: '14px', offsetY: -10 },
+                        value: { show: true, fontSize: '20px', fontWeight: 'bold', offsetY: 0 },
+                        total: {
+                            show: true,
+                            label: title,
+                            formatter: (w) => w.globals.seriesTotals.reduce((a, b) => a + b, 0)
+                        }
+                    }
                 }
             },
-            onHover: (event, chartElement) => {
-                // Change cursor to pointer if the chart is clickable
-                if (onClickHandler) {
-                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
-                }
-            },
-        }
-    });
+            bar: {
+                borderRadius: 10,
+                columnWidth: '55%',
+                distributed: true
+            }
+        },
+        colors: colors,
+        labels: labels,
+        stroke: {
+            show: true,
+            width: 3,
+            colors: ['#fff'] // Strong white borders create a "layered" look
+        },
+        legend: { position: 'bottom', offsetY: 0 },
+        grid: { padding: { bottom: -60 } } // Adjusts for the semi-circle layout
+    };
+
+    chartInstances[chartId] = new ApexCharts(container, options);
+    chartInstances[chartId].render();
 }
 
 // Dedicated renderer for age distribution by gender
 function drawAgeChart(chartId, ageData) {
     const ctx = document.getElementById(chartId);
     if (!ctx) return;
+    
     if (chartInstances[chartId]) chartInstances[chartId].destroy();
     ctx.style.display = 'block';
 
+    // This specifically uses the Chart.js library as requested
     chartInstances[chartId] = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -86,19 +145,20 @@ function drawAgeChart(chartId, ageData) {
                 {
                     label: 'Male',
                     data: ageData.male,
-                    backgroundColor: ageData.labels.map(() => '#4e73df')
+                    backgroundColor: '#4e73df' // Admin Blue
                 },
                 {
                     label: 'Female',
                     data: ageData.female,
-                    backgroundColor: ageData.labels.map(() => '#fb7185')
+                    backgroundColor: '#fb7185' // Admin Pink
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'right' } }
+            plugins: { legend: { position: 'right' } },
+            cutout: '50%'
         }
     });
 }

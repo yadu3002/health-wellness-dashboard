@@ -1,4 +1,26 @@
 
+function calculateGenderData(data, header) {
+    if (!data || data.length <= 1) return null;
+
+    const genderCol = findCol(header, 'gender');
+    if (genderCol === -1) return null;
+
+    const counts = { 'Male': 0, 'Female': 0 };
+
+    for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const gender = (row[genderCol] || '').toString().toLowerCase().trim();
+        if (gender.startsWith('m')) {
+            counts['Male']++;
+        } else if (gender.startsWith('f')) {
+            counts['Female']++;
+        }
+    }
+
+    if (counts['Male'] + counts['Female'] === 0) return null;
+    return counts;
+}
+
 function calculateParticipantsData(data, header = null) {
     if (!data || data.length <= 1) return null;
 
@@ -103,33 +125,23 @@ function openObesityPopup() {
     });
 
     const popup = window.open('', '_blank', 'width=1000,height=600');
-    popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">BMI & Obesity Classification</h2>
-                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('mainChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(stages.map(s => s.name))},
-                        datasets: [{
-                            label: 'Participants',
-                            data: ${JSON.stringify(stages.map(s => s.count))},
-                            backgroundColor: ${JSON.stringify(stages.map(s => s.color))},
-                            borderRadius: 5
-                        }]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
-                    }
-                });
-            </script>
-        </body>`);
+    // Replace the Chart.js script and 'new Chart' call inside the popup.document.write
+popup.document.write(`
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <body style="font-family:'Inter', sans-serif; background:#f8fafc; padding:30px;">
+        <div id="chart" style="background:white; padding:20px; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.05);"></div>
+        <script>
+            var options = {
+                series: [{ name: 'Participants', data: ${JSON.stringify(stages.map(s => s.count))} }],
+                chart: { type: 'bar', height: 450 },
+                plotOptions: { bar: { borderRadius: 8, distributed: true } },
+                colors: ${JSON.stringify(stages.map(s => s.color))},
+                xaxis: { categories: ${JSON.stringify(stages.map(s => s.name))} }
+            };
+            new ApexCharts(document.querySelector("#chart"), options).render();
+        </script>
+    </body>
+`);
 }
 
 function calculateDiabetesData(data, header) {
@@ -354,42 +366,32 @@ function openFitnessPopup() {
 }
 
 function calculateStressData(data, header) {
-    const str1Col = findCol(header, 'STR1');
-    const str2Col = findCol(header, 'STR2');
-    const str3Col = findCol(header, 'STR3');
-    const str4Col = findCol(header, 'STR4');
-
-    // If none of the stress columns are found, exit
-    if (str1Col === -1 && str2Col === -1 && str3Col === -1 && str4Col === -1) return null;
+    const strCols = findCols(header, ['str1', 'str2', 'str3', 'str4']);
+    const str4ColIndex = findCol(header, 'str4');
+    if (strCols.length === 0) return null;
 
     const counts = { 'Yes': 0, 'No': 0 };
 
     // Start from index 1 to skip the header row
     for (let i = 1; i < data.length; i++) {
         const row = data[i];
-        let personYCount = 0;
+        for (const colIndex of strCols) {
+            const value = (row[colIndex] || '').toString().toUpperCase().trim();
 
-        // Check each column for a 'Y'
-        const colsToCheck = [str1Col, str2Col, str3Col, str4Col];
-        colsToCheck.forEach(colIdx => {
-            if (colIdx !== -1 && row[colIdx]) {
-                const val = row[colIdx].toString().toUpperCase().trim();
-                if (val === 'Y') {
-                    personYCount++;
-                }
+            if (colIndex === str4ColIndex) {
+                // REVERSED LOGIC FOR STR4
+                if (value.startsWith('Y')) { counts['No']++; }
+                else if (value.startsWith('N')) { counts['Yes']++; }
+            } else {
+                // NORMAL LOGIC for STR1, STR2, STR3
+                if (value.startsWith('Y')) { counts['Yes']++; }
+                else if (value.startsWith('N')) { counts['No']++; }
             }
-        });
-
-        // Threshold logic: More than 1 "Y" counts as Yes (Stressed)
-        if (personYCount > 2) {
-            counts['Yes']++;
-        } else {
-            counts['No']++;
         }
     }
 
-    // Return null if no data was processed
-    return (counts['Yes'] === 0 && counts['No'] === 0) ? null : counts;
+    if (counts['Yes'] + counts['No'] === 0) return null;
+    return counts;
 }
 
 function openChronicMedicationPopup() {

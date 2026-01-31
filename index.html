@@ -59,98 +59,99 @@
     </header>
 
     <main class="p-6 md:p-8">
-        
-        
         <div class="bg-white rounded-2xl p-4 md:p-5 mb-6 shadow-md max-w-5xl mx-auto">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                <!-- Year -->
-                <div class="flex justify-center md:justify-start md:items-center">
-                    <div class="inline-flex min-w-[160px] md:min-w-0 items-center justify-center gap-2 text-sm font-semibold text-gray-700 px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50">
-                        <span>Year</span>
-                        <span class="text-gray-300">•</span>
-                        <span id="currentYearDisplay" class="text-primary">2025</span>
-                    </div>
-                </div>
-
-                <!-- Metrics -->
-                <div class="flex justify-center">
-                    <div class="inline-flex items-stretch rounded-xl border border-gray-200 bg-white overflow-hidden">
-                        <div class="px-5 py-2.5 text-center min-w-[160px]">
-                            <div class="text-[11px] tracking-wide uppercase text-gray-500 font-semibold">Total Corporates</div>
-                            <div class="text-2xl leading-none font-extrabold text-primary mt-1" id="numCompaniesValue">0</div>
-                        </div>
-                        <div class="w-px bg-gray-200"></div>
-                        <div class="px-5 py-2.5 text-center min-w-[160px]">
-                            <div class="text-[11px] tracking-wide uppercase text-gray-500 font-semibold">People Screened</div>
-                            <div class="text-2xl leading-none font-extrabold text-secondary mt-1" id="numScreenedValue">0</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Login button -->
-                <div class="flex justify-center md:justify-end">
-                    <button class="inline-flex items-center justify-center px-5 py-2.5 bg-accent text-white font-semibold rounded-xl shadow-lg hover:bg-amber-600 transition duration-150 transform hover:scale-[1.02] w-full md:w-auto md:min-w-[140px]" onclick="openLoginPopup();">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3v-1"></path></svg>
-                        Login
-                    </button>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+        <div class="flex justify-center md:justify-start">
+            <div class="inline-flex items-stretch rounded-xl border border-gray-200 bg-white overflow-hidden">
+                <div class="px-5 py-2.5 text-center min-w-[140px]">
+                    <div class="text-[11px] tracking-wide uppercase text-gray-500 font-semibold">Selected Year</div>
+                    <div class="text-2xl leading-none font-extrabold text-primary mt-1" id="currentYearDisplay">2025</div>
                 </div>
             </div>
         </div>
+
+        <div class="flex justify-center">
+            <div class="inline-flex items-stretch rounded-xl border border-gray-200 bg-white overflow-hidden">
+                <div class="px-5 py-2.5 text-center min-w-[160px]">
+                    <div class="text-[11px] tracking-wide uppercase text-gray-500 font-semibold">Total Corporates</div>
+                    <div class="text-2xl leading-none font-extrabold text-primary mt-1" id="numCompaniesValue">0</div>
+                </div>
+                <div class="w-px bg-gray-200"></div>
+                <div class="px-5 py-2.5 text-center min-w-[160px]">
+                    <div class="text-[11px] tracking-wide uppercase text-gray-500 font-semibold">People Screened</div>
+                    <div class="text-2xl leading-none font-extrabold text-secondary mt-1" id="numScreenedValue">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-center md:justify-end">
+            <button class="inline-flex items-center justify-center px-5 py-2.5 bg-accent text-white font-semibold rounded-xl shadow-lg hover:bg-amber-600 transition duration-150 transform hover:scale-[1.02] w-full md:w-auto md:min-w-[140px]" onclick="openLoginPopup();">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3v-1"></path></svg>
+                Login
+            </button>
+        </div>
+    </div>
+</div>
         
+
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-6">
 
-            <div class="bg-white rounded-xl shadow-md chart-container p-4">
+            <div class="bg-white rounded-xl shadow-md chart-container p-4 ">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Age Distribution (by Gender)</div>
                 <canvas id="chartParticipants"></canvas>
             </div>
             
-            <div class="bg-white rounded-xl shadow-md chart-container p-4">
+    
+            <div class="bg-white rounded-xl shadow-md chart-container p-4 transition-all duration-300 hover:shadow-lg">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Chronic Disease Status</div>
-                <canvas id="chartChronic"></canvas>
+             <div id="chartChronic"></div>
             </div>
 
             <div class="bg-white rounded-xl shadow-md chart-container p-4">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Hypertension Risk (BP)</div>
-                <canvas id="chartHypertension"></canvas>
+                <div id="chartHypertension"></div>
             </div>
 
             <div class="bg-white rounded-xl shadow-md chart-container p-4">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Diabetes (Blood Sugar) Risk</div>
-                <canvas id="chartDiabetes"></canvas>
+                <div id="chartDiabetes"></div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md chart-container p-4">
+                <div class="text-sm font-semibold text-center mb-2 text-gray-700">Dyslipidemia (Cholesterol) Risk</div>
+                <div id="chartCholestrol"></div>
             </div>
         </div>
 
 
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-6">
             
-            <div class="bg-white rounded-xl shadow-md chart-container p-4">
-                <div class="text-sm font-semibold text-center mb-2 text-gray-700">Dyslipidemia (Cholesterol) Risk</div>
-                <canvas id="chartCholestrol"></canvas>
-            </div>
+            
             
             <div class="bg-white rounded-xl shadow-md chart-container p-4">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Obesity/BMI Classification</div>
-                <canvas id="chartObesity"></canvas>
+                <div id="chartObesity"></div>
             </div>
             
             <div class="bg-white rounded-xl shadow-md chart-container p-4">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Fitness/Exercise Level</div>
-                <canvas id="chartFitness"></canvas>
+                <div id="chartFitness"></div>
             </div>
 
             <div class="bg-white rounded-xl shadow-md chart-container p-4">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Stress/Mental Health</div>
-                <canvas id="chartStress"></canvas>
+                <div id="chartStress"></div>
             </div>
             
             <div class="bg-white rounded-xl shadow-md chart-container p-4">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Medication</div>
-                <canvas id="chartMedication"></canvas>
+                <div id="chartMedication"></div>
             </div>
         </div>
         
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/js/all.min.js"></script>
