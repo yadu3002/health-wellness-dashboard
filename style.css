@@ -137,11 +137,13 @@ h1, h2, h3, h4 {
 
 /* --- Chart Containers --- */
 .chart-container {
-    height: 320px; /* Fixed height for consistent look */
     position: relative;
-    padding: 20px;
-    overflow: visible;
     text-align: center;
+    height: 400px; /* INCREASE this from 320px */
+    padding: 10px;
+    margin-bottom: 20px;
+    overflow: visible !important; /* This ensures nothing gets cut off */
+    display: block;
 }
 
 .chart-container h4 {

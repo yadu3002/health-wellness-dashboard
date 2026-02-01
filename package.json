@@ -1,0 +1,24 @@
+{
+  "name": "healthcare-managementsys",
+  "version": "1.0.0",
+  "description": "",
+  "main": "adminpage.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "cors": "^2.8.5",
+    "docxtemplater": "^3.67.6",
+    "docxtemplater-image-module-free": "^1.1.1",
+    "express": "^5.2.1",
+    "pizzip": "^3.2.0",
+    "playwright": "^1.58.0",
+    "xlsx": "^0.18.5",
+    "xml2js": "^0.6.2"
+  }
+}

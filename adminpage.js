@@ -204,86 +204,91 @@ function captureChartAsImage(chartId) {
 // Expose function to window for report generator
 window.captureChartAsImage = captureChartAsImage;
 
-function drawChart(chartId, type, title, labels, data, colors,onClickHandler = null) {
-    const ctx = document.getElementById(chartId);
-    if (!ctx) return;
+/**
+ * Modern ApexCharts implementation for all charts except Age
+ */
+function drawChart(chartId, type, title, labels, data, colors, onClickHandler = null) {
+    const container = document.getElementById(chartId);
+    if (!container) return;
 
-    if (chartInstances[chartId]) {
+    // Standard cleanup: ApexCharts needs to be destroyed manually to avoid overlaps
+    if (chartInstances[chartId] && typeof chartInstances[chartId].destroy === 'function') {
         chartInstances[chartId].destroy();
     }
-    
-    ctx.style.display = 'block';
 
     const isPie = (type === 'pie' || type === 'doughnut');
-    
-    chartInstances[chartId] = new Chart(ctx, {
-        type: type,
-        plugins: [ChartDataLabels], // Enable the plugin globally for this chart instance
-        data: {
-            labels: labels,
-            datasets: [{
-                label: isPie ? title : 'Employee Count',
-                data: data,
-                backgroundColor: colors,
-                borderColor: isPie ? 'white' : 'rgba(0, 0, 0, 0.1)',
-                borderWidth: isPie ? 2 : 1,
-                // Configuration specific to the datalabels plugin
-                datalabels: {
-                    formatter: (value, context) => {
-                        // Display the count and the percentage for pie/doughnut charts
-                        if (isPie) {
-                            let sum = 0;
-                            let dataArr = context.chart.data.datasets[0].data;
-                            dataArr.map(data => {
-                                sum += data;
-                            });
-                            const percentage = (value * 100 / sum).toFixed(1) + '%';
-                            return value.toLocaleString() + ' (' + percentage + ')';
-                        }
-                        return value.toLocaleString(); // Just the count for bar/other charts
-                    },
-                    color: '#000000', // Always black for better visibility outside
-                    backgroundColor: '#ffffff', // White background
-                    borderColor: '#94a3b8', // Light border
-                    borderWidth: 1,
-                    borderRadius: 4,
-                    padding: 6,
-                    font: {
-                        weight: 'bold',
-                        size: 11
-                    },
-                    anchor: 'end', // Place the anchor point at the end of the line
-                    align: 'start', // Align the text box to the start of the line (outside the slice)
-                    offset: 10, // Move 10 pixels away from the slice edge
-                }
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            onClick: (e, elements) => {
-                // If the chart has an onClickHandler and a slice/bar was clicked
-                if (onClickHandler && elements.length > 0) {
-                    onClickHandler();
+
+    const options = {
+        series: isPie ? data : [{ name: title, data: data }],
+        chart: {
+            type: isPie ? 'donut' : 'bar',
+            height: 350,
+            fontFamily: 'Inter, sans-serif',
+            events: {
+                // This replaces the old onclick attribute logic
+                dataPointSelection: (event, chartContext, config) => {
+                    if (onClickHandler) onClickHandler();
                 }
             },
-            onHover: (event, chartElement) => {
-                // Change cursor to pointer if the chart is clickable
-                if (onClickHandler) {
-                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
-                }
-            }, 
-            plugins: {
-                legend: { position: isPie ? 'right' : 'top' },
-                title: { display: false },
-                datalabels: { display: false } 
-            },
-            scales: isPie ? {} : {
-                y: { beginAtZero: true, title: { display: true, text: 'Count' } },
-                x: { ticks: { autoSkip: true, maxRotation: 0 } }
+            dropShadow: {
+                enabled: true,
+                blur: 5,
+                left: 0,
+                top: 2,
+                opacity: 0.1
             }
-        }
-    });
+        },
+        fill: {
+            type: 'gradient',
+            gradient: {
+                shade: 'dark',
+                type: "vertical",
+                shadeIntensity: 0.5,
+                gradientToColors: colors.map(c => c + 'AA'),
+                opacityFrom: 1,
+                opacityTo: 0.8,
+                stops: [0, 100]
+            }
+        },
+        plotOptions: {
+            pie: {
+                startAngle: -90, // Creating the "Arch" look
+                endAngle: 90,
+                offsetY: 40,
+                donut: {
+                    size: '75%',
+                    labels: {
+                        show: true,
+                        name: { show: true, fontSize: '16px', offsetY: -10 },
+                        value: { show: true, fontSize: '24px', fontWeight: 700, offsetY: 0 },
+                        total: {
+                            show: true,
+                            label: title,
+                            formatter: (w) => w.globals.seriesTotals.reduce((a, b) => a + b, 0)
+                        }
+                    }
+                }
+            },
+            bar: {
+                borderRadius: 10,
+                columnWidth: '60%',
+                distributed: true
+            }
+        },
+        colors: colors,
+        labels: labels,
+        stroke: {
+            width: 3,
+            colors: ['#fff']
+        },
+        grid: {
+            padding: { bottom: -80 }
+        },
+        legend: { position: 'bottom' }
+    };
+
+    chartInstances[chartId] = new ApexCharts(container, options);
+    chartInstances[chartId].render();
 }
 
 // Dedicated renderer for the age-by-gender chart
