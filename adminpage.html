@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Corporate Health & Wellness Program</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
+            overflow-x: hidden !important;
+            max-width: 100vw;
+        }
+    </style>
     <link rel="stylesheet" href="adminpage.css">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -114,7 +123,7 @@
             <div class="metrics-grid">
                 <div class="metrics-container" id="metricsContainer">
                     <div class="metric-card">
-                        <div class="metric-title">Age Distribution (by Gender)</div>
+                        <div class="metric-title">Age/Gender</div>
                         <div class="chart-container"><canvas id="chartParticipants"></canvas></div>
                     </div>
                     <div class="metric-card">
@@ -128,27 +137,27 @@
                     </div>
 
                     <div class="metric-card">
-                        <div class="metric-title">Diabetes (Blood Sugar) Risk</div>
+                        <div class="metric-title">Diabetes Risk</div>
                         <div class="chart-container"><div id="chartDiabetes"></div></div>
                     </div>
                     
                     <div class="metric-card">
-                        <div class="metric-title">Dyslipidemia (Cholesterol) Risk</div>
+                        <div class="metric-title">Dyslipidemia Risk</div>
                         <div class="chart-container"><div id="chartCholestrol"></div></div>
                     </div>
                     
                     <div class="metric-card">
-                        <div class="metric-title">Obesity/BMI Classification</div>
+                        <div class="metric-title">Obesity Risk</div>
                         <div class="chart-container"><div id="chartObesity"></div></div>
                     </div>
                     
                     <div class="metric-card">
-                        <div class="metric-title">Fitness/Exercise Level</div>
+                        <div class="metric-title">Fitness Level</div>
                         <div class="chart-container"><div id="chartFitness"></div></div>
                     </div>
 
                     <div class="metric-card">
-                        <div class="metric-title">Stress/Mental Health</div>
+                        <div class="metric-title">Stress level</div>
                         <div class="chart-container"><div id="chartStress"></div></div>
                     </div>
                     
@@ -161,8 +170,11 @@
         </div>
 
 
-        <div class="data-table-container">
+        <div class="data-table-container" style="width: 100%; max-width: 100%; box-sizing: border-box; margin-left: 0; margin-right: 0;">
             <table>
+                <colgroup>
+                    <col><col><col><col><col><col><col><col><col><col><col><col><col><col><col>
+                </colgroup>
                 <thead>
                     <tr>
                         <th class="header-col">Ref ID</th>

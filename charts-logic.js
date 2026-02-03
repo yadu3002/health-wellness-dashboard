@@ -86,19 +86,19 @@ function calculateObesityData(data, header) {
     if (bmiCol === -1) { bmiCol = findCol(header, 'number'); } 
     if (bmiCol === -1) return null;
 
-    const counts = { 'Yes': 0, 'No': 0 }; 
+    const counts = { 'Risk': 0, 'WNL': 0 }; 
     for (let i = 1; i < data.length; i++) {
         const bmiValue = parseFloat(data[i][bmiCol]);
         if (isNaN(bmiValue)) continue;
 
         if (bmiValue >= 30.0) { // BMI >= 30 is Obesity
-            counts['Yes']++; 
+            counts['Risk']++; 
         } else { 
-            counts['No']++; 
+            counts['WNL']++; 
         }
     }
     
-    if (counts['Yes'] + counts['No'] === 0) return null;
+    if (counts['Risk'] + counts['WNL'] === 0) return null;
     return counts;
 }
 
@@ -124,24 +124,109 @@ function openObesityPopup() {
         }
     });
 
-    const popup = window.open('', '_blank', 'width=1000,height=600');
-    // Replace the Chart.js script and 'new Chart' call inside the popup.document.write
-popup.document.write(`
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <body style="font-family:'Inter', sans-serif; background:#f8fafc; padding:30px;">
-        <div id="chart" style="background:white; padding:20px; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.05);"></div>
+    const popup = window.open('', '_blank', 'width=1100,height=700');
+    popup.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Obesity Risk</title>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                padding: 40px;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .chart-wrapper {
+                background: white;
+                padding: 40px;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                width: 100%;
+                max-width: 1000px;
+                animation: slideUp 0.5s ease-out;
+            }
+            @keyframes slideUp {
+                from { opacity: 0; transform: translateY(30px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            h2 {
+                text-align: center;
+                color: #1e293b;
+                margin-bottom: 30px;
+                font-size: 28px;
+                font-weight: 700;
+            }
+            #chart { min-height: 450px; }
+        </style>
+    </head>
+    <body>
+        <div class="chart-wrapper">
+            <h2>Obesity Risk</h2>
+            <div id="chart"></div>
+        </div>
         <script>
             var options = {
                 series: [{ name: 'Participants', data: ${JSON.stringify(stages.map(s => s.count))} }],
-                chart: { type: 'bar', height: 450 },
-                plotOptions: { bar: { borderRadius: 8, distributed: true } },
+                chart: {
+                    type: 'bar',
+                    height: 500,
+                    fontFamily: 'Inter, sans-serif',
+                    toolbar: { show: false },
+                    animations: {
+                        enabled: true,
+                        easing: 'easeinout',
+                        speed: 1200,
+                        animateGradually: { enabled: true, delay: 100 }
+                    },
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                },
+                plotOptions: {
+                    bar: {
+                        borderRadius: 12,
+                        distributed: true,
+                        columnWidth: '70%',
+                        dataLabels: {
+                            position: 'top',
+                            style: { fontSize: '14px', fontWeight: 600 }
+                        }
+                    }
+                },
+                dataLabels: {
+                    enabled: true,
+                    formatter: function(val) { return val; },
+                    offsetY: -20,
+                    style: { fontSize: '14px', colors: ['#1e293b'] }
+                },
                 colors: ${JSON.stringify(stages.map(s => s.color))},
-                xaxis: { categories: ${JSON.stringify(stages.map(s => s.name))} }
+                xaxis: {
+                    categories: ${JSON.stringify(stages.map(s => s.name))},
+                    labels: { style: { fontSize: '13px', fontWeight: 600 } }
+                },
+                yaxis: {
+                    title: { text: 'Number of Participants', style: { fontSize: '14px', fontWeight: 600 } },
+                    labels: { style: { fontSize: '12px' } }
+                },
+                tooltip: {
+                    theme: 'dark',
+                    style: { fontSize: '14px' },
+                    y: { formatter: function(val) { return val + ' participants'; } }
+                },
+                grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
+                legend: { show: false }
             };
-            new ApexCharts(document.querySelector("#chart"), options).render();
+            var chart = new ApexCharts(document.querySelector("#chart"), options);
+            chart.render();
         </script>
     </body>
-`);
+    </html>
+    `);
 }
 
 function calculateDiabetesData(data, header) {
@@ -149,7 +234,7 @@ function calculateDiabetesData(data, header) {
     const rbsCol = findCol(header, 'bs2');
     if (fbsCol === -1 && rbsCol === -1) return null;
 
-    const counts = { 'Yes': 0, 'No': 0 };
+    const counts = { 'Risk': 0, 'WNL': 0 };
     
     for (let i = 1; i < data.length; i++) {
         const fVal = parseFloat(data[i][fbsCol]);
@@ -164,18 +249,18 @@ function calculateDiabetesData(data, header) {
         let isDiabetic = false;
 
         // If Fasting exists, check it. If Random exists, check it.
-        // If both exist, either one being high triggers 'Yes'.
+        // If both exist, either one being high triggers 'Risk'.
         if (hasF && fVal >= 112) isDiabetic = true;
         if (hasR && rVal >= 202) isDiabetic = true;
 
         if (isDiabetic) {
-            counts['Yes']++;
+            counts['Risk']++;
         } else {
-            counts['No']++;
+            counts['WNL']++;
         }
     }
     
-    return (counts['Yes'] + counts['No'] === 0) ? null : counts;
+    return (counts['Risk'] + counts['WNL'] === 0) ? null : counts;
 }
 
 function openDiabetesPopup() {
@@ -210,34 +295,106 @@ function openDiabetesPopup() {
         }
     });
 
-    const popup = window.open('', '_blank', 'width=900,height=600');
+    const popup = window.open('', '_blank', 'width=1100,height=700');
     popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">Diabetes Risk Distribution</h2>
-                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('mainChart'), {
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Diabetes Risk</title>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                padding: 40px;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .chart-wrapper {
+                background: white;
+                padding: 40px;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                width: 100%;
+                max-width: 1000px;
+                animation: slideUp 0.5s ease-out;
+            }
+            @keyframes slideUp {
+                from { opacity: 0; transform: translateY(30px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            h2 {
+                text-align: center;
+                color: #1e293b;
+                margin-bottom: 30px;
+                font-size: 28px;
+                font-weight: 700;
+            }
+            #chart { min-height: 450px; }
+        </style>
+    </head>
+    <body>
+        <div class="chart-wrapper">
+            <h2>Diabetes Risk</h2>
+            <div id="chart"></div>
+        </div>
+        <script>
+            var options = {
+                series: [{ name: 'Participants', data: ${JSON.stringify(stages.map(s => s.count))} }],
+                chart: {
                     type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(stages.map(s => s.name))},
-                        datasets: [{
-                            label: 'Participants',
-                            data: ${JSON.stringify(stages.map(s => s.count))},
-                            backgroundColor: ${JSON.stringify(stages.map(s => s.color))},
-                            borderRadius: 5
-                        }]
+                    height: 500,
+                    fontFamily: 'Inter, sans-serif',
+                    toolbar: { show: false },
+                    animations: {
+                        enabled: true,
+                        easing: 'easeinout',
+                        speed: 1200,
+                        animateGradually: { enabled: true, delay: 100 }
                     },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                },
+                plotOptions: {
+                    bar: {
+                        borderRadius: 12,
+                        distributed: true,
+                        columnWidth: '70%',
+                        dataLabels: { position: 'top' }
                     }
-                });
-            </script>
-        </body>`);
+                },
+                dataLabels: {
+                    enabled: true,
+                    formatter: function(val) { return val; },
+                    offsetY: -20,
+                    style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] }
+                },
+                colors: ${JSON.stringify(stages.map(s => s.color))},
+                xaxis: {
+                    categories: ${JSON.stringify(stages.map(s => s.name))},
+                    labels: { style: { fontSize: '13px', fontWeight: 600 } }
+                },
+                yaxis: {
+                    title: { text: 'Number of Participants', style: { fontSize: '14px', fontWeight: 600 } },
+                    labels: { style: { fontSize: '12px' } }
+                },
+                tooltip: {
+                    theme: 'dark',
+                    style: { fontSize: '14px' },
+                    y: { formatter: function(val) { return val + ' participants'; } }
+                },
+                grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
+                legend: { show: false }
+            };
+            var chart = new ApexCharts(document.querySelector("#chart"), options);
+            chart.render();
+        </script>
+    </body>
+    </html>
+    `);
 }
 
 function calculateFitnessData(data, header) {
@@ -268,7 +425,7 @@ function calculateFitnessData(data, header) {
             personYCount++;
         }
 
-        // Logic: More than 1 "Y" (meaning 2 or 3) counts as Yes/Fit
+        // Logic: More than 1 "Y" (meaning 2 or 3) counts as Yes/Active
         if (personYCount > 1) {
             counts['Yes']++;
         } else {
@@ -335,34 +492,111 @@ function openFitnessPopup() {
     const finalColors = [...metrics.map(m => m.color), ...hrCategories.map(c => c.color)];
 
     // 3. UI Generation
-    const popup = window.open('', '_blank', 'width=1100,height=600');
+    const popup = window.open('', '_blank', 'width=1200,height=700');
     popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">Fitness & Heart Rate Detailed Analysis</h2>
-                <div style="height:450px;"><canvas id="fitnessChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('fitnessChart'), {
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Fitness Level</title>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                padding: 40px;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .chart-wrapper {
+                background: white;
+                padding: 40px;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                width: 100%;
+                max-width: 1100px;
+                animation: slideUp 0.5s ease-out;
+            }
+            @keyframes slideUp {
+                from { opacity: 0; transform: translateY(30px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            h2 {
+                text-align: center;
+                color: #1e293b;
+                margin-bottom: 30px;
+                font-size: 28px;
+                font-weight: 700;
+            }
+            #chart { min-height: 500px; }
+        </style>
+    </head>
+    <body>
+        <div class="chart-wrapper">
+            <h2>Fitness Level</h2>
+            <div id="chart"></div>
+        </div>
+        <script>
+            var options = {
+                series: [{ name: 'Participants', data: ${JSON.stringify(finalData)} }],
+                chart: {
                     type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(finalLabels)},
-                        datasets: [{
-                            label: 'Participants',
-                            data: ${JSON.stringify(finalData)},
-                            backgroundColor: ${JSON.stringify(finalColors)},
-                            borderRadius: 5
-                        }]
+                    height: 550,
+                    fontFamily: 'Inter, sans-serif',
+                    toolbar: { show: false },
+                    animations: {
+                        enabled: true,
+                        easing: 'easeinout',
+                        speed: 1200,
+                        animateGradually: { enabled: true, delay: 50 }
                     },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                },
+                plotOptions: {
+                    bar: {
+                        borderRadius: 10,
+                        distributed: true,
+                        columnWidth: '65%',
+                        horizontal: false,
+                        dataLabels: { position: 'top' }
                     }
-                });
-            </script>
-        </body>`);
+                },
+                dataLabels: {
+                    enabled: true,
+                    formatter: function(val) { return val; },
+                    offsetY: -20,
+                    style: { fontSize: '12px', fontWeight: 600, colors: ['#1e293b'] }
+                },
+                colors: ${JSON.stringify(finalColors)},
+                xaxis: {
+                    categories: ${JSON.stringify(finalLabels)},
+                    labels: { 
+                        style: { fontSize: '12px', fontWeight: 600 },
+                        rotate: -45,
+                        rotateAlways: true
+                    }
+                },
+                yaxis: {
+                    title: { text: 'Number of Participants', style: { fontSize: '14px', fontWeight: 600 } },
+                    labels: { style: { fontSize: '12px' } }
+                },
+                tooltip: {
+                    theme: 'dark',
+                    style: { fontSize: '14px' },
+                    y: { formatter: function(val) { return val + ' participants'; } }
+                },
+                grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
+                legend: { show: false }
+            };
+            var chart = new ApexCharts(document.querySelector("#chart"), options);
+            chart.render();
+        </script>
+    </body>
+    </html>
+    `);
 }
 
 function calculateStressData(data, header) {
@@ -370,7 +604,7 @@ function calculateStressData(data, header) {
     const str4ColIndex = findCol(header, 'str4');
     if (strCols.length === 0) return null;
 
-    const counts = { 'Yes': 0, 'No': 0 };
+    const counts = { 'Risk': 0, 'WNL': 0 };
 
     // Start from index 1 to skip the header row
     for (let i = 1; i < data.length; i++) {
@@ -380,17 +614,17 @@ function calculateStressData(data, header) {
 
             if (colIndex === str4ColIndex) {
                 // REVERSED LOGIC FOR STR4
-                if (value.startsWith('Y')) { counts['No']++; }
-                else if (value.startsWith('N')) { counts['Yes']++; }
+                if (value.startsWith('Y')) { counts['WNL']++; }
+                else if (value.startsWith('N')) { counts['Risk']++; }
             } else {
                 // NORMAL LOGIC for STR1, STR2, STR3
-                if (value.startsWith('Y')) { counts['Yes']++; }
-                else if (value.startsWith('N')) { counts['No']++; }
+                if (value.startsWith('Y')) { counts['Risk']++; }
+                else if (value.startsWith('N')) { counts['WNL']++; }
             }
         }
     }
 
-    if (counts['Yes'] + counts['No'] === 0) return null;
+    if (counts['Risk'] + counts['WNL'] === 0) return null;
     return counts;
 }
 
@@ -423,39 +657,113 @@ function openChronicMedicationPopup() {
         }
     });
 
-    const popup = window.open('', '_blank', 'width=900,height=600');
+    const popup = window.open('', '_blank', 'width=1000,height=700');
     popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f8fafc; padding:40px;">
-            <div style="background:white; padding:25px; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; color:#1e293b;">At-Risk & Unmedicated Population</h2>
-                <p style="text-align:center; color:#64748b; margin-bottom:30px;">
-                    Count of people with clinical conditions who reported <b>NOT</b> taking chronic medication.
-                </p>
-                <div style="height:400px;"><canvas id="chronicRiskChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('chronicRiskChart'), {
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>At-Risk & Unmedicated Population</title>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+                padding: 40px;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .chart-wrapper {
+                background: white;
+                padding: 40px;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                width: 100%;
+                max-width: 900px;
+                animation: slideUp 0.5s ease-out;
+            }
+            @keyframes slideUp {
+                from { opacity: 0; transform: translateY(30px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            h2 {
+                text-align: center;
+                color: #1e293b;
+                margin-bottom: 15px;
+                font-size: 28px;
+                font-weight: 700;
+            }
+            p {
+                text-align: center;
+                color: #64748b;
+                margin-bottom: 30px;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+            #chart { min-height: 450px; }
+        </style>
+    </head>
+    <body>
+        <div class="chart-wrapper">
+            <h2>At-Risk & Unmedicated Population</h2>
+            <p>Count of people with clinical conditions who reported <b>NOT</b> taking chronic medication.</p>
+            <div id="chart"></div>
+        </div>
+        <script>
+            var options = {
+                series: [{ name: 'Unmedicated Participants', data: [${counts.diabetes}, ${counts.hypertension}, ${counts.cholesterol}] }],
+                chart: {
                     type: 'bar',
-                    data: {
-                        labels: ['Diabetes Risk', 'Hypertension Risk', 'High Cholesterol'],
-                        datasets: [{
-                            label: 'Unmedicated Participants',
-                            data: [${counts.diabetes}, ${counts.hypertension}, ${counts.cholesterol}],
-                            backgroundColor: ['#f87171', '#fb923c', '#fbbf24'],
-                            borderRadius: 8
-                        }]
+                    height: 500,
+                    fontFamily: 'Inter, sans-serif',
+                    toolbar: { show: false },
+                    animations: {
+                        enabled: true,
+                        easing: 'easeinout',
+                        speed: 1200,
+                        animateGradually: { enabled: true, delay: 100 }
                     },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { 
-                            y: { beginAtZero: true, title: { display: true, text: 'Number of People' } } 
-                        }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                },
+                plotOptions: {
+                    bar: {
+                        borderRadius: 12,
+                        distributed: true,
+                        columnWidth: '60%',
+                        dataLabels: { position: 'top' }
                     }
-                });
-            </script>
-        </body>
+                },
+                dataLabels: {
+                    enabled: true,
+                    formatter: function(val) { return val; },
+                    offsetY: -20,
+                    style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] }
+                },
+                colors: ['#f87171', '#fb923c', '#fbbf24'],
+                xaxis: {
+                    categories: ['Diabetes Risk', 'Hypertension Risk', 'High Cholesterol'],
+                    labels: { style: { fontSize: '13px', fontWeight: 600 } }
+                },
+                yaxis: {
+                    title: { text: 'Number of People', style: { fontSize: '14px', fontWeight: 600 } },
+                    labels: { style: { fontSize: '12px' } }
+                },
+                tooltip: {
+                    theme: 'dark',
+                    style: { fontSize: '14px' },
+                    y: { formatter: function(val) { return val + ' people'; } }
+                },
+                grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
+                legend: { show: false }
+            };
+            var chart = new ApexCharts(document.querySelector("#chart"), options);
+            chart.render();
+        </script>
+    </body>
+    </html>
     `);
 }
 
@@ -486,34 +794,110 @@ function openStressHabitsPopup() {
         }
     });
 
-    const popup = window.open('', '_blank', 'width=1100,height=600');
+    const popup = window.open('', '_blank', 'width=1200,height=700');
     popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">Stressors & Lifestyle Risk Factors</h2>
-                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('mainChart'), {
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Stress level</title>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+                padding: 40px;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .chart-wrapper {
+                background: white;
+                padding: 40px;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                width: 100%;
+                max-width: 1100px;
+                animation: slideUp 0.5s ease-out;
+            }
+            @keyframes slideUp {
+                from { opacity: 0; transform: translateY(30px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            h2 {
+                text-align: center;
+                color: #1e293b;
+                margin-bottom: 30px;
+                font-size: 28px;
+                font-weight: 700;
+            }
+            #chart { min-height: 500px; }
+        </style>
+    </head>
+    <body>
+        <div class="chart-wrapper">
+            <h2>Stress level</h2>
+            <div id="chart"></div>
+        </div>
+        <script>
+            var options = {
+                series: [{ name: 'Count of Reported Issues', data: ${JSON.stringify(indicators.map(i => i.count))} }],
+                chart: {
                     type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(indicators.map(i => i.name))},
-                        datasets: [{
-                            label: 'Count of Reported Issues',
-                            data: ${JSON.stringify(indicators.map(i => i.count))},
-                            backgroundColor: ${JSON.stringify(indicators.map(i => i.color))},
-                            borderRadius: 5
-                        }]
+                    height: 550,
+                    fontFamily: 'Inter, sans-serif',
+                    toolbar: { show: false },
+                    animations: {
+                        enabled: true,
+                        easing: 'easeinout',
+                        speed: 1200,
+                        animateGradually: { enabled: true, delay: 50 }
                     },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true } }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                },
+                plotOptions: {
+                    bar: {
+                        borderRadius: 10,
+                        distributed: true,
+                        columnWidth: '65%',
+                        dataLabels: { position: 'top' }
                     }
-                });
-            </script>
-        </body>`);
+                },
+                dataLabels: {
+                    enabled: true,
+                    formatter: function(val) { return val; },
+                    offsetY: -20,
+                    style: { fontSize: '12px', fontWeight: 600, colors: ['#1e293b'] }
+                },
+                colors: ${JSON.stringify(indicators.map(i => i.color))},
+                xaxis: {
+                    categories: ${JSON.stringify(indicators.map(i => i.name))},
+                    labels: { 
+                        style: { fontSize: '12px', fontWeight: 600 },
+                        rotate: -45,
+                        rotateAlways: true
+                    }
+                },
+                yaxis: {
+                    title: { text: 'Count of Reported Issues', style: { fontSize: '14px', fontWeight: 600 } },
+                    labels: { style: { fontSize: '12px' } }
+                },
+                tooltip: {
+                    theme: 'dark',
+                    style: { fontSize: '14px' },
+                    y: { formatter: function(val) { return val + ' reports'; } }
+                },
+                grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
+                legend: { show: false }
+            };
+            var chart = new ApexCharts(document.querySelector("#chart"), options);
+            chart.render();
+        </script>
+    </body>
+    </html>
+    `);
 }
 
 function calculateHypertensionData(data, header) {
@@ -561,53 +945,125 @@ function openHypertensionPopup() {
         }
     });
 
-    const popup = window.open('', '_blank', 'width=900,height=600');
+    const popup = window.open('', '_blank', 'width=1100,height=700');
     popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">Hypertension Severity Distribution</h2>
-                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('mainChart'), {
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Hypertension Severity Distribution</title>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+                padding: 40px;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .chart-wrapper {
+                background: white;
+                padding: 40px;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                width: 100%;
+                max-width: 1000px;
+                animation: slideUp 0.5s ease-out;
+            }
+            @keyframes slideUp {
+                from { opacity: 0; transform: translateY(30px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            h2 {
+                text-align: center;
+                color: #1e293b;
+                margin-bottom: 30px;
+                font-size: 28px;
+                font-weight: 700;
+            }
+            #chart { min-height: 450px; }
+        </style>
+    </head>
+    <body>
+        <div class="chart-wrapper">
+            <h2>Hypertension Severity Distribution</h2>
+            <div id="chart"></div>
+        </div>
+        <script>
+            var options = {
+                series: [{ name: 'Number of Participants', data: ${JSON.stringify(grades.map(g => g.count))} }],
+                chart: {
                     type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(grades.map(g => g.name))},
-                        datasets: [{
-                            label: 'Number of Participants',
-                            data: ${JSON.stringify(grades.map(g => g.count))},
-                            backgroundColor: ${JSON.stringify(grades.map(g => g.color))},
-                            borderRadius: 5
-                        }]
+                    height: 500,
+                    fontFamily: 'Inter, sans-serif',
+                    toolbar: { show: false },
+                    animations: {
+                        enabled: true,
+                        easing: 'easeinout',
+                        speed: 1200,
+                        animateGradually: { enabled: true, delay: 100 }
                     },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true, title: { display: true, text: 'Count' } } }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                },
+                plotOptions: {
+                    bar: {
+                        borderRadius: 12,
+                        distributed: true,
+                        columnWidth: '70%',
+                        dataLabels: { position: 'top' }
                     }
-                });
-            </script>
-        </body>`);
+                },
+                dataLabels: {
+                    enabled: true,
+                    formatter: function(val) { return val; },
+                    offsetY: -20,
+                    style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] }
+                },
+                colors: ${JSON.stringify(grades.map(g => g.color))},
+                xaxis: {
+                    categories: ${JSON.stringify(grades.map(g => g.name))},
+                    labels: { style: { fontSize: '13px', fontWeight: 600 } }
+                },
+                yaxis: {
+                    title: { text: 'Count', style: { fontSize: '14px', fontWeight: 600 } },
+                    labels: { style: { fontSize: '12px' } }
+                },
+                tooltip: {
+                    theme: 'dark',
+                    style: { fontSize: '14px' },
+                    y: { formatter: function(val) { return val + ' participants'; } }
+                },
+                grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
+                legend: { show: false }
+            };
+            var chart = new ApexCharts(document.querySelector("#chart"), options);
+            chart.render();
+        </script>
+    </body>
+    </html>
+    `);
 }
 
 function calculateChronicData(data, header) {
     const medDetailsCol = findCol(header, 'med_details');
     if (medDetailsCol === -1) return null;
 
-    const counts = { 'Yes': 0, 'No': 0 };
+    const counts = { 'Risk': 0, 'WNL': 0 };
     for (let i = 1; i < data.length; i++) {
         const value = (data[i][medDetailsCol] || '').toString().toUpperCase().trim();
         
         if (value.length > 0 && value !== 'NONE' && value !== 'N/A' && value !== 'N') {
-            counts['Yes']++;
+            counts['Risk']++;
         } else if (value.length > 0) {
-             counts['No']++; 
+             counts['WNL']++; 
         }
         // Skip if the cell is completely empty (no data points)
     }
     
-    if (counts['Yes'] + counts['No'] === 0) return null;
+    if (counts['Risk'] + counts['WNL'] === 0) return null;
     return counts;
 }
 
@@ -625,7 +1081,7 @@ function openPDetailsPopup() {
     // 1. Extract and count unique conditions
     rows.forEach(row => {
         const details = (row[pDetailsIdx] || '').toString().trim();
-        if (details && details.toLowerCase() !== 'no' && details !== '0') {
+        if (details && details.toLowerCase() !== 'WNL' && details !== '0') {
             totalParticipantsWithConditions++;
             const words = details.split(/[\s,]+/).map(w => w.toUpperCase().trim()).filter(w => w.length > 1);
             const uniqueWordsInRow = [...new Set(words)]; 
@@ -643,42 +1099,116 @@ function openPDetailsPopup() {
     if (sortedConditions.length === 0) return alert("No chronic conditions recorded in the data.");
 
     // 2. UI Generation (Updated to match standard popup style)
-    const popup = window.open('', '_blank', 'width=900,height=600');
+    const popup = window.open('', '_blank', 'width=1100,height=700');
     popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">Chronic Disease Risk Distribution</h2>
-                <div style="height:450px;"><canvas id="mainChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('mainChart'), {
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Chronic Disease Risk Distribution</title>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                padding: 40px;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .chart-wrapper {
+                background: white;
+                padding: 40px;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                width: 100%;
+                max-width: 1000px;
+                animation: slideUp 0.5s ease-out;
+            }
+            @keyframes slideUp {
+                from { opacity: 0; transform: translateY(30px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            h2 {
+                text-align: center;
+                color: #1e293b;
+                margin-bottom: 30px;
+                font-size: 28px;
+                font-weight: 700;
+            }
+            #chart { min-height: 450px; }
+        </style>
+    </head>
+    <body>
+        <div class="chart-wrapper">
+            <h2>Chronic Disease Risk Distribution</h2>
+            <div id="chart"></div>
+        </div>
+        <script>
+            var options = {
+                series: [{ name: 'Participants', data: ${JSON.stringify(sortedConditions.map(c => c[1]))} }],
+                chart: {
                     type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(sortedConditions.map(c => c[0]))},
-                        datasets: [{
-                            label: 'Participants',
-                            data: ${JSON.stringify(sortedConditions.map(c => c[1]))},
-                            // Using a blue consistent with other primary charts
-                            backgroundColor: '#4e73df',
-                            borderRadius: 5
-                        }]
+                    height: 500,
+                    fontFamily: 'Inter, sans-serif',
+                    toolbar: { show: false },
+                    animations: {
+                        enabled: true,
+                        easing: 'easeinout',
+                        speed: 1200,
+                        animateGradually: { enabled: true, delay: 100 }
                     },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { 
-                            legend: { display: false } 
-                        },
-                        scales: { 
-                            y: { 
-                                beginAtZero: true,
-                                title: { display: true, text: 'Number of Reports' }
-                            } 
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                },
+                plotOptions: {
+                    bar: {
+                        borderRadius: 12,
+                        columnWidth: '70%',
+                        dataLabels: { position: 'top' },
+                        colors: {
+                            ranges: [{
+                                from: 0,
+                                to: 1000,
+                                color: '#4e73df'
+                            }]
                         }
                     }
-                });
-            </script>
-        </body>`);
+                },
+                dataLabels: {
+                    enabled: true,
+                    formatter: function(val) { return val; },
+                    offsetY: -20,
+                    style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] }
+                },
+                colors: ['#4e73df'],
+                xaxis: {
+                    categories: ${JSON.stringify(sortedConditions.map(c => c[0]))},
+                    labels: { 
+                        style: { fontSize: '12px', fontWeight: 600 },
+                        rotate: -45,
+                        rotateAlways: true
+                    }
+                },
+                yaxis: {
+                    title: { text: 'Number of Reports', style: { fontSize: '14px', fontWeight: 600 } },
+                    labels: { style: { fontSize: '12px' } }
+                },
+                tooltip: {
+                    theme: 'dark',
+                    style: { fontSize: '14px' },
+                    y: { formatter: function(val) { return val + ' reports'; } }
+                },
+                grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
+                legend: { show: false }
+            };
+            var chart = new ApexCharts(document.querySelector("#chart"), options);
+            chart.render();
+        </script>
+    </body>
+    </html>
+    `);
 }
 
 function calculateMedicationData(data, header) {
@@ -711,7 +1241,7 @@ function calculateDyslipidemiaData(data, header) {
 
     if (cholCol === -1 && genericCholCol === -1) return null;
 
-    const counts = { 'Yes': 0, 'No': 0 }; // Yes: Dyslipidemia/High Chol
+    const counts = { 'Risk': 0, 'WNL': 0 }; // Risk: Dyslipidemia/High Chol
     
     for (let i = 1; i < data.length; i++) {
         const row = data[i];
@@ -727,15 +1257,15 @@ function calculateDyslipidemiaData(data, header) {
 
         if (isNaN(cholValue)) continue;
         
-        // User-defined rule: above 220 is 'Yes' (High Cholesterol)
+        // User-defined rule: above 220 is 'Risk' (High Cholesterol)
         if (cholValue > 220) { 
-            counts['Yes']++;
+            counts['Risk']++;
         } else {
-            counts['No']++;
+            counts['WNL']++;
         }
     }
     
-    if (counts['Yes'] + counts['No'] === 0) return null;
+    if (counts['Risk'] + counts['WNL'] === 0) return null;
     return counts;
 }  
 function openCholesterolPopup() {
@@ -773,39 +1303,106 @@ function openCholesterolPopup() {
     });
 
     // 3. UI Generation
-    const popup = window.open('', '_blank', 'width=900,height=600');
+    const popup = window.open('', '_blank', 'width=1100,height=700');
     popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">Hypercholesterolemia Classification</h2>
-                <div style="height:450px;"><canvas id="cholChart"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('cholChart'), {
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Dyslipidemia Risk</title>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+                padding: 40px;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .chart-wrapper {
+                background: white;
+                padding: 40px;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                width: 100%;
+                max-width: 1000px;
+                animation: slideUp 0.5s ease-out;
+            }
+            @keyframes slideUp {
+                from { opacity: 0; transform: translateY(30px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            h2 {
+                text-align: center;
+                color: #1e293b;
+                margin-bottom: 30px;
+                font-size: 28px;
+                font-weight: 700;
+            }
+            #chart { min-height: 450px; }
+        </style>
+    </head>
+    <body>
+        <div class="chart-wrapper">
+            <h2>Dyslipidemia Risk</h2>
+            <div id="chart"></div>
+        </div>
+        <script>
+            var options = {
+                series: [{ name: 'Participants', data: ${JSON.stringify(stages.map(s => s.count))} }],
+                chart: {
                     type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(stages.map(s => s.name))},
-                        datasets: [{
-                            label: 'Participants',
-                            data: ${JSON.stringify(stages.map(s => s.count))},
-                            backgroundColor: ${JSON.stringify(stages.map(s => s.color))},
-                            borderRadius: 5
-                        }]
+                    height: 500,
+                    fontFamily: 'Inter, sans-serif',
+                    toolbar: { show: false },
+                    animations: {
+                        enabled: true,
+                        easing: 'easeinout',
+                        speed: 1200,
+                        animateGradually: { enabled: true, delay: 100 }
                     },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: { 
-                            legend: { display: false },
-                            tooltip: { callbacks: { label: (ctx) => 'Count: ' + ctx.raw } }
-                        },
-                        scales: { 
-                            y: { beginAtZero: true, title: { display: true, text: 'No. of People' } } 
-                        }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                },
+                plotOptions: {
+                    bar: {
+                        borderRadius: 12,
+                        distributed: true,
+                        columnWidth: '70%',
+                        dataLabels: { position: 'top' }
                     }
-                });
-            </script>
-        </body>`);
+                },
+                dataLabels: {
+                    enabled: true,
+                    formatter: function(val) { return val; },
+                    offsetY: -20,
+                    style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] }
+                },
+                colors: ${JSON.stringify(stages.map(s => s.color))},
+                xaxis: {
+                    categories: ${JSON.stringify(stages.map(s => s.name))},
+                    labels: { style: { fontSize: '13px', fontWeight: 600 } }
+                },
+                yaxis: {
+                    title: { text: 'No. of People', style: { fontSize: '14px', fontWeight: 600 } },
+                    labels: { style: { fontSize: '12px' } }
+                },
+                tooltip: {
+                    theme: 'dark',
+                    style: { fontSize: '14px' },
+                    y: { formatter: function(val) { return 'Count: ' + val; } }
+                },
+                grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
+                legend: { show: false }
+            };
+            var chart = new ApexCharts(document.querySelector("#chart"), options);
+            chart.render();
+        </script>
+    </body>
+    </html>
+    `);
 }
 
 function openAgePopup() {
@@ -868,45 +1465,115 @@ function openAgePopup() {
     const totalData = labels.map(l => ageDetails[l].total);
     const colors = labels.map(l => ageDetails[l].color);
 
-    const popup = window.open('', '_blank', 'width=900,height=600');
+    const popup = window.open('', '_blank', 'width=1100,height=700');
     popup.document.write(`
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <body style="font-family:sans-serif; background:#f0f2f5; padding:30px;">
-            <div style="background:white; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-                <h2 style="text-align:center; margin-bottom:20px;">Age Distribution by Gender</h2>
-                <div style="height:450px;"><canvas id="ageChartDetail"></canvas></div>
-            </div>
-            <script>
-                new Chart(document.getElementById('ageChartDetail'), {
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Age/Gender</title>
+        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                padding: 40px;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .chart-wrapper {
+                background: white;
+                padding: 40px;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                width: 100%;
+                max-width: 1000px;
+                animation: slideUp 0.5s ease-out;
+            }
+            @keyframes slideUp {
+                from { opacity: 0; transform: translateY(30px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            h2 {
+                text-align: center;
+                color: #1e293b;
+                margin-bottom: 30px;
+                font-size: 28px;
+                font-weight: 700;
+            }
+            #chart { min-height: 450px; }
+        </style>
+    </head>
+    <body>
+        <div class="chart-wrapper">
+            <h2>Age/Gender</h2>
+            <div id="chart"></div>
+        </div>
+        <script>
+            var options = {
+                series: [
+                    { name: 'Male', data: ${JSON.stringify(maleData)} },
+                    { name: 'Female', data: ${JSON.stringify(femaleData)} }
+                ],
+                chart: {
                     type: 'bar',
-                    data: {
-                        labels: ${JSON.stringify(labels)},
-                        datasets: [
-                            {
-                                label: 'Male',
-                                data: ${JSON.stringify(maleData)},
-                                backgroundColor: '#4e73df',
-                                borderColor: '#4e73df',
-                                borderWidth: 1
-                            },
-                            {
-                                label: 'Female',
-                                data: ${JSON.stringify(femaleData)},
-                                backgroundColor: '#fb7185',
-                                borderColor: '#fb7185',
-                                borderWidth: 1
-                            }
-                        ]
+                    height: 500,
+                    fontFamily: 'Inter, sans-serif',
+                    toolbar: { show: false },
+                    stacked: false,
+                    animations: {
+                        enabled: true,
+                        easing: 'easeinout',
+                        speed: 1200,
+                        animateGradually: { enabled: true, delay: 100 }
                     },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        scales: {
-                            x: { stacked: false },
-                            y: { beginAtZero: true, stacked: false, title: { display: true, text: 'Number of Participants' } }
-                        }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                },
+                plotOptions: {
+                    bar: {
+                        borderRadius: 8,
+                        columnWidth: '60%',
+                        dataLabels: { position: 'top' }
                     }
-                });
-            </script>
-        </body>
+                },
+                dataLabels: {
+                    enabled: true,
+                    formatter: function(val) { return val; },
+                    offsetY: -20,
+                    style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] }
+                },
+                colors: ['#4e73df', '#fb7185'],
+                xaxis: {
+                    categories: ${JSON.stringify(labels)},
+                    labels: { style: { fontSize: '13px', fontWeight: 600 } }
+                },
+                yaxis: {
+                    title: { text: 'Number of Participants', style: { fontSize: '14px', fontWeight: 600 } },
+                    labels: { style: { fontSize: '12px' } }
+                },
+                tooltip: {
+                    theme: 'dark',
+                    style: { fontSize: '14px' },
+                    shared: true,
+                    intersect: false,
+                    y: { formatter: function(val) { return val + ' participants'; } }
+                },
+                grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
+                legend: {
+                    show: true,
+                    position: 'top',
+                    horizontalAlign: 'center',
+                    fontSize: '14px',
+                    fontWeight: 600
+                }
+            };
+            var chart = new ApexCharts(document.querySelector("#chart"), options);
+            chart.render();
+        </script>
+    </body>
+    </html>
     `);
 }

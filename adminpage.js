@@ -35,25 +35,13 @@ function populateDataTable(data) {
     if (!tableBody) return;
     tableBody.innerHTML = ''; 
 
-    const limit = 50;
-    const displayData = data.slice(0, limit);
-
-    displayData.forEach(row => {
-        const tr = document.createElement('tr');
-        // ... (your existing row creation logic) ...
-        tableBody.appendChild(tr);
-    });
-
-
-
-
     if (!data || data.length <= 1) {
         tableBody.innerHTML = '<tr><td colspan="14" style="text-align:center;">No data records found.</td></tr>';
         return;
     }
 
     const header = data[0];
-    const rows = data.slice(1);
+    const rows = data.slice(1); // Show all rows
 
     
 
@@ -218,12 +206,19 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
 
     const isPie = (type === 'pie' || type === 'doughnut');
 
+    // Calculate appropriate height based on container
+    const containerElement = document.getElementById(chartId);
+    const containerHeight = containerElement ? Math.min(containerElement.offsetHeight || 250, 250) : 250;
+    
     const options = {
         series: isPie ? data : [{ name: title, data: data }],
         chart: {
             type: isPie ? 'donut' : 'bar',
-            height: 350,
+            height: containerHeight,
+            width: '100%',
             fontFamily: 'Inter, sans-serif',
+            toolbar: { show: false },
+            zoom: { enabled: false },
             events: {
                 // This replaces the old onclick attribute logic
                 dataPointSelection: (event, chartContext, config) => {
@@ -259,12 +254,15 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
                     size: '75%',
                     labels: {
                         show: true,
-                        name: { show: true, fontSize: '16px', offsetY: -10 },
-                        value: { show: true, fontSize: '24px', fontWeight: 700, offsetY: 0 },
+                        name: { show: true, fontSize: '16px', offsetY: -10, color: '#000000' },
+                        value: { show: true, fontSize: '24px', fontWeight: 700, offsetY: 0, color: '#000000' },
                         total: {
                             show: true,
                             label: title,
-                            formatter: (w) => w.globals.seriesTotals.reduce((a, b) => a + b, 0)
+                            formatter: (w) => w.globals.seriesTotals.reduce((a, b) => a + b, 0),
+                            color: '#000000',
+                            fontSize: '16px',
+                            fontWeight: 600
                         }
                     }
                 }
@@ -273,6 +271,20 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
                 borderRadius: 10,
                 columnWidth: '60%',
                 distributed: true
+            }
+        },
+        dataLabels: {
+            enabled: true,
+            formatter: function(val, opts) {
+                return val.toFixed(0) + '%';
+            },
+            style: {
+                fontSize: '14px',
+                fontWeight: 600,
+                colors: ['#000000']
+            },
+            dropShadow: {
+                enabled: false
             }
         },
         colors: colors,
@@ -284,11 +296,23 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
         grid: {
             padding: { bottom: -80 }
         },
-        legend: { position: 'bottom' }
+        legend: { 
+            position: 'bottom',
+            labels: {
+                colors: '#000000'
+            }
+        }
     };
 
     chartInstances[chartId] = new ApexCharts(container, options);
     chartInstances[chartId].render();
+    
+    // Force resize after render to ensure proper fitting
+    setTimeout(() => {
+        if (chartInstances[chartId] && typeof chartInstances[chartId].resize === 'function') {
+            chartInstances[chartId].resize();
+        }
+    }, 100);
 }
 
 // Dedicated renderer for the age-by-gender chart
@@ -424,7 +448,7 @@ async function updateDashboardAndCharts(data) {
         }},
         { id: 'chartHypertension', fn: () => {
             const d = calculateHypertensionData(data, header);
-            if (d) { preDrawCleanup('chartHypertension'); drawChart('chartHypertension', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745'],openHypertensionPopup); }
+            if (d) { preDrawCleanup('chartHypertension'); drawChart('chartHypertension', 'pie', '', Object.keys(d), Object.values(d), ['#28a745', '#dc3545'],openHypertensionPopup); }
             else { clearChart('chartHypertension', 'Data missing.'); }
         }},
         { id: 'chartDiabetes', fn: () => {
@@ -963,6 +987,35 @@ function transformToExcelStyle(json) {
 
 
 
+// Window resize handler to update charts
+let resizeTimeoutAdmin;
+function handleResizeAdmin() {
+    clearTimeout(resizeTimeoutAdmin);
+    resizeTimeoutAdmin = setTimeout(() => {
+        // Resize all ApexCharts instances
+        Object.keys(chartInstances).forEach(chartId => {
+            if (chartInstances[chartId] && typeof chartInstances[chartId].resize === 'function') {
+                try {
+                    chartInstances[chartId].resize();
+                } catch (e) {
+                    console.warn('Error resizing chart:', chartId, e);
+                }
+            }
+        });
+        
+        // Resize Chart.js instances
+        Object.keys(chartInstances).forEach(chartId => {
+            if (chartInstances[chartId] && chartInstances[chartId].canvas) {
+                try {
+                    chartInstances[chartId].resize();
+                } catch (e) {
+                    console.warn('Error resizing Chart.js:', chartId, e);
+                }
+            }
+        });
+    }, 250);
+}
+
 document.addEventListener('DOMContentLoaded', async function () {
 
     const data = await loadWellnessData();
@@ -1198,4 +1251,11 @@ window.addEventListener('load', async () => {
         // Populate the table and charts immediately
         handleFilterChange(); 
         console.log("Admin page populated instantly from server cache.");
-    }});
+    }
+    
+    // Add resize listener for charts
+    window.addEventListener('resize', handleResizeAdmin);
+    
+    // Add function to adjust table container width based on viewport
+    // Table container now fits naturally with CSS - no JS width constraints needed
+});

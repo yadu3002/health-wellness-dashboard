@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Employee Health Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
@@ -23,24 +23,7 @@
             }
         }
     </script>
-    <style>
-        /* Custom styles for layout and chart containers */
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8f9fa;
-        }
-        .header-shadow {
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-        }
-        /* Custom scrollbar for better aesthetics */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
-    </style>
+
 </head>
 <body class="min-h-screen">
 
@@ -55,7 +38,7 @@
         </div>
     </header>
 
-    <main class="p-6 md:p-8">
+    <main class="p-6 md:p-8" style="max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
         <div class="bg-white rounded-2xl p-4 md:p-5 mb-6 shadow-md max-w-5xl mx-auto">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
         <div class="flex justify-center md:justify-start">
@@ -121,7 +104,7 @@
         </div>
 
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-6" style="max-width: 100%; box-sizing: border-box;">
             
             
             

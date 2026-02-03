@@ -46,12 +46,18 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
 
     const isPie = (type === 'pie' || type === 'doughnut');
 
+    // Calculate appropriate height based on container
+    const containerHeight = container ? Math.min(container.offsetHeight || 280, 280) : 280;
+
     const options = {
         series: data,
         chart: {
             type: isPie ? 'donut' : 'bar',
-            height: 350,
+            height: containerHeight,
+            width: '100%',
             fontFamily: 'Inter, sans-serif',
+            toolbar: { show: false },
+            zoom: { enabled: false },
             // --- FIX: INTEGRATE THE POPUP HANDLER HERE ---
             events: {
                 dataPointSelection: (event, chartContext, config) => {
@@ -97,12 +103,15 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
                     size: '75%',
                     labels: {
                         show: true,
-                        name: { show: true, fontSize: '14px', offsetY: -10 },
-                        value: { show: true, fontSize: '20px', fontWeight: 'bold', offsetY: 0 },
+                        name: { show: true, fontSize: '14px', offsetY: -10, color: '#000000' },
+                        value: { show: true, fontSize: '20px', fontWeight: 'bold', offsetY: 0, color: '#000000' },
                         total: {
                             show: true,
                             label: title,
-                            formatter: (w) => w.globals.seriesTotals.reduce((a, b) => a + b, 0)
+                            formatter: (w) => w.globals.seriesTotals.reduce((a, b) => a + b, 0),
+                            color: '#000000',
+                            fontSize: '14px',
+                            fontWeight: 600
                         }
                     }
                 }
@@ -113,6 +122,20 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
                 distributed: true
             }
         },
+        dataLabels: {
+            enabled: true,
+            formatter: function(val, opts) {
+                return val.toFixed(0) + '%';
+            },
+            style: {
+                fontSize: '14px',
+                fontWeight: 600,
+                colors: ['#000000']
+            },
+            dropShadow: {
+                enabled: false
+            }
+        },
         colors: colors,
         labels: labels,
         stroke: {
@@ -120,12 +143,25 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
             width: 3,
             colors: ['#fff'] // Strong white borders create a "layered" look
         },
-        legend: { position: 'bottom', offsetY: 0 },
+        legend: { 
+            position: 'bottom', 
+            offsetY: 0,
+            labels: {
+                colors: '#000000'
+            }
+        },
         grid: { padding: { bottom: -60 } } // Adjusts for the semi-circle layout
     };
 
     chartInstances[chartId] = new ApexCharts(container, options);
     chartInstances[chartId].render();
+    
+    // Force resize after render to ensure proper fitting
+    setTimeout(() => {
+        if (chartInstances[chartId] && typeof chartInstances[chartId].resize === 'function') {
+            chartInstances[chartId].resize();
+        }
+    }, 100);
 }
 
 // Dedicated renderer for age distribution by gender
@@ -227,7 +263,7 @@ const charts = [
     }},
     { id: 'chartChronic', fn: () => {
         const d = calculateChronicData(data, header);
-        if (d) { preDrawCleanup('chartChronic'); drawChart('chartChronic', 'pie', '', Object.keys(d), Object.values(d), ['#4e73df', '#1cc88a'], openPDetailsPopup); }
+        if (d) { preDrawCleanup('chartChronic'); drawChart('chartChronic', 'pie', '', Object.keys(d), Object.values(d), ['#df4e4e', '#1cc88a'], openPDetailsPopup); }
     }},
     { id: 'chartHypertension', fn: () => {
         const d = calculateHypertensionData(data, header);
@@ -296,6 +332,35 @@ function handleFilterChange() {
     updateDashboardAndCharts(dataToProcess);
 }
 
+// Window resize handler to update charts
+let resizeTimeout;
+function handleResize() {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        // Resize all ApexCharts instances
+        Object.keys(chartInstances).forEach(chartId => {
+            if (chartInstances[chartId] && typeof chartInstances[chartId].resize === 'function') {
+                try {
+                    chartInstances[chartId].resize();
+                } catch (e) {
+                    console.warn('Error resizing chart:', chartId, e);
+                }
+            }
+        });
+        
+        // Resize Chart.js instances
+        Object.keys(chartInstances).forEach(chartId => {
+            if (chartInstances[chartId] && chartInstances[chartId].canvas) {
+                try {
+                    chartInstances[chartId].resize();
+                } catch (e) {
+                    console.warn('Error resizing Chart.js:', chartId, e);
+                }
+            }
+        });
+    }, 250);
+}
+
 // --- Initialize ---
 document.addEventListener('DOMContentLoaded', async () => {
     const dateElement = document.getElementById('currentDate');
@@ -319,4 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
         allChartIds.forEach(id => clearChart(id, 'Failed to connect to server.'));
     }
+    
+    // Add resize listener
+    window.addEventListener('resize', handleResize);
 });
