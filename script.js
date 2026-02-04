@@ -46,8 +46,10 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
 
     const isPie = (type === 'pie' || type === 'doughnut');
 
-    // Calculate appropriate height based on container
-    const containerHeight = container ? Math.min(container.offsetHeight || 280, 280) : 280;
+    // Calculate appropriate height based on container - ensure labels fit within bounds
+    const containerElement = container ? container : null;
+    const availableHeight = containerElement ? Math.min(containerElement.offsetHeight || 250, 250) : 250;
+    const containerHeight = availableHeight;
 
     const options = {
         series: data,
@@ -98,19 +100,19 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
             pie: {
                 startAngle: -90, // Makes it a cool semi-circle arch
                 endAngle: 90,
-                offsetY: 40,
+                offsetY: 15,
                 donut: {
-                    size: '75%',
+                    size: '68%',
                     labels: {
                         show: true,
-                        name: { show: true, fontSize: '14px', offsetY: -10, color: '#000000' },
-                        value: { show: true, fontSize: '20px', fontWeight: 'bold', offsetY: 0, color: '#000000' },
+                        name: { show: true, fontSize: '12px', offsetY: -5, color: '#000000' },
+                        value: { show: true, fontSize: '18px', fontWeight: 'bold', offsetY: 0, color: '#000000' },
                         total: {
                             show: true,
                             label: title,
                             formatter: (w) => w.globals.seriesTotals.reduce((a, b) => a + b, 0),
                             color: '#000000',
-                            fontSize: '14px',
+                            fontSize: '12px',
                             fontWeight: 600
                         }
                     }
@@ -145,12 +147,26 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
         },
         legend: { 
             position: 'bottom', 
-            offsetY: 0,
+            offsetY: -5,
+            height: 30,
             labels: {
-                colors: '#000000'
+                colors: '#000000',
+                useSeriesColors: false,
+                fontSize: '11px'
+            },
+            itemMargin: {
+                horizontal: 6,
+                vertical: 2
             }
         },
-        grid: { padding: { bottom: -60 } } // Adjusts for the semi-circle layout
+        grid: { 
+            padding: { 
+                bottom: 5,
+                top: 5,
+                left: 5,
+                right: 5
+            }
+        }
     };
 
     chartInstances[chartId] = new ApexCharts(container, options);
@@ -267,7 +283,7 @@ const charts = [
     }},
     { id: 'chartHypertension', fn: () => {
         const d = calculateHypertensionData(data, header);
-        if (d) { preDrawCleanup('chartHypertension'); drawChart('chartHypertension', 'pie', '', Object.keys(d), Object.values(d), ['#e74a3b', '#1cc88a'], openHypertensionPopup); }
+        if (d) { preDrawCleanup('chartHypertension'); drawChart('chartHypertension', 'pie', '', Object.keys(d), Object.values(d), ['#1cc88a', '#e74a3b'], openHypertensionPopup); }
         
     }},
     { id: 'chartDiabetes', fn: () => {
@@ -288,7 +304,7 @@ const charts = [
     }},
     { id: 'chartStress', fn: () => {
         const d = calculateStressData(data, header);
-        if (d) { preDrawCleanup('chartStress'); drawChart('chartStress', 'pie', '', Object.keys(d), Object.values(d), ['#1cc88a', '#e74a3b'], openStressHabitsPopup); }
+        if (d) { preDrawCleanup('chartStress'); drawChart('chartStress', 'pie', '', Object.keys(d), Object.values(d), ['#e74a3b','#1cc88a'], openStressHabitsPopup); }
     }},
     { id: 'chartMedication', fn: () => {
     const d = calculateMedicationData(data, header);

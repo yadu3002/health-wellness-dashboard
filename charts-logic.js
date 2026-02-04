@@ -405,7 +405,7 @@ function calculateFitnessData(data, header) {
     // If columns aren't found, exit
     if (exe1Col === -1 && exe2Col === -1 && exe3Col === -1) return null;
 
-    const counts = { 'Yes': 0, 'No': 0 };
+    const counts = { 'WNL': 0, 'Risk': 0 };
 
     // Start from 1 to skip the header row
     for (let i = 1; i < data.length; i++) {
@@ -425,16 +425,16 @@ function calculateFitnessData(data, header) {
             personYCount++;
         }
 
-        // Logic: More than 1 "Y" (meaning 2 or 3) counts as Yes/Active
+        // Logic: More than 1 "Y" (meaning 2 or 3) counts as WNL/Active, otherwise Risk
         if (personYCount > 1) {
-            counts['Yes']++;
+            counts['WNL']++;
         } else {
-            counts['No']++;
+            counts['Risk']++;
         }
     }
 
     // Return null if no data was processed to avoid empty charts
-    return (counts['Yes'] === 0 && counts['No'] === 0) ? null : counts;
+    return (counts['WNL'] === 0 && counts['Risk'] === 0) ? null : counts;
 }
 
 
@@ -904,7 +904,7 @@ function calculateHypertensionData(data, header) {
     const bpCol = findCol(header, 'bp');
     if (bpCol === -1) return null;
 
-    const counts = { 'Normal': 0, 'High Risk': 0 };
+    const counts = { 'Risk': 0, 'WNL': 0 };
 
     for (let i = 1; i < data.length; i++) {
         const bpValue = (data[i][bpCol] || '').toString();
@@ -913,15 +913,15 @@ function calculateHypertensionData(data, header) {
         const d = parseInt(parts[1]);
 
         if (!isNaN(s) && s > 0) {
-            // If systolic >= 120 OR diastolic >= 80, it's High Risk (includes Pre-Hypertension)
+            // If systolic >= 120 OR diastolic >= 80, it's Risk (includes Pre-Hypertension)
             if (s >= 120 || (!isNaN(d) && d >= 80)) {
-                counts['High Risk']++;
+                counts['Risk']++;
             } else {
-                counts['Normal']++;
+                counts['WNL']++;
             }
         }
     }
-    return (counts['Normal'] + counts['High Risk'] === 0) ? null : counts;
+    return (counts['Risk'] + counts['WNL'] === 0) ? null : counts;
 }
 
 function openHypertensionPopup() {

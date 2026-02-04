@@ -30,8 +30,17 @@
     <input type="file" id="fileUpload" class="hidden" accept=".xlsx, .xls,.csv" multiple> 
     
     <header class="bg-white p-4 flex justify-between items-center header-shadow sticky top-0 z-10">
-        <div class="text-2xl font-bold text-primary">
-            Corporate <span id="companyNameDisplay" class="text-gray-700">Wellness</span>
+        <div class="flex items-center gap-3">
+            <div class="logo-container" style="width: 48px; height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 12px; padding: 8px;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                    <path d="M2 17l10 5 10-5"></path>
+                    <path d="M2 12l10 5 10-5"></path>
+                </svg>
+            </div>
+            <div class="text-2xl font-bold text-primary">
+                Corporate <span id="companyNameDisplay" class="text-gray-700">Wellness</span>
+            </div>
         </div>
         <div class="text-sm text-gray-500">
             Today is <span id="currentDate">--/--/----</span>
@@ -52,14 +61,28 @@
 
         <div class="flex justify-center">
             <div class="inline-flex items-stretch rounded-xl border border-gray-200 bg-white overflow-hidden">
-                <div class="px-5 py-2.5 text-center min-w-[160px]">
-                    <div class="text-[11px] tracking-wide uppercase text-gray-500 font-semibold">Total Corporates</div>
-                    <div class="text-2xl leading-none font-extrabold text-primary mt-1" id="numCompaniesValue">0</div>
+                <div class="px-5 py-2.5 text-center min-w-[160px] flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; flex-shrink: 0;">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    <div>
+                        <div class="text-[11px] tracking-wide uppercase text-gray-500 font-semibold">Total Corporates</div>
+                        <div class="text-2xl leading-none font-extrabold text-primary mt-1" id="numCompaniesValue">0</div>
+                    </div>
                 </div>
                 <div class="w-px bg-gray-200"></div>
-                <div class="px-5 py-2.5 text-center min-w-[160px]">
-                    <div class="text-[11px] tracking-wide uppercase text-gray-500 font-semibold">People Screened</div>
-                    <div class="text-2xl leading-none font-extrabold text-secondary mt-1" id="numScreenedValue">0</div>
+                <div class="px-5 py-2.5 text-center min-w-[160px] flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; flex-shrink: 0;">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <div>
+                        <div class="text-[11px] tracking-wide uppercase text-gray-500 font-semibold">People Screened</div>
+                        <div class="text-2xl leading-none font-extrabold text-secondary mt-1" id="numScreenedValue">0</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -74,9 +97,9 @@
 </div>
         
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
 
-            <div class="bg-white rounded-xl shadow-md chart-container p-4 ">
+            <div class="bg-white rounded-xl shadow-md chart-container p-4">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Age/Gender</div>
                 <canvas id="chartParticipants"></canvas>
             </div>
@@ -104,26 +127,26 @@
         </div>
 
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-6" style="max-width: 100%; box-sizing: border-box;">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6 justify-items-center" style="max-width: 100%; box-sizing: border-box;">
             
             
             
-            <div class="bg-white rounded-xl shadow-md chart-container p-4">
+            <div class="bg-white rounded-xl shadow-md chart-container p-4 w-full">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Obesity Risk</div>
                 <div id="chartObesity"></div>
             </div>
             
-            <div class="bg-white rounded-xl shadow-md chart-container p-4">
+            <div class="bg-white rounded-xl shadow-md chart-container p-4 w-full">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Fitness Level</div>
                 <div id="chartFitness"></div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-md chart-container p-4">
+            <div class="bg-white rounded-xl shadow-md chart-container p-4 w-full">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Stress level</div>
                 <div id="chartStress"></div>
             </div>
             
-            <div class="bg-white rounded-xl shadow-md chart-container p-4">
+            <div class="bg-white rounded-xl shadow-md chart-container p-4 w-full">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Medication</div>
                 <div id="chartMedication"></div>
             </div>

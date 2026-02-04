@@ -78,65 +78,244 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    background: linear-gradient(to right, #f1f5f9, #f8fafc);
-    border: 2px solid #cbd5e1;
-    padding: 1rem;
-    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: none;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 0.5rem;
     position: relative;
+    border-radius: 16px;
+    box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    overflow: hidden;
+}
+
+.dashboard-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #f59e0b, #10b981);
+    border-radius: 16px 16px 0 0;
 }
 
 .header-left {
     display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
 }
 
-.admin-label {
+.welcome-section {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.welcome-icon {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #3b82f6;
+    border-radius: 14px;
+    color: white;
+    font-size: 1.75rem;
+    box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+    flex-shrink: 0;
+    padding: 12px;
+    box-sizing: border-box;
+}
+
+.welcome-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.welcome-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.welcome-text {
     color: #1e293b;
-    padding: 0.5rem 1rem;
-    background-color: #94a3b8;
-    border-right: 2px solid #64748b;
+    font-size: 0.9375rem;
+    font-weight: 500;
+}
+
+.admin-name {
+    color: #3b82f6;
+    font-weight: 700;
+    font-size: 1rem;
 }
 
 .date-label {
-    color: #475569;
+    color: #64748b;
+    font-size: 0.8125rem;
+    font-weight: 400;
+}
+
+.header-action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.header-action-buttons .action-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-action-buttons .action-button i {
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.header-action-buttons .action-button-primary {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+}
+
+.header-action-buttons .action-button-primary:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+}
+
+.header-action-buttons .action-button-secondary {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.header-action-buttons .action-button-secondary:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.4);
+}
+
+.header-action-buttons .action-button-tertiary {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    color: white;
+}
+
+.header-action-buttons .action-button-tertiary:hover {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(139, 92, 246, 0.4);
+}
+
+.header-center {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
 }
 
 .header-title {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
     color: #1e293b;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem 0;
+    letter-spacing: -0.025em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.header-title svg {
+    color: #3b82f6;
+    flex-shrink: 0;
+}
+
+.header-title i {
+    color: #3b82f6;
+    font-size: 1.375rem;
+}
+
+.header-subtitle {
+    color: #64748b;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    margin: 0;
+    letter-spacing: 0.025em;
 }
 
 .header-right {
     display: flex;
     align-items: center;
+    flex: 1;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+.header-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.logo-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #10b981;
+    border-radius: 12px;
+    color: white;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+    flex-shrink: 0;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.logo-icon svg {
+    width: 100%;
+    height: 100%;
 }
 
 .header-logo-text {
     text-align: right;
-    margin-right: 0.5rem;
 }
 
 .header-logo-text div {
-    color: #2563eb;
+    color: #1e293b;
     font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0.025em;
 }
 
-.logo-diamond {
-    width: 4rem;
-    height: 4rem;
-    background: linear-gradient(to bottom right, #60a5fa, #2563eb);
-    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+.header-logo-text div:first-child {
+    color: #3b82f6;
 }
 
 /* Main Content Layout */
 .main-content {
     display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
     align-items: flex-start;
     width: 100%;
     max-width: 100%;
@@ -146,6 +325,60 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 }
 
 @media (max-width: 1200px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1rem 1.25rem;
+        gap: 1rem;
+    }
+    
+    .header-left,
+    .header-center,
+    .header-right {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .header-left {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .header-action-buttons {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .header-center {
+        text-align: left;
+    }
+    
+    .header-title {
+        justify-content: flex-start;
+        font-size: 1.375rem;
+    }
+    
+    .header-logo {
+        justify-content: flex-start;
+    }
+    
+    .header-logo-text {
+        text-align: left;
+    }
+    
+    .action-bar {
+        padding: 1rem 1.25rem;
+    }
+    
+    .action-buttons {
+        gap: 0.875rem;
+    }
+    
+    .action-button {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+    }
+    
     .main-content {
         flex-direction: column;
     }
@@ -228,7 +461,7 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     }
     
     .stat-value {
-        font-size: 1.125rem;
+        font-size: 0.9375rem;
     }
     
     .clear-all-button {
@@ -286,7 +519,7 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     }
     
     .stat-value {
-        font-size: 1rem;
+        font-size: 0.875rem;
     }
     
     .clear-all-button {
@@ -322,7 +555,7 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 }
 
 .filter-header {
-    padding: 1.25rem 1.5rem 1rem;
+    padding: 0.5rem 1rem 0.5rem;
     border-bottom: 2px solid rgba(59, 130, 246, 0.1);
     background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
 }
@@ -344,10 +577,10 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 }
 
 .filter-content {
-    padding: 1.5rem;
+    padding: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.875rem;
 }
 
 .form-group {
@@ -517,12 +750,19 @@ select.form-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background: #3b82f6;
     border-radius: 10px;
     color: white;
     font-size: 1.25rem;
     flex-shrink: 0;
     box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.stat-icon svg {
+    width: 100%;
+    height: 100%;
 }
 
 .stat-content {
@@ -540,7 +780,7 @@ select.form-input {
 }
 
 .stat-value {
-    font-size: 1.125rem;
+    font-size: 0.9375rem;
     font-weight: 700;
     color: #1e293b;
     line-height: 1.2;
@@ -591,7 +831,7 @@ select.form-input {
     flex: 1;
     border: none;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    padding: 1.5rem;
+    padding: 0.75rem;
     min-width: 0; /* Allow flex item to shrink below content size */
     max-width: 100%;
     width: 100%;
@@ -617,8 +857,8 @@ select.form-input {
 }
 
 .metrics-section-header {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0 0.5rem 0;
     border-bottom: 2px solid rgba(59, 130, 246, 0.1);
     text-align: center;
 }
@@ -646,12 +886,30 @@ select.form-input {
 .metrics-container {
     display: grid;
     grid-template-columns: repeat(5, 1fr); /* Restored 5-column grid */
-    gap: 1rem;
+    gap: 0.75rem;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
-    grid-auto-rows: minmax(300px, auto);
+    grid-auto-rows: minmax(240px, auto);
+    margin-top: 0.25rem;
+}
+
+.metrics-container-bottom {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: minmax(240px, auto);
+    justify-items: center;
     margin-top: 0.5rem;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.metrics-container-bottom .metric-card {
+    max-width: 100%;
+    width: 100%;
+    min-width: 0;
 }
 
 @media (max-width: 1400px) {
@@ -669,9 +927,15 @@ select.form-input {
         gap: 0.875rem;
     }
     
+    .metrics-container-bottom {
+        grid-template-columns: repeat(4, 1fr);
+        grid-auto-rows: minmax(280px, auto);
+    }
+    
     .chart-container {
         max-height: 220px;
         height: 220px;
+        min-height: 220px;
     }
     
     .metric-title {
@@ -687,7 +951,7 @@ select.form-input {
     }
     
     .metrics-grid {
-        padding: 1.25rem;
+        padding: 1rem;
     }
 }
 
@@ -711,9 +975,15 @@ select.form-input {
         gap: 0.875rem;
     }
     
+    .metrics-container-bottom {
+        grid-template-columns: repeat(3, 1fr);
+        grid-auto-rows: minmax(270px, auto);
+    }
+    
     .chart-container {
         max-height: 200px;
         height: 200px;
+        min-height: 200px;
     }
     
     .metric-title {
@@ -729,7 +999,7 @@ select.form-input {
     }
     
     .metrics-grid {
-        padding: 1.25rem;
+        padding: 1rem;
     }
 }
 
@@ -753,9 +1023,15 @@ select.form-input {
         gap: 0.75rem;
     }
     
+    .metrics-container-bottom {
+        grid-template-columns: repeat(2, 1fr);
+        grid-auto-rows: minmax(260px, auto);
+    }
+    
     .chart-container {
         max-height: 200px;
         height: 200px;
+        min-height: 200px;
     }
     
     .metric-title {
@@ -776,6 +1052,81 @@ select.form-input {
 }
 
 @media (max-width: 600px) {
+    .dashboard-header {
+        padding: 0.875rem 1rem;
+        gap: 0.875rem;
+        border-radius: 12px;
+    }
+    
+    .welcome-section {
+        gap: 0.75rem;
+    }
+    
+    .welcome-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.25rem;
+        border-radius: 10px;
+    }
+    
+    .welcome-text {
+        font-size: 0.8125rem;
+    }
+    
+    .admin-name {
+        font-size: 0.875rem;
+    }
+    
+    .date-label {
+        font-size: 0.75rem;
+    }
+    
+    .header-title {
+        font-size: 1.125rem;
+    }
+    
+    .header-title i {
+        font-size: 1.125rem;
+    }
+    
+    .header-subtitle {
+        font-size: 0.6875rem;
+    }
+    
+    .logo-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1.125rem;
+        border-radius: 10px;
+    }
+    
+    .header-logo-text div {
+        font-size: 0.75rem;
+    }
+    
+    .action-bar {
+        padding: 0.875rem 1rem;
+        border-radius: 12px;
+    }
+    
+    .action-bar-header {
+        margin-bottom: 0.875rem;
+        padding-bottom: 0.875rem;
+    }
+    
+    .action-bar-title {
+        font-size: 0.9375rem;
+    }
+    
+    .action-button {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.8125rem;
+    }
+    
+    .action-button i {
+        font-size: 0.9375rem;
+    }
+    
     .metrics-section-title {
         font-size: 1rem;
     }
@@ -795,9 +1146,15 @@ select.form-input {
         gap: 0.75rem;
     }
     
+    .metrics-container-bottom {
+        grid-template-columns: 1fr;
+        grid-auto-rows: minmax(250px, auto);
+    }
+    
     .chart-container {
-        max-height: 180px;
-        height: 180px;
+        max-height: 220px;
+        height: 220px;
+        min-height: 220px;
     }
     
     .metric-title {
@@ -821,7 +1178,7 @@ select.form-input {
 .metric-card {
     border: 1px solid rgba(203, 213, 225, 0.5);
     background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-    padding: 1rem;
+    padding: 0.75rem;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
@@ -909,10 +1266,10 @@ select.form-input {
     position: relative; 
     width: 100%;
     max-width: 100%;
-    min-height: 200px;
-    max-height: 250px;
-    height: 250px;
-    overflow: hidden;
+    min-height: 220px;
+    max-height: 240px;
+    height: 220px;
+    overflow: visible;
     box-sizing: border-box;
     flex: 1;
     display: flex;
@@ -920,9 +1277,10 @@ select.form-input {
     justify-content: center;
     margin-top: 0;
     padding-top: 0;
+    padding-bottom: 0;
     background: rgba(255, 255, 255, 0.5);
     border-radius: 12px;
-    padding: 0.5rem;
+    padding: 0.15rem;
     transition: background 0.3s ease;
 }
 
@@ -943,7 +1301,7 @@ select.form-input {
     max-height: 100% !important;
     width: 100% !important;
     height: 100% !important;
-    overflow: hidden !important;
+    overflow: visible !important;
 }
 
 /* ApexCharts specific fixes */
@@ -952,6 +1310,7 @@ select.form-input {
     max-height: 100% !important;
     width: 100% !important;
     height: 100% !important;
+    overflow: visible !important;
 }
 
 .chart-container svg {
@@ -968,7 +1327,7 @@ select.form-input {
     height: 100% !important;
     max-width: 100% !important;
     max-height: 100% !important;
-    overflow: hidden !important;
+    overflow: visible !important;
 }
 
 /* Ensure metric cards don't overflow */
@@ -1000,35 +1359,144 @@ select.form-input {
 
 /* Action Bar */
 .action-bar {
-    background-color: #e2e8f0;
-    border: 2px solid #cbd5e1;
-    padding: 1rem;
+    background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+    border: none;
+    padding: 1rem 1.5rem;
     margin-bottom: 1rem;
+    border-radius: 16px;
+    box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    position: relative;
+    overflow: hidden;
+}
+
+.action-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+    border-radius: 16px 16px 0 0;
+}
+
+.action-bar-header {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid rgba(59, 130, 246, 0.1);
+}
+
+.action-bar-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    letter-spacing: -0.025em;
+}
+
+.action-bar-title i {
+    color: #3b82f6;
+    font-size: 1rem;
 }
 
 .action-buttons {
     display: flex;
     gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .action-button {
-    background-color: #3b82f6;
-    color: white;
-    padding: 0.5rem 1.5rem;
-    border: 1px solid #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 10px;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    letter-spacing: 0.025em;
+    position: relative;
+    overflow: hidden;
 }
 
-.action-button:hover {
-    background-color: #2563eb;
+.action-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.action-button:hover::before {
+    left: 100%;
+}
+
+.action-button i {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.action-button span {
+    white-space: nowrap;
+}
+
+.action-button-primary {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+}
+
+.action-button-primary:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(59, 130, 246, 0.4);
+}
+
+.action-button-secondary {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+}
+
+.action-button-secondary:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(16, 185, 129, 0.4);
+}
+
+.action-button-tertiary {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    color: white;
+    box-shadow: 0 4px 6px rgba(139, 92, 246, 0.3);
+}
+
+.action-button-tertiary:hover {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(139, 92, 246, 0.4);
+}
+
+.action-button:active {
+    transform: translateY(0);
 }
 
 /* Data Table - align width with metrics container */
 .data-table-container {
     width: 100%;
     max-width: 100%;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     margin-left: auto;
     margin-right: auto;
     overflow-x: hidden;

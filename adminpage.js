@@ -206,33 +206,36 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
 
     const isPie = (type === 'pie' || type === 'doughnut');
 
-    // Calculate appropriate height based on container
+    // Calculate appropriate height based on container - ensure labels are visible
     const containerElement = document.getElementById(chartId);
-    const containerHeight = containerElement ? Math.min(containerElement.offsetHeight || 250, 250) : 250;
+    const containerHeight = containerElement ? Math.min(containerElement.offsetHeight || 220, 220) : 220;
+    
+    const chartOptions = {
+        type: isPie ? 'donut' : 'bar',
+        height: containerHeight,
+        width: '100%',
+        fontFamily: 'Inter, sans-serif',
+        toolbar: { show: false },
+        zoom: { enabled: false },
+        offsetY: 0,
+        events: {
+            // This replaces the old onclick attribute logic
+            dataPointSelection: (event, chartContext, config) => {
+                if (onClickHandler) onClickHandler();
+            }
+        },
+        dropShadow: {
+            enabled: true,
+            blur: 5,
+            left: 0,
+            top: 2,
+            opacity: 0.1
+        }
+    };
     
     const options = {
         series: isPie ? data : [{ name: title, data: data }],
-        chart: {
-            type: isPie ? 'donut' : 'bar',
-            height: containerHeight,
-            width: '100%',
-            fontFamily: 'Inter, sans-serif',
-            toolbar: { show: false },
-            zoom: { enabled: false },
-            events: {
-                // This replaces the old onclick attribute logic
-                dataPointSelection: (event, chartContext, config) => {
-                    if (onClickHandler) onClickHandler();
-                }
-            },
-            dropShadow: {
-                enabled: true,
-                blur: 5,
-                left: 0,
-                top: 2,
-                opacity: 0.1
-            }
-        },
+        chart: chartOptions,
         fill: {
             type: 'gradient',
             gradient: {
@@ -249,19 +252,19 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
             pie: {
                 startAngle: -90, // Creating the "Arch" look
                 endAngle: 90,
-                offsetY: 40,
+                offsetY: 10,
                 donut: {
-                    size: '75%',
+                    size: '80%',
                     labels: {
                         show: true,
-                        name: { show: true, fontSize: '16px', offsetY: -10, color: '#000000' },
-                        value: { show: true, fontSize: '24px', fontWeight: 700, offsetY: 0, color: '#000000' },
+                        name: { show: true, fontSize: '14px', offsetY: -8, color: '#000000' },
+                        value: { show: true, fontSize: '22px', fontWeight: 700, offsetY: 0, color: '#000000' },
                         total: {
                             show: true,
                             label: title,
                             formatter: (w) => w.globals.seriesTotals.reduce((a, b) => a + b, 0),
                             color: '#000000',
-                            fontSize: '16px',
+                            fontSize: '14px',
                             fontWeight: 600
                         }
                     }
@@ -279,13 +282,14 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
                 return val.toFixed(0) + '%';
             },
             style: {
-                fontSize: '14px',
+                fontSize: '13px',
                 fontWeight: 600,
                 colors: ['#000000']
             },
             dropShadow: {
                 enabled: false
-            }
+            },
+            offsetY: -5
         },
         colors: colors,
         labels: labels,
@@ -294,12 +298,25 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
             colors: ['#fff']
         },
         grid: {
-            padding: { bottom: -80 }
+            padding: { 
+                bottom: 0,
+                top: 0,
+                left: 0,
+                right: 0
+            }
         },
         legend: { 
             position: 'bottom',
+            offsetY: -5,
+            height: 30,
             labels: {
-                colors: '#000000'
+                colors: '#000000',
+                useSeriesColors: false,
+                fontSize: '12px'
+            },
+            itemMargin: {
+                horizontal: 8,
+                vertical: 3
             }
         }
     };
@@ -443,12 +460,12 @@ async function updateDashboardAndCharts(data) {
     
         { id: 'chartChronic', fn: () => {
             const d = calculateChronicData(data, header);
-            if (d) { preDrawCleanup('chartChronic'); drawChart('chartChronic', 'pie', '', Object.keys(d), Object.values(d), ['#e74a3b', '#4e73df'], openPDetailsPopup); }
+            if (d) { preDrawCleanup('chartChronic'); drawChart('chartChronic', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#4e73df'], openPDetailsPopup); }
             else { clearChart('chartChronic', 'Data missing.'); }
         }},
         { id: 'chartHypertension', fn: () => {
             const d = calculateHypertensionData(data, header);
-            if (d) { preDrawCleanup('chartHypertension'); drawChart('chartHypertension', 'pie', '', Object.keys(d), Object.values(d), ['#28a745', '#dc3545'],openHypertensionPopup); }
+            if (d) { preDrawCleanup('chartHypertension'); drawChart('chartHypertension', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745'],openHypertensionPopup); }
             else { clearChart('chartHypertension', 'Data missing.'); }
         }},
         { id: 'chartDiabetes', fn: () => {
@@ -473,7 +490,7 @@ async function updateDashboardAndCharts(data) {
         }},
         { id: 'chartStress', fn: () => {
             const d = calculateStressData(data, header);
-            if (d) { preDrawCleanup('chartStress'); drawChart('chartStress', 'pie', '', Object.keys(d), Object.values(d), ['#28a745', '#dc3545'],openStressHabitsPopup); }
+            if (d) { preDrawCleanup('chartStress'); drawChart('chartStress', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545','#28a745'],openStressHabitsPopup); }
             else { clearChart('chartStress', 'Data missing.'); }
         }},
         { id: 'chartMedication', fn: () => {
@@ -481,7 +498,7 @@ async function updateDashboardAndCharts(data) {
     if (d) { 
         preDrawCleanup('chartMedication'); 
         // We pass openPDetailsPopup as the final argument here
-        drawChart('chartMedication', 'pie', '', Object.keys(d), Object.values(d), ['#4e73df', '#1cc88a'],openChronicMedicationPopup);
+        drawChart('chartMedication', 'pie', '', Object.keys(d), Object.values(d), ['#4e73df', '#28a745'],openChronicMedicationPopup);
     }
     else { clearChart('chartMedication', 'No medication data.'); }
 }},
