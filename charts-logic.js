@@ -125,13 +125,13 @@ function openObesityPopup() {
     });
 
     const popup = window.open('', '_blank', 'width=1100,height=700');
-    popup.document.write(`
+popup.document.write(`
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8">
         <title>Obesity Risk</title>
-        <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { 
@@ -226,7 +226,7 @@ function openObesityPopup() {
         </script>
     </body>
     </html>
-    `);
+`);
 }
 
 function calculateDiabetesData(data, header) {
@@ -341,8 +341,8 @@ function openDiabetesPopup() {
         <div class="chart-wrapper">
             <h2>Diabetes Risk</h2>
             <div id="chart"></div>
-        </div>
-        <script>
+            </div>
+            <script>
             var options = {
                 series: [{ name: 'Participants', data: ${JSON.stringify(stages.map(s => s.count))} }],
                 chart: {
@@ -391,7 +391,7 @@ function openDiabetesPopup() {
             };
             var chart = new ApexCharts(document.querySelector("#chart"), options);
             chart.render();
-        </script>
+            </script>
     </body>
     </html>
     `);
@@ -538,8 +538,8 @@ function openFitnessPopup() {
         <div class="chart-wrapper">
             <h2>Fitness Level</h2>
             <div id="chart"></div>
-        </div>
-        <script>
+            </div>
+            <script>
             var options = {
                 series: [{ name: 'Participants', data: ${JSON.stringify(finalData)} }],
                 chart: {
@@ -593,7 +593,7 @@ function openFitnessPopup() {
             };
             var chart = new ApexCharts(document.querySelector("#chart"), options);
             chart.render();
-        </script>
+            </script>
     </body>
     </html>
     `);
@@ -711,8 +711,8 @@ function openChronicMedicationPopup() {
             <h2>At-Risk & Unmedicated Population</h2>
             <p>Count of people with clinical conditions who reported <b>NOT</b> taking chronic medication.</p>
             <div id="chart"></div>
-        </div>
-        <script>
+            </div>
+            <script>
             var options = {
                 series: [{ name: 'Unmedicated Participants', data: [${counts.diabetes}, ${counts.hypertension}, ${counts.cholesterol}] }],
                 chart: {
@@ -761,8 +761,8 @@ function openChronicMedicationPopup() {
             };
             var chart = new ApexCharts(document.querySelector("#chart"), options);
             chart.render();
-        </script>
-    </body>
+            </script>
+        </body>
     </html>
     `);
 }
@@ -840,8 +840,8 @@ function openStressHabitsPopup() {
         <div class="chart-wrapper">
             <h2>Stress level</h2>
             <div id="chart"></div>
-        </div>
-        <script>
+            </div>
+            <script>
             var options = {
                 series: [{ name: 'Count of Reported Issues', data: ${JSON.stringify(indicators.map(i => i.count))} }],
                 chart: {
@@ -894,7 +894,7 @@ function openStressHabitsPopup() {
             };
             var chart = new ApexCharts(document.querySelector("#chart"), options);
             chart.render();
-        </script>
+            </script>
     </body>
     </html>
     `);
@@ -991,8 +991,8 @@ function openHypertensionPopup() {
         <div class="chart-wrapper">
             <h2>Hypertension Severity Distribution</h2>
             <div id="chart"></div>
-        </div>
-        <script>
+            </div>
+            <script>
             var options = {
                 series: [{ name: 'Number of Participants', data: ${JSON.stringify(grades.map(g => g.count))} }],
                 chart: {
@@ -1041,7 +1041,7 @@ function openHypertensionPopup() {
             };
             var chart = new ApexCharts(document.querySelector("#chart"), options);
             chart.render();
-        </script>
+            </script>
     </body>
     </html>
     `);
@@ -1145,8 +1145,8 @@ function openPDetailsPopup() {
         <div class="chart-wrapper">
             <h2>Chronic Disease Risk Distribution</h2>
             <div id="chart"></div>
-        </div>
-        <script>
+            </div>
+            <script>
             var options = {
                 series: [{ name: 'Participants', data: ${JSON.stringify(sortedConditions.map(c => c[1]))} }],
                 chart: {
@@ -1205,7 +1205,7 @@ function openPDetailsPopup() {
             };
             var chart = new ApexCharts(document.querySelector("#chart"), options);
             chart.render();
-        </script>
+            </script>
     </body>
     </html>
     `);
@@ -1349,8 +1349,8 @@ function openCholesterolPopup() {
         <div class="chart-wrapper">
             <h2>Dyslipidemia Risk</h2>
             <div id="chart"></div>
-        </div>
-        <script>
+            </div>
+            <script>
             var options = {
                 series: [{ name: 'Participants', data: ${JSON.stringify(stages.map(s => s.count))} }],
                 chart: {
@@ -1393,13 +1393,13 @@ function openCholesterolPopup() {
                     theme: 'dark',
                     style: { fontSize: '14px' },
                     y: { formatter: function(val) { return 'Count: ' + val; } }
-                },
+                        },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
             };
             var chart = new ApexCharts(document.querySelector("#chart"), options);
             chart.render();
-        </script>
+            </script>
     </body>
     </html>
     `);
@@ -1511,8 +1511,8 @@ function openAgePopup() {
         <div class="chart-wrapper">
             <h2>Age/Gender</h2>
             <div id="chart"></div>
-        </div>
-        <script>
+            </div>
+            <script>
             var options = {
                 series: [
                     { name: 'Male', data: ${JSON.stringify(maleData)} },
@@ -1568,12 +1568,12 @@ function openAgePopup() {
                     horizontalAlign: 'center',
                     fontSize: '14px',
                     fontWeight: 600
-                }
+                        }
             };
             var chart = new ApexCharts(document.querySelector("#chart"), options);
             chart.render();
-        </script>
-    </body>
+            </script>
+        </body>
     </html>
     `);
 }

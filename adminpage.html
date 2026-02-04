@@ -70,57 +70,106 @@
 
         <div class="main-content">
             <div class="filter-panel">
+                <div class="filter-header">
+                    <h3 class="filter-title">
+                        <i class="fas fa-filter"></i>
+                        Filters & Search
+                    </h3>
+                </div>
                 <div class="filter-content">
                     <div class="form-group">
-                        <label for="companySelect">Corporate:</label>
-                        <select id="companySelect">
-                        <option value="ALL">All Companies</option>
+                        <label for="companySelect">
+                            <i class="fas fa-building"></i>
+                            Corporate
+                        </label>
+                        <select id="companySelect" class="form-input">
+                            <option value="ALL">All Companies</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="dosDateRangePicker">DOS:</label>
-                        <input type="text" id="dosDateRangePicker" placeholder="Select Date Range">
+                        <label for="dosDateRangePicker">
+                            <i class="fas fa-calendar-alt"></i>
+                            DOS
+                        </label>
+                        <input type="text" id="dosDateRangePicker" class="form-input" placeholder="Select Date Range">
                     </div>
                    <div class="form-group">
-                        <label>Location:</label>
-                        <select id="locationSelect">
-                        <option value="ALL">All Locations</option>
+                        <label for="locationSelect">
+                            <i class="fas fa-map-marker-alt"></i>
+                            Location
+                        </label>
+                        <select id="locationSelect" class="form-input">
+                            <option value="ALL">All Locations</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Department:</label>
-                        <input type="text" id="departmentInput">
+                        <label for="departmentInput">
+                            <i class="fas fa-briefcase"></i>
+                            Department
+                        </label>
+                        <input type="text" id="departmentInput" class="form-input" placeholder="Enter Department">
                     </div>
                      <div class="form-group">
-                        <label for="monthPicker">User Report</label>
-                        <input type="text" id="monthPicker" placeholder="Select Date range">
+                        <label for="monthPicker">
+                            <i class="fas fa-file-alt"></i>
+                            User Report
+                        </label>
+                        <input type="text" id="monthPicker" class="form-input" placeholder="Select Date range">
                     </div>
                     <div class="form-group">
-                        <label>Employee:</label>
-                        <input type="text" id="employeeSearch" placeholder="Search ID, Name, or Phone...">
+                        <label for="employeeSearch">
+                            <i class="fas fa-user-search"></i>
+                            Employee
+                        </label>
+                        <input type="text" id="employeeSearch" class="form-input" placeholder="Search ID, Name, or Phone...">
                     </div>
                     <div class="form-group">
-                        <label for="groupProfile">Group Profile:</label>
-                        <input type="text" id="groupProfile" placeholder="Select Date">
+                        <label for="groupProfile">
+                            <i class="fas fa-users"></i>
+                            Group Profile
+                        </label>
+                        <input type="text" id="groupProfile" class="form-input" placeholder="Select Date">
                     </div>
                     
-                    <div class="form-group">
-                        <label>Total Corporates:</label>
-                        <span class="stat-value" id="numCompaniesValue">0</span>
-                    </div>
-                    <div class="form-group">
-                        <label>Total Employees Screened:</label>
-                        <span class="stat-value" id="numScreenedValue">0</span>
+                    <div class="stats-section">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-building"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Total Corporates</div>
+                                <div class="stat-value" id="numCompaniesValue">0</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Employees Screened</div>
+                                <div class="stat-value" id="numScreenedValue">0</div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Master Clear Button -->
                     <div class="clear-all-container">
-                        <button id="clearAllFilters" class="clear-all-button">Clear All Filters</button>
+                        <button id="clearAllFilters" class="clear-all-button">
+                            <i class="fas fa-times-circle"></i>
+                            Clear All Filters
+                        </button>
                     </div>
                 </div>
             </div>
 
             <div class="metrics-grid">
+                <div class="metrics-section-header">
+                    <h3 class="metrics-section-title">
+                        <i class="fas fa-chart-line" style="margin-right: 0.5rem; color: #3b82f6;"></i>
+                        Health Metrics Dashboard
+                    </h3>
+                    <p class="metrics-section-subtitle">Comprehensive analytics and insights</p>
+                </div>
                 <div class="metrics-container" id="metricsContainer">
                     <div class="metric-card">
                         <div class="metric-title">Age/Gender</div>

@@ -152,44 +152,228 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     
     .filter-panel {
         width: 100% !important;
+        max-width: 100%;
     }
     
     .metrics-grid {
         width: 100%;
     }
+    
+    .filter-content {
+        padding: 1.25rem;
+    }
+    
+    .form-group {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .form-group label {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .form-input {
+        width: 100%;
+    }
+    
+    .stats-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .stat-card {
+        flex: 1;
+        min-width: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .filter-header {
+        padding: 1rem 1.25rem 0.875rem;
+    }
+    
+    .filter-title {
+        font-size: 1rem;
+    }
+    
+    .filter-content {
+        padding: 1rem;
+        gap: 0.875rem;
+    }
+    
+    .form-group label {
+        font-size: 0.8125rem;
+    }
+    
+    .form-input {
+        font-size: 0.8125rem;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .stats-section {
+        flex-direction: column;
+        padding: 0.875rem;
+    }
+    
+    .stat-card {
+        width: 100%;
+    }
+    
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+    
+    .stat-value {
+        font-size: 1.125rem;
+    }
+    
+    .clear-all-button {
+        width: 100%;
+        justify-content: center;
+        padding: 0.875rem 1.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .filter-header {
+        padding: 0.875rem 1rem 0.75rem;
+    }
+    
+    .filter-title {
+        font-size: 0.9375rem;
+    }
+    
+    .filter-content {
+        padding: 0.875rem;
+        gap: 0.75rem;
+    }
+    
+    .form-group label {
+        font-size: 0.75rem;
+    }
+    
+    .form-group label i {
+        font-size: 0.75rem;
+        width: 14px;
+    }
+    
+    .form-input {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.625rem;
+    }
+    
+    .stats-section {
+        padding: 0.75rem;
+        gap: 0.625rem;
+    }
+    
+    .stat-card {
+        padding: 0.75rem;
+    }
+    
+    .stat-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 0.9375rem;
+    }
+    
+    .stat-label {
+        font-size: 0.6875rem;
+    }
+    
+    .stat-value {
+        font-size: 1rem;
+    }
+    
+    .clear-all-button {
+        font-size: 0.8125rem;
+        padding: 0.75rem 1rem;
+    }
 }
 
 .filter-panel {
-    width: 400px; /* Kept at 400px to maintain original layout */
-    border: 2px solid #cbd5e1;
-    background-color: #ffffff;
+    width: 400px;
+    border: none;
+    background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
     height: fit-content;
-    flex-shrink: 0; /* Prevents filter panel from shrinking if necessary */
+    flex-shrink: 0;
+    border-radius: 16px;
+    box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    position: relative;
+    overflow: hidden;
+}
+
+.filter-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+    border-radius: 16px 16px 0 0;
+}
+
+.filter-header {
+    padding: 1.25rem 1.5rem 1rem;
+    border-bottom: 2px solid rgba(59, 130, 246, 0.1);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+}
+
+.filter-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    letter-spacing: -0.025em;
+}
+
+.filter-title i {
+    color: #3b82f6;
+    font-size: 1rem;
 }
 
 .filter-content {
-    padding: 1rem;
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1rem;
 }
 
 .form-group {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    position: relative;
 }
 
 .form-group label {
-    min-width: 8rem;
+    min-width: 7.5rem;
     flex-shrink: 0;
     color: #1e293b;
+    font-weight: 600;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    letter-spacing: 0.025em;
 }
 
-.form-group input,
-.form-group select {
-    flex: 1;
-    min-width: 0;
+.form-group label i {
+    color: #3b82f6;
+    font-size: 0.875rem;
+    width: 16px;
+    text-align: center;
 }
 
 .form-group button {
@@ -201,42 +385,93 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     padding: 0.25rem 0.5rem;
 }
 
-/* Apply consistent styling for both input and select elements (dropdown) */
-.form-group input,
-.form-group select {
-    /* Existing/Standard Styling */
-    border: 2px solid #cbd5e1;
-    padding: 0.375rem 0.75rem;
+/* Fallback for inputs/selects without form-input class */
+.form-group input:not(.form-input),
+.form-group select:not(.form-input) {
+    border: 2px solid #e2e8f0;
+    padding: 0.625rem 0.875rem;
     background-color: #ffffff;
     color: #1e293b;
     font-family: inherit;
-    font-size: 1rem;
-    width: 250px;
-    flex: none;
+    font-size: 0.875rem;
+    flex: 1;
+    min-width: 0;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-/* Style specific to text inputs */
-.form-group input {
-    text-align: center;
+.form-group input:not(.form-input):focus,
+.form-group select:not(.form-input):focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.form-group input::placeholder {
-    color: #94a3b8;
-}
-
-/* Style specific to select (dropdown) elements */
-.form-group select {
-    text-align: left;
-    /* Optional: Remove default browser dropdown arrow for a cleaner look */
+.form-group select:not(.form-input) {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    /* Add a custom down arrow icon */
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%233b82f6'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.75rem center;
-    background-size: 0.6em;
+    background-size: 1em;
+    padding-right: 2.5rem;
+}
+
+/* Apply consistent styling for both input and select elements (dropdown) */
+.form-input {
+    border: 2px solid #e2e8f0;
+    padding: 0.625rem 0.875rem;
+    background-color: #ffffff;
+    color: #1e293b;
+    font-family: inherit;
+    font-size: 0.875rem;
+    flex: 1;
+    min-width: 0;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: #ffffff;
+}
+
+.form-input:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Style specific to text inputs */
+.form-input[type="text"] {
+    text-align: left;
+}
+
+.form-input::placeholder {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Style specific to select (dropdown) elements */
+.form-input[type="text"].form-input,
+select.form-input {
     cursor: pointer;
+}
+
+select.form-input {
+    text-align: left;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%233b82f6'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1em;
+    padding-right: 2.5rem;
 }
 
 .clear-button {
@@ -249,57 +484,189 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     font-weight: bold;
 }
 
+.stats-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0.5rem 0;
+    padding: 1rem;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(59, 130, 246, 0.1);
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem;
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    border-radius: 10px;
+    color: white;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+}
+
+.stat-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.2;
+}
+
 .clear-all-container {
     display: flex;
     justify-content: center;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     padding-top: 1rem;
-    border-top: 1px solid #e2e8f0;
+    border-top: 2px solid rgba(59, 130, 246, 0.1);
 }
 
 .clear-all-button {
-    background: #dc2626;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
     color: white;
     border: none;
-    border-radius: 6px;
-    padding: 8px 16px;
+    border-radius: 10px;
+    padding: 0.75rem 1.5rem;
     cursor: pointer;
-    font-weight: bold;
-    font-size: 0.9rem;
-    transition: background-color 0.2s;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
 }
 
 .clear-all-button:hover {
-    background: #b91c1c;
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(239, 68, 68, 0.4);
+}
+
+.clear-all-button:active {
+    transform: translateY(0);
+}
+
+.clear-all-button i {
+    font-size: 1rem;
 }
 
 /* Metrics Grid */
 .metrics-grid {
     flex: 1;
-    border: 2px solid #cbd5e1;
-    background-color: #ffffff;
-    padding: 1rem;
+    border: none;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 1.5rem;
     min-width: 0; /* Allow flex item to shrink below content size */
     max-width: 100%;
     width: 100%;
     overflow: hidden;
     box-sizing: border-box;
+    border-radius: 16px;
+    box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.metrics-grid::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #f59e0b, #10b981);
+    border-radius: 16px 16px 0 0;
+}
+
+.metrics-section-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid rgba(59, 130, 246, 0.1);
+    text-align: center;
+}
+
+.metrics-section-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 0.5rem 0;
+    letter-spacing: -0.025em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.metrics-section-subtitle {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin: 0;
+    font-weight: 400;
+    letter-spacing: 0.025em;
 }
 
 .metrics-container {
     display: grid;
     grid-template-columns: repeat(5, 1fr); /* Restored 5-column grid */
-    gap: 0.5rem;
+    gap: 1rem;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
-    grid-auto-rows: minmax(280px, auto);
+    grid-auto-rows: minmax(300px, auto);
+    margin-top: 0.5rem;
 }
 
 @media (max-width: 1400px) {
+    .metrics-section-title {
+        font-size: 1.375rem;
+    }
+    
+    .metrics-section-subtitle {
+        font-size: 0.8125rem;
+    }
+    
     .metrics-container {
         grid-template-columns: repeat(4, 1fr);
-        grid-auto-rows: minmax(260px, auto);
+        grid-auto-rows: minmax(280px, auto);
+        gap: 0.875rem;
     }
     
     .chart-container {
@@ -308,21 +675,40 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     }
     
     .metric-title {
-        font-size: 0.85rem;
+        font-size: 0.7rem;
         line-height: 1.2;
         margin-bottom: 0;
+        padding: 0.4rem 0.6rem;
     }
     
     .metric-card {
-        padding: 0.5rem 0.5rem 0.5rem;
-        gap: 0.25rem;
+        padding: 0.875rem;
+        gap: 0.625rem;
+    }
+    
+    .metrics-grid {
+        padding: 1.25rem;
     }
 }
 
 @media (max-width: 1200px) {
+    .metrics-section-title {
+        font-size: 1.25rem;
+    }
+    
+    .metrics-section-subtitle {
+        font-size: 0.75rem;
+    }
+    
+    .metrics-section-header {
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.875rem;
+    }
+    
     .metrics-container {
         grid-template-columns: repeat(3, 1fr);
-        grid-auto-rows: minmax(250px, auto);
+        grid-auto-rows: minmax(270px, auto);
+        gap: 0.875rem;
     }
     
     .chart-container {
@@ -331,21 +717,40 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     }
     
     .metric-title {
-        font-size: 0.8rem;
+        font-size: 0.7rem;
         line-height: 1.2;
         margin-bottom: 0;
+        padding: 0.4rem 0.6rem;
     }
     
     .metric-card {
-        padding: 0.5rem 0.5rem 0.5rem;
-        gap: 0.25rem;
+        padding: 0.875rem;
+        gap: 0.625rem;
+    }
+    
+    .metrics-grid {
+        padding: 1.25rem;
     }
 }
 
 @media (max-width: 900px) {
+    .metrics-section-title {
+        font-size: 1.125rem;
+    }
+    
+    .metrics-section-subtitle {
+        font-size: 0.75rem;
+    }
+    
+    .metrics-section-header {
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+    }
+    
     .metrics-container {
         grid-template-columns: repeat(2, 1fr);
-        grid-auto-rows: minmax(240px, auto);
+        grid-auto-rows: minmax(260px, auto);
+        gap: 0.75rem;
     }
     
     .chart-container {
@@ -354,21 +759,40 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     }
     
     .metric-title {
-        font-size: 0.8rem;
+        font-size: 0.7rem;
         line-height: 1.2;
         margin-bottom: 0;
+        padding: 0.4rem 0.6rem;
     }
     
     .metric-card {
-        padding: 0.5rem 0.5rem 0.5rem;
-        gap: 0.25rem;
+        padding: 0.875rem;
+        gap: 0.625rem;
+    }
+    
+    .metrics-grid {
+        padding: 1rem;
     }
 }
 
 @media (max-width: 600px) {
+    .metrics-section-title {
+        font-size: 1rem;
+    }
+    
+    .metrics-section-subtitle {
+        font-size: 0.6875rem;
+    }
+    
+    .metrics-section-header {
+        margin-bottom: 0.875rem;
+        padding-bottom: 0.625rem;
+    }
+    
     .metrics-container {
         grid-template-columns: 1fr;
-        grid-auto-rows: minmax(220px, auto);
+        grid-auto-rows: minmax(250px, auto);
+        gap: 0.75rem;
     }
     
     .chart-container {
@@ -377,36 +801,69 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     }
     
     .metric-title {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         line-height: 1.2;
         margin-bottom: 0;
+        padding: 0.4rem 0.6rem;
     }
     
     .metric-card {
-        padding: 0.5rem 0.5rem 0.5rem;
-        gap: 0.25rem;
+        padding: 0.875rem;
+        gap: 0.625rem;
+    }
+    
+    .metrics-grid {
+        padding: 1rem;
+        border-radius: 12px;
     }
 }
 
 .metric-card {
-    border: 1px solid #cbd5e1;
-    background: linear-gradient(135deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.9) 100%);
-    padding: 0.5rem 0.5rem 0.5rem;
+    border: 1px solid rgba(203, 213, 225, 0.5);
+    background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+    padding: 1rem;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    gap: 0.75rem;
+    border-radius: 16px;
+    box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 0 0 1px rgba(255, 255, 255, 0.5);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    backdrop-filter: blur(10px);
+}
+
+.metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
 .metric-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 
+        0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 10px 10px -5px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 0 0 1px rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.metric-card:hover::before {
+    opacity: 1;
 }
 
 .metric-title {
@@ -414,22 +871,45 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     color: #1e293b;
     margin-bottom: 0;
     margin-top: 0;
-    padding: 0;
+    padding: 0.5rem 0.75rem;
     min-height: auto;
     height: auto;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.875rem;
-    line-height: 1.2;
+    line-height: 1.3;
     font-weight: 700;
+    letter-spacing: 0.025em;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+    border-radius: 10px;
+    border: 1px solid rgba(59, 130, 246, 0.1);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.metric-title::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    transition: left 0.5s ease;
+}
+
+.metric-card:hover .metric-title::after {
+    left: 100%;
 }
 
 .chart-container {
     position: relative; 
     width: 100%;
     max-width: 100%;
-    min-height: 180px;
+    min-height: 200px;
     max-height: 250px;
     height: 250px;
     overflow: hidden;
@@ -440,6 +920,14 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     justify-content: center;
     margin-top: 0;
     padding-top: 0;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    padding: 0.5rem;
+    transition: background 0.3s ease;
+}
+
+.metric-card:hover .chart-container {
+    background: rgba(255, 255, 255, 0.8);
 }
 
 .chart-container canvas {
