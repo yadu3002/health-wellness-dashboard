@@ -67,7 +67,14 @@ function calculateParticipantsData(data, header = null) {
         const genderKey = genderRaw.startsWith('m') ? 'male' : genderRaw.startsWith('f') ? 'female' : null;
         if (!genderKey) continue;
 
-        const bucketIdx = age < 30 ? 0 : age < 40 ? 1 : 2;
+        // Keep bucket boundaries consistent with openAgePopup:
+        // Under 30  -> age < 30
+        // 30-40     -> 30 <= age <= 40
+        // 40+       -> age > 40
+        let bucketIdx;
+        if (age < 30) bucketIdx = 0;
+        else if (age <= 40) bucketIdx = 1;
+        else bucketIdx = 2;
         buckets[bucketIdx][genderKey]++;
     }
 
@@ -173,7 +180,7 @@ popup.document.write(`
         </div>
         <script>
             var options = {
-                series: [{ name: 'Participants', data: ${JSON.stringify(stages.map(s => s.count))} }],
+                series: [{ name: 'Count', data: ${JSON.stringify(stages.map(s => s.count))} }],
                 chart: {
                     type: 'bar',
                     height: 500,
@@ -185,7 +192,16 @@ popup.document.write(`
                         speed: 1200,
                         animateGradually: { enabled: true, delay: 100 }
                     },
-                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 },
+                    events: {
+                        dataPointSelection: function(event, chartContext, config) {
+                            const categoryIndex = config.dataPointIndex;
+                            const categoryName = ${JSON.stringify(stages.map(s => s.name))}[categoryIndex];
+                            if (window.opener && typeof window.opener.openUserReportPopup === 'function') {
+                                window.opener.openUserReportPopup('obesity', categoryName);
+                            }
+                        }
+                    }
                 },
                 plotOptions: {
                     bar: {
@@ -210,13 +226,13 @@ popup.document.write(`
                     labels: { style: { fontSize: '13px', fontWeight: 600 } }
                 },
                 yaxis: {
-                    title: { text: 'Number of Participants', style: { fontSize: '14px', fontWeight: 600 } },
+                    title: { text: 'Count', style: { fontSize: '14px', fontWeight: 600 } },
                     labels: { style: { fontSize: '12px' } }
                 },
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return val + ' participants'; } }
+                    y: { formatter: function(val) { return val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
@@ -237,8 +253,8 @@ function calculateDiabetesData(data, header) {
     const counts = { 'Risk': 0, 'WNL': 0 };
     
     for (let i = 1; i < data.length; i++) {
-        const fVal = parseFloat(data[i][fbsCol]);
-        const rVal = parseFloat(data[i][rbsCol]);
+        let fVal = parseFloat(data[i][fbsCol]);
+        let rVal = parseFloat(data[i][rbsCol]);
         
         // Define what counts as "valid data" (not NaN and not 0)
         const hasF = !isNaN(fVal) && fVal > 0;
@@ -246,17 +262,31 @@ function calculateDiabetesData(data, header) {
 
         if (!hasF && !hasR) continue; // Skip row if both are missing/0
 
-        let isDiabetic = false;
+        // Normalize invalids to -1 so popup and donut logic stay in sync
+        if (!hasF) fVal = -1;
+        if (!hasR) rVal = -1;
 
-        // If Fasting exists, check it. If Random exists, check it.
-        // If both exist, either one being high triggers 'Risk'.
-        if (hasF && fVal >= 112) isDiabetic = true;
-        if (hasR && rVal >= 202) isDiabetic = true;
+        // Reuse the same staging logic as the diabetes popup:
+        // Normal:       (f in (0,100] or r in (0,160])
+        // Pre-Diabetic: (f 101-110 or r 161-200)
+        // Moderate:     (f 111-129 or r 201-250)
+        // Diabetic:     (f >= 130 or r >= 251)
+        let stage = 'Normal';
+        if ((fVal >= 130) || (rVal >= 251)) {
+            stage = 'Diabetic';
+        } else if ((fVal >= 111 && fVal <= 129) || (rVal >= 201 && rVal <= 250)) {
+            stage = 'Moderate';
+        } else if ((fVal >= 101 && fVal <= 110) || (rVal >= 161 && rVal <= 200)) {
+            stage = 'Pre-Diabetic';
+        } else if (!((fVal > 0 && fVal <= 100) || (rVal > 0 && rVal <= 160))) {
+            // Values outside all explicit bands are treated as Risk
+            stage = 'Abnormal';
+        }
 
-        if (isDiabetic) {
-            counts['Risk']++;
-        } else {
+        if (stage === 'Normal') {
             counts['WNL']++;
+        } else {
+            counts['Risk']++;
         }
     }
     
@@ -344,7 +374,7 @@ function openDiabetesPopup() {
             </div>
             <script>
             var options = {
-                series: [{ name: 'Participants', data: ${JSON.stringify(stages.map(s => s.count))} }],
+                series: [{ name: 'Count', data: ${JSON.stringify(stages.map(s => s.count))} }],
                 chart: {
                     type: 'bar',
                     height: 500,
@@ -356,7 +386,16 @@ function openDiabetesPopup() {
                         speed: 1200,
                         animateGradually: { enabled: true, delay: 100 }
                     },
-                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 },
+                    events: {
+                        dataPointSelection: function(event, chartContext, config) {
+                            const categoryIndex = config.dataPointIndex;
+                            const categoryName = ${JSON.stringify(stages.map(s => s.name))}[categoryIndex];
+                            if (window.opener && typeof window.opener.openUserReportPopup === 'function') {
+                                window.opener.openUserReportPopup('diabetes', categoryName);
+                            }
+                        }
+                    }
                 },
                 plotOptions: {
                     bar: {
@@ -378,13 +417,13 @@ function openDiabetesPopup() {
                     labels: { style: { fontSize: '13px', fontWeight: 600 } }
                 },
                 yaxis: {
-                    title: { text: 'Number of Participants', style: { fontSize: '14px', fontWeight: 600 } },
+                    title: { text: 'Count', style: { fontSize: '14px', fontWeight: 600 } },
                     labels: { style: { fontSize: '12px' } }
                 },
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return val + ' participants'; } }
+                    y: { formatter: function(val) { return val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
@@ -541,7 +580,7 @@ function openFitnessPopup() {
             </div>
             <script>
             var options = {
-                series: [{ name: 'Participants', data: ${JSON.stringify(finalData)} }],
+                series: [{ name: 'Count', data: ${JSON.stringify(finalData)} }],
                 chart: {
                     type: 'bar',
                     height: 550,
@@ -580,13 +619,13 @@ function openFitnessPopup() {
                     }
                 },
                 yaxis: {
-                    title: { text: 'Number of Participants', style: { fontSize: '14px', fontWeight: 600 } },
+                    title: { text: 'Count', style: { fontSize: '14px', fontWeight: 600 } },
                     labels: { style: { fontSize: '12px' } }
                 },
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return val + ' participants'; } }
+                    y: { formatter: function(val) { return val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
@@ -600,27 +639,47 @@ function openFitnessPopup() {
 }
 
 function calculateStressData(data, header) {
-    const strCols = findCols(header, ['str1', 'str2', 'str3', 'str4']);
-    const str4ColIndex = findCol(header, 'str4');
-    if (strCols.length === 0) return null;
+    // Person-level stress scoring based on STR1–STR4
+    const str1Idx = findCol(header, 'str1');
+    const str2Idx = findCol(header, 'str2');
+    const str3Idx = findCol(header, 'str3');
+    const str4Idx = findCol(header, 'str4');
+
+    // If none of the STR columns exist, bail out
+    if (str1Idx === -1 && str2Idx === -1 && str3Idx === -1 && str4Idx === -1) {
+        return null;
+    }
 
     const counts = { 'Risk': 0, 'WNL': 0 };
+
+    const getVal = (row, idx) => {
+        if (idx === -1) return '';
+        return (row[idx] || '').toString().toUpperCase().trim();
+    };
 
     // Start from index 1 to skip the header row
     for (let i = 1; i < data.length; i++) {
         const row = data[i];
-        for (const colIndex of strCols) {
-            const value = (row[colIndex] || '').toString().toUpperCase().trim();
 
-            if (colIndex === str4ColIndex) {
-                // REVERSED LOGIC FOR STR4
-                if (value.startsWith('Y')) { counts['WNL']++; }
-                else if (value.startsWith('N')) { counts['Risk']++; }
-            } else {
-                // NORMAL LOGIC for STR1, STR2, STR3
-                if (value.startsWith('Y')) { counts['Risk']++; }
-                else if (value.startsWith('N')) { counts['WNL']++; }
-            }
+        let stressScore = 0;
+        const s1 = getVal(row, str1Idx); // Job satisfaction
+        const s2 = getVal(row, str2Idx); // Home situation
+        const s3 = getVal(row, str3Idx); // Major problems
+        const s4 = getVal(row, str4Idx); // Sleep
+
+        // 1. ENVIRONMENTAL & PSYCHOLOGICAL STRESSORS
+        if (s1.startsWith('N')) stressScore += 3; // STR1 == "No"
+        if (s2.startsWith('N')) stressScore += 3; // STR2 == "No"
+        if (s3.startsWith('Y')) stressScore += 4; // STR3 == "Yes"
+
+        // 3. COPING & RECOVERY MECHANISMS
+        if (s4.startsWith('N')) stressScore += 2; // STR4 == "No"
+
+        // Classify this person: stress_score >= 4 => Risk, else WNL
+        if (stressScore >= 4) {
+            counts['Risk']++;
+        } else {
+            counts['WNL']++;
         }
     }
 
@@ -714,7 +773,7 @@ function openChronicMedicationPopup() {
             </div>
             <script>
             var options = {
-                series: [{ name: 'Unmedicated Participants', data: [${counts.diabetes}, ${counts.hypertension}, ${counts.cholesterol}] }],
+                series: [{ name: 'Count', data: [${counts.diabetes}, ${counts.hypertension}, ${counts.cholesterol}] }],
                 chart: {
                     type: 'bar',
                     height: 500,
@@ -754,7 +813,7 @@ function openChronicMedicationPopup() {
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return val + ' people'; } }
+                    y: { formatter: function(val) { return val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
@@ -855,7 +914,17 @@ function openStressHabitsPopup() {
                         speed: 1200,
                         animateGradually: { enabled: true, delay: 50 }
                     },
-                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 },
+                    events: {
+                        dataPointSelection: function(event, chartContext, config) {
+                            var idx = config.dataPointIndex;
+                            var categories = ${JSON.stringify(indicators.map(i => i.name))};
+                            var categoryName = categories[idx];
+                            if (window.opener && typeof window.opener.openUserReportPopup === 'function') {
+                                window.opener.openUserReportPopup('stress', categoryName);
+                            }
+                        }
+                    }
                 },
                 plotOptions: {
                     bar: {
@@ -887,7 +956,7 @@ function openStressHabitsPopup() {
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return val + ' reports'; } }
+                    y: { formatter: function(val) { return val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
@@ -900,25 +969,57 @@ function openStressHabitsPopup() {
     `);
 }
 
+// Classify a single BP reading using the requested logic:
+// if SBP <= 100 and DBP <= 65      -> Hypotension
+// else if SBP >= 180 or DBP >= 110 -> Grade III HTN
+// else if SBP >= 160 or DBP >= 100 -> Grade II HTN
+// else if SBP >= 140 or DBP >= 90  -> Grade I HTN
+// else if SBP >= 121 or DBP >= 81  -> Pre-HTN
+// else                             -> Normal
+function classifyBPCategory(s, d) {
+    if (isNaN(s) || isNaN(d) || s <= 0 || d <= 0) return null;
+    // Only classify as Hypotension when BOTH systolic and diastolic
+    // are at or below 100/65.
+    if (s <= 100 && d <= 65) return 'Hypotension';
+    if (s >= 180 || d >= 110) return 'Grade III HTN';
+    if (s >= 160 || d >= 100) return 'Grade II HTN';
+    if (s >= 140 || d >= 90) return 'Grade I HTN';
+    if (s >= 121 || d >= 81) return 'Pre-HTN';
+    return 'Normal';
+}
+
 function calculateHypertensionData(data, header) {
-    const bpCol = findCol(header, 'bp');
-    if (bpCol === -1) return null;
+    // Support either a combined "bp" column ("120/80") or separate "bp1"/"bp2".
+    // Prefer explicit bp1/bp2; only fall back to "bp" when both are missing.
+    const bp1Idx = findCol(header, 'bp1');
+    const bp2Idx = findCol(header, 'bp2');
+    const bpCol = (bp1Idx === -1 && bp2Idx === -1) ? findCol(header, 'bp') : -1;
+
+    if (bpCol === -1 && (bp1Idx === -1 || bp2Idx === -1)) return null;
 
     const counts = { 'Risk': 0, 'WNL': 0 };
 
     for (let i = 1; i < data.length; i++) {
-        const bpValue = (data[i][bpCol] || '').toString();
-        const parts = bpValue.split('/');
-        const s = parseInt(parts[0]);
-        const d = parseInt(parts[1]);
+        let s, d;
+        if (bpCol !== -1) {
+            const bpValue = (data[i][bpCol] || '').toString();
+            const parts = bpValue.split('/');
+            s = parseFloat(parts[0]);
+            d = parseFloat(parts[1]);
+        } else {
+            s = parseFloat(data[i][bp1Idx]);
+            d = parseFloat(data[i][bp2Idx]);
+        }
 
-        if (!isNaN(s) && s > 0) {
-            // If systolic >= 120 OR diastolic >= 80, it's Risk (includes Pre-Hypertension)
-            if (s >= 120 || (!isNaN(d) && d >= 80)) {
-                counts['Risk']++;
-            } else {
-                counts['WNL']++;
-            }
+        const category = classifyBPCategory(s, d);
+        if (!category) continue;
+
+        // For the donut, treat Hypotension, Normal, and Pre-HTN as WNL;
+        // only Grade I/II/III HTN are counted as Risk.
+        if (category === 'Hypotension' || category === 'Normal' || category === 'Pre-HTN') {
+            counts['WNL']++;
+        } else {
+            counts['Risk']++;
         }
     }
     return (counts['Risk'] + counts['WNL'] === 0) ? null : counts;
@@ -929,20 +1030,22 @@ function openHypertensionPopup() {
     const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
     const bp1Idx = findCol(header, 'bp1'), bp2Idx = findCol(header, 'bp2');
 
+    // Categories including Hypotension using the same logic as classifyBPCategory
     const grades = [
-        { name: 'Normal', color: '#1cc88a', check: (s, d) => (s >= 100 && s <= 120) || (d >= 65 && d <= 80), count: 0 },
-        { name: 'Pre-HTN', color: '#f6c23e', check: (s, d) => (s >= 135 && s <= 140) || (d >= 85 && d <= 89), count: 0 },
-        { name: 'Gr I HTN', color: '#fd7e14', check: (s, d) => (s >= 141 && s <= 159) || (d >= 90 && d <= 99), count: 0 },
-        { name: 'Gr II HTN', color: '#e74a3b', check: (s, d) => (s >= 160 && s <= 179) || (d >= 100 && d <= 109), count: 0 },
-        { name: 'Gr III HTN', color: '#851010', check: (s, d) => (s > 180 || d > 110), count: 0 }
+        { name: 'Hypotension',   color: '#36b9cc', count: 0 },
+        { name: 'Normal',        color: '#1cc88a', count: 0 },
+        { name: 'Pre-HTN',       color: '#f6c23e', count: 0 },
+        { name: 'Grade I HTN',   color: '#fd7e14', count: 0 },
+        { name: 'Grade II HTN',  color: '#e74a3b', count: 0 },
+        { name: 'Grade III HTN', color: '#851010', count: 0 }
     ];
 
     lastFilteredData.slice(1).forEach(row => {
         const s = parseFloat(row[bp1Idx]), d = parseFloat(row[bp2Idx]);
-        if (isNaN(s) || isNaN(d)) return;
-        for (let i = grades.length - 1; i >= 0; i--) {
-            if (grades[i].check(s, d)) { grades[i].count++; break; }
-        }
+        const cat = classifyBPCategory(s, d);
+        if (!cat) return;
+        const idx = grades.findIndex(g => g.name === cat);
+        if (idx !== -1) grades[idx].count++;
     });
 
     const popup = window.open('', '_blank', 'width=1100,height=700');
@@ -994,7 +1097,7 @@ function openHypertensionPopup() {
             </div>
             <script>
             var options = {
-                series: [{ name: 'Number of Participants', data: ${JSON.stringify(grades.map(g => g.count))} }],
+                series: [{ name: 'Count', data: ${JSON.stringify(grades.map(g => g.count))} }],
                 chart: {
                     type: 'bar',
                     height: 500,
@@ -1006,7 +1109,16 @@ function openHypertensionPopup() {
                         speed: 1200,
                         animateGradually: { enabled: true, delay: 100 }
                     },
-                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 },
+                    events: {
+                        dataPointSelection: function(event, chartContext, config) {
+                            const categoryIndex = config.dataPointIndex;
+                            const categoryName = ${JSON.stringify(grades.map(g => g.name))}[categoryIndex];
+                            if (window.opener && typeof window.opener.openUserReportPopup === 'function') {
+                                window.opener.openUserReportPopup('hypertension', categoryName);
+                            }
+                        }
+                    }
                 },
                 plotOptions: {
                     bar: {
@@ -1034,7 +1146,7 @@ function openHypertensionPopup() {
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return val + ' participants'; } }
+                    y: { formatter: function(val) { return val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
@@ -1092,9 +1204,10 @@ function openPDetailsPopup() {
         }
     });
 
+    // Sort conditions by frequency (descending) but do NOT limit the count,
+    // so all recorded conditions (e.g., vitamins) appear in the popup bars.
     const sortedConditions = Object.entries(conditionCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6); // Limit to top 6 to keep vertical bars readable
+        .sort((a, b) => b[1] - a[1]);
 
     if (sortedConditions.length === 0) return alert("No chronic conditions recorded in the data.");
 
@@ -1147,58 +1260,63 @@ function openPDetailsPopup() {
             <div id="chart"></div>
             </div>
             <script>
+            // Prepare categories (condition labels) and values once
+            var chronicCategories = ${JSON.stringify(sortedConditions.map(c => c[0]))};
+            var chronicValues = ${JSON.stringify(sortedConditions.map(c => c[1]))};
+
+            // Make the chart height adapt to number of conditions so it stays readable
+            var chronicHeight = Math.min(750, 40 * chronicCategories.length + 160);
+
             var options = {
-                series: [{ name: 'Participants', data: ${JSON.stringify(sortedConditions.map(c => c[1]))} }],
+                series: [{ name: 'Count', data: chronicValues }],
                 chart: {
                     type: 'bar',
-                    height: 500,
+                    height: chronicHeight,
                     fontFamily: 'Inter, sans-serif',
                     toolbar: { show: false },
                     animations: {
                         enabled: true,
                         easing: 'easeinout',
                         speed: 1200,
-                        animateGradually: { enabled: true, delay: 100 }
+                        animateGradually: { enabled: true, delay: 80 }
                     },
-                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.18 }
                 },
                 plotOptions: {
                     bar: {
-                        borderRadius: 12,
-                        columnWidth: '70%',
-                        dataLabels: { position: 'top' },
-                        colors: {
-                            ranges: [{
-                                from: 0,
-                                to: 1000,
-                                color: '#4e73df'
-                            }]
-                        }
+                        horizontal: true,
+                        borderRadius: 10,
+                        barHeight: '70%',
+                        dataLabels: { position: 'right' }
                     }
                 },
                 dataLabels: {
                     enabled: true,
-                    formatter: function(val) { return val; },
-                    offsetY: -20,
-                    style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] }
+                    // Show both the condition name and the count on each bar
+                    formatter: function (val, opts) {
+                        var idx = opts.dataPointIndex;
+                        var name = chronicCategories[idx] || '';
+                        if (!name) return val;
+                        return name + ' : ' + val;
+                    },
+                    offsetX: 8,
+                    style: { fontSize: '12px', fontWeight: 600, colors: ['#1e293b'] }
                 },
                 colors: ['#4e73df'],
                 xaxis: {
-                    categories: ${JSON.stringify(sortedConditions.map(c => c[0]))},
-                    labels: { 
-                        style: { fontSize: '12px', fontWeight: 600 },
-                        rotate: -45,
-                        rotateAlways: true
-                    }
-                },
-                yaxis: {
                     title: { text: 'Number of Reports', style: { fontSize: '14px', fontWeight: 600 } },
                     labels: { style: { fontSize: '12px' } }
+                },
+                yaxis: {
+                    categories: chronicCategories,
+                    labels: { 
+                        style: { fontSize: '12px', fontWeight: 600 }
+                    }
                 },
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return val + ' reports'; } }
+                    y: { formatter: function(val) { return val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
@@ -1257,8 +1375,9 @@ function calculateDyslipidemiaData(data, header) {
 
         if (isNaN(cholValue)) continue;
         
-        // User-defined rule: above 220 is 'Risk' (High Cholesterol)
-        if (cholValue > 220) { 
+        // Keep thresholds aligned with cholesterol popup bands:
+        // Normal (<200) vs any hyperlipidemia (>=200) counted as Risk
+        if (cholValue >= 200) { 
             counts['Risk']++;
         } else {
             counts['WNL']++;
@@ -1352,7 +1471,7 @@ function openCholesterolPopup() {
             </div>
             <script>
             var options = {
-                series: [{ name: 'Participants', data: ${JSON.stringify(stages.map(s => s.count))} }],
+                series: [{ name: 'Count', data: ${JSON.stringify(stages.map(s => s.count))} }],
                 chart: {
                     type: 'bar',
                     height: 500,
@@ -1364,7 +1483,16 @@ function openCholesterolPopup() {
                         speed: 1200,
                         animateGradually: { enabled: true, delay: 100 }
                     },
-                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 }
+                    dropShadow: { enabled: true, blur: 10, opacity: 0.2 },
+                    events: {
+                        dataPointSelection: function(event, chartContext, config) {
+                            const categoryIndex = config.dataPointIndex;
+                            const categoryName = ${JSON.stringify(stages.map(s => s.name))}[categoryIndex];
+                            if (window.opener && typeof window.opener.openUserReportPopup === 'function') {
+                                window.opener.openUserReportPopup('cholesterol', categoryName);
+                            }
+                        }
+                    }
                 },
                 plotOptions: {
                     bar: {
@@ -1392,7 +1520,7 @@ function openCholesterolPopup() {
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return 'Count: ' + val; } }
+                    y: { formatter: function(val) { return val; } }
                         },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
@@ -1551,7 +1679,7 @@ function openAgePopup() {
                     labels: { style: { fontSize: '13px', fontWeight: 600 } }
                 },
                 yaxis: {
-                    title: { text: 'Number of Participants', style: { fontSize: '14px', fontWeight: 600 } },
+                    title: { text: 'Count', style: { fontSize: '14px', fontWeight: 600 } },
                     labels: { style: { fontSize: '12px' } }
                 },
                 tooltip: {
@@ -1559,7 +1687,7 @@ function openAgePopup() {
                     style: { fontSize: '14px' },
                     shared: true,
                     intersect: false,
-                    y: { formatter: function(val) { return val + ' participants'; } }
+                    y: { formatter: function(val) { return val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: {
@@ -1576,4 +1704,392 @@ function openAgePopup() {
         </body>
     </html>
     `);
+}
+
+// Helper function to find column index (if not already defined globally)
+if (typeof findCol === 'undefined') {
+    function findCol(header, name) {
+        return header.findIndex(h => String(h || '').toLowerCase().includes(name.toLowerCase()));
+    }
+}
+
+/**
+ * Opens a user report popup with employee details filtered by graph type and bar category.
+ * Exposed on the global window object so popups can call window.opener.openUserReportPopup(...)
+ * reliably.
+ * @param {string} graphType - Type of graph (e.g., 'hypertension', 'obesity', 'diabetes', etc.)
+ * @param {string} barCategory - The category/bar that was clicked (e.g., 'Normal', 'Gr I HTN', 'Obesity Gr 1', etc.)
+ */
+window.openUserReportPopup = function(graphType, barCategory) {
+    if (!lastFilteredData || lastFilteredData.length <= 1) return;
+    
+    // Use the current window or opener window depending on context
+    const targetWindow = window.opener || window;
+    
+    const header = lastFilteredData[0].map(h => String(h || '').toLowerCase().trim());
+    const rows = lastFilteredData.slice(1);
+    
+    // Get column indices for employee details
+    const getCol = (name) => findCol(header, name);
+    const colIdx = {
+        ref: getCol('refid'),
+        emp: getCol('empid'),
+        name: getCol('empname'),
+        phone: getCol('phone'),
+        dept: getCol('depart'),
+        dosc: getCol('dosc'),
+        bmi: getCol('bmi'),
+        bp1: getCol('bp1'),
+        bp2: getCol('bp2'),
+        bs1: getCol('bs1'),
+        bs2: getCol('bs2'),
+        chol: getCol('cholesterol'),
+        str1: getCol('str1'),
+        str2: getCol('str2'),
+        str3: getCol('str3'),
+        str4: getCol('str4'),
+        hab1: getCol('hab1'),
+        hab2: getCol('hab2'),
+        hab3: getCol('hab3')
+    };
+    
+    // Filter rows based on graph type and bar category
+    let filteredRows = [];
+    
+    if (graphType === 'hypertension') {
+        const bp1Idx = colIdx.bp1;
+        const bp2Idx = colIdx.bp2;
+        
+        // Use the same classification logic as the hypertension popup / donut.
+        // barCategory will be one of: 'Low BP', 'Normal', 'Pre-HTN',
+        // 'Grade I HTN', 'Grade II HTN', 'Grade III HTN'.
+        filteredRows = rows.filter(row => {
+            const s = parseFloat(row[bp1Idx]);
+            const d = parseFloat(row[bp2Idx]);
+            const cat = typeof classifyBPCategory === 'function' ? classifyBPCategory(s, d) : null;
+            if (!cat) return false;
+            return cat === barCategory;
+        });
+    } else if (graphType === 'obesity') {
+        const bmiIdx = colIdx.bmi;
+        
+        const bmiChecks = {
+            'Underweight': (v) => v < 18.5,
+            'Normal': (v) => v >= 18.5 && v <= 24.9,
+            'Overweight': (v) => v >= 25.0 && v <= 29.9,
+            'Obesity Gr 1': (v) => v >= 30.0 && v <= 34.9,
+            'Obesity Gr 2': (v) => v >= 35.0 && v <= 39.9,
+            'Grossly Obese': (v) => v >= 40.0
+        };
+        
+        const check = bmiChecks[barCategory];
+        if (check) {
+            filteredRows = rows.filter(row => {
+                const val = parseFloat(row[bmiIdx]);
+                if (isNaN(val)) return false;
+                return check(val);
+            });
+        }
+    } else if (graphType === 'diabetes') {
+        const bs1Idx = colIdx.bs1;
+        const bs2Idx = colIdx.bs2;
+        
+        const diabetesChecks = {
+            'Normal': (f, r) => (f > 0 && f <= 100) || (r > 0 && r <= 160),
+            'Pre-Diabetic': (f, r) => (f >= 101 && f <= 110) || (r >= 161 && r <= 200),
+            'Moderate': (f, r) => (f >= 111 && f <= 129) || (r >= 201 && r <= 250),
+            'Diabetic': (f, r) => (f >= 130) || (r >= 251)
+        };
+        
+        const check = diabetesChecks[barCategory];
+        if (check) {
+            filteredRows = rows.filter(row => {
+                let f = parseFloat(row[bs1Idx]);
+                let r = parseFloat(row[bs2Idx]);
+                if (isNaN(f) || f <= 0) f = -1;
+                if (isNaN(r) || r <= 0) r = -1;
+                if (f === -1 && r === -1) return false;
+                return check(f, r);
+            });
+        }
+    } else if (graphType === 'cholesterol') {
+        const cholIdx = colIdx.chol;
+        
+        const cholChecks = {
+            'Normal (<200)': (v) => v < 200,
+            'Mild Hyper (200-239)': (v) => v >= 200 && v <= 239,
+            'Moderate Hyper (240-299)': (v) => v >= 240 && v <= 299,
+            'Hyper (≥300)': (v) => v >= 300
+        };
+        
+        const check = cholChecks[barCategory];
+        if (check) {
+            filteredRows = rows.filter(row => {
+                const val = parseFloat(row[cholIdx]);
+                if (isNaN(val)) return false;
+                return check(val);
+            });
+        }
+    } else if (graphType === 'stress') {
+        // Map bar labels from Stress popup to underlying columns
+        const keyMap = {
+            'Work Stress':      'str1',
+            'Family Stress':    'str2',
+            'Financial Stress': 'str3',
+            'Poor Sleep':       'str4',
+            'Smoking':          'hab1',
+            'Alcohol':          'hab2',
+            'Other Habits':     'hab3'
+        };
+
+        const key = keyMap[barCategory];
+        const idx = key ? colIdx[key] : -1;
+
+        if (idx !== -1 && idx != null) {
+            filteredRows = rows.filter(row => {
+                const v = (row[idx] || '').toString().toUpperCase().trim();
+                if (key === 'str4') {
+                    // In the popup we count STR4 == 'N' (poor sleep) as an issue
+                    return v.startsWith('N');
+                } else {
+                    // For STR1–3 and HAB1–3 we count 'Y' as an issue
+                    return v.startsWith('Y');
+                }
+            });
+        }
+    }
+    
+    if (filteredRows.length === 0) {
+        alert('No employees found for the selected category.');
+        return;
+    }
+    
+    // Determine which additional columns to show based on graph type
+    let additionalHeaders = [];
+    
+    if (graphType === 'hypertension') {
+        additionalHeaders = ['BP'];
+    } else if (graphType === 'obesity') {
+        additionalHeaders = ['BMI'];
+    } else if (graphType === 'diabetes') {
+        additionalHeaders = ['Blood Sugar'];
+    } else if (graphType === 'cholesterol') {
+        additionalHeaders = ['Cholesterol'];
+    }
+    
+    // Generate table rows
+    const tableRows = filteredRows.map(row => {
+        let rowHtml = `
+            <tr>
+                <td>${row[colIdx.name] || '-'}</td>
+                <td>${row[colIdx.emp] || '-'}</td>
+                <td>${row[colIdx.dept] || '-'}</td>
+                <td>${row[colIdx.phone] || '-'}</td>
+                <td>${row[colIdx.dosc] || '-'}</td>`;
+        
+        // Add graph-specific columns
+        if (graphType === 'hypertension') {
+            const bp = (row[colIdx.bp1] && row[colIdx.bp2]) ? `${row[colIdx.bp1]}/${row[colIdx.bp2]}` : '-';
+            rowHtml += `<td>${bp}</td>`;
+        } else if (graphType === 'obesity') {
+            const bmi = row[colIdx.bmi] ? parseFloat(row[colIdx.bmi]).toFixed(2) : '-';
+            rowHtml += `<td>${bmi}</td>`;
+        } else if (graphType === 'diabetes') {
+            const bs = (row[colIdx.bs1] || row[colIdx.bs2]) ? (row[colIdx.bs1] || row[colIdx.bs2]) : '-';
+            rowHtml += `<td>${bs}</td>`;
+        } else if (graphType === 'cholesterol') {
+            rowHtml += `<td>${row[colIdx.chol] || '-'}</td>`;
+        }
+        
+        rowHtml += `</tr>`;
+        return rowHtml;
+    }).join('');
+    
+    // Prepare data for Excel export
+    const excelData = filteredRows.map(row => {
+        const obj = {
+            'Name': row[colIdx.name] || '-',
+            'Employee ID': row[colIdx.emp] || '-',
+            'Department': row[colIdx.dept] || '-',
+            'Mobile': row[colIdx.phone] || '-',
+            'DOS': row[colIdx.dosc] || '-'
+        };
+        
+        if (graphType === 'hypertension') {
+            obj['BP'] = (row[colIdx.bp1] && row[colIdx.bp2]) ? `${row[colIdx.bp1]}/${row[colIdx.bp2]}` : '-';
+        } else if (graphType === 'obesity') {
+            obj['BMI'] = row[colIdx.bmi] ? parseFloat(row[colIdx.bmi]).toFixed(2) : '-';
+        } else if (graphType === 'diabetes') {
+            obj['Blood Sugar'] = (row[colIdx.bs1] || row[colIdx.bs2]) ? (row[colIdx.bs1] || row[colIdx.bs2]) : '-';
+        } else if (graphType === 'cholesterol') {
+            obj['Cholesterol'] = row[colIdx.chol] || '-';
+        }
+        
+        return obj;
+    });
+    
+    const reportTitle = `${barCategory} - ${graphType.charAt(0).toUpperCase() + graphType.slice(1)} Report`;
+    
+    // Generate the HTML content
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>${reportTitle}</title>
+        <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                background: #f8fafc;
+                padding: 20px;
+                color: #1e293b;
+            }
+            .header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px;
+                border-radius: 12px;
+                margin-bottom: 20px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .header h1 {
+                font-size: 24px;
+                margin-bottom: 10px;
+            }
+            .header p {
+                font-size: 14px;
+                opacity: 0.9;
+            }
+            .actions {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 20px;
+                flex-wrap: wrap;
+            }
+            .btn {
+                padding: 12px 24px;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .btn-excel {
+                background: linear-gradient(135deg, #10b981, #059669);
+                color: white;
+            }
+            .btn-excel:hover {
+                background: linear-gradient(135deg, #059669, #047857);
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+            }
+            .btn-pdf {
+                background: linear-gradient(135deg, #ef4444, #dc2626);
+                color: white;
+            }
+            .btn-pdf:hover {
+                background: linear-gradient(135deg, #dc2626, #b91c1c);
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+            }
+            .table-container {
+                background: white;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                overflow-x: auto;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 13px;
+            }
+            thead {
+                background: linear-gradient(135deg, #2563eb, #1e40af);
+                color: white;
+            }
+            th {
+                padding: 12px;
+                text-align: left;
+                font-weight: 600;
+                white-space: nowrap;
+            }
+            td {
+                padding: 10px 12px;
+                border-bottom: 1px solid #e2e8f0;
+            }
+            tr:hover {
+                background-color: #f8fafc;
+            }
+            @media print {
+                .actions { display: none; }
+                .header { background: #667eea !important; -webkit-print-color-adjust: exact; }
+                body { padding: 0; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>${reportTitle}</h1>
+            <p>Total Employees: ${filteredRows.length}</p>
+        </div>
+        <div class="actions">
+            <button class="btn btn-excel" onclick="exportToExcel()">Export to Excel</button>
+            <button class="btn btn-pdf" onclick="window.print()">Export to PDF</button>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Employee ID</th>
+                        <th>Department</th>
+                        <th>Mobile</th>
+                        <th>DOS</th>
+                        ${additionalHeaders.map(h => `<th>${h}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+        </div>
+        <script>
+            const tableData = ${JSON.stringify(excelData)};
+            
+            function exportToExcel() {
+                const ws = XLSX.utils.json_to_sheet(tableData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'User Report');
+                XLSX.writeFile(wb, '${reportTitle.replace(/[^a-z0-9]/gi, '_')}.xlsx');
+            }
+        </script>
+    </body>
+    </html>
+    `;
+    
+    // Use Blob URL approach to avoid popup blocking
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+    
+    // Try to open from the parent window if we're in a popup, otherwise use current window
+    try {
+        const popup = targetWindow.open(blobUrl, '_blank', 'width=1200,height=800');
+        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+            // Fallback: open in current window
+            window.open(blobUrl, '_blank', 'width=1200,height=800');
+        }
+    } catch (e) {
+        // If all else fails, open in current window
+        window.open(blobUrl, '_blank', 'width=1200,height=800');
+    }
+    
+    // Clean up the blob URL after a delay (give time for the window to load)
+    setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+    }, 1000);
 }

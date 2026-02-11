@@ -275,19 +275,25 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 }
 
 .logo-icon {
-    width: 48px;
-    height: 48px;
+    width: 64px;
+    height: 64px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #10b981;
-    border-radius: 12px;
-    color: white;
-    font-size: 1.5rem;
-    box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+    background: transparent;
+    border-radius: 0;
+    color: inherit;
+    font-size: 0;
+    box-shadow: none;
     flex-shrink: 0;
     padding: 10px;
     box-sizing: border-box;
+}
+
+.logo-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .logo-icon svg {
@@ -316,7 +322,8 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     display: flex;
     gap: 0.75rem;
     margin-bottom: 0.5rem;
-    align-items: flex-start;
+    /* Stretch filter + charts to same height so Clear All aligns with charts */
+    align-items: stretch;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
@@ -529,10 +536,14 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 }
 
 .filter-panel {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
     width: 400px;
     border: none;
     background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-    height: fit-content;
+    /* Let flexbox stretch height to match metrics-grid */
+    height: auto;
     flex-shrink: 0;
     border-radius: 16px;
     box-shadow: 
@@ -550,7 +561,7 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #f59e0b, #10b981);
     border-radius: 16px 16px 0 0;
 }
 
@@ -581,6 +592,8 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
     display: flex;
     flex-direction: column;
     gap: 0.875rem;
+    /* Fill available height so Clear All can sit at the bottom */
+    flex: 1;
 }
 
 .form-group {
@@ -786,10 +799,45 @@ select.form-input {
     line-height: 1.2;
 }
 
+.stat-graph-card {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-height: 180px;
+}
+
+.stat-graph-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-graph-title {
+    font-size: 0.875rem;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+    text-align: center;
+}
+
+.stat-graph-container {
+    flex: 1;
+    min-height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .clear-all-container {
     display: flex;
     justify-content: center;
-    margin-top: 0.5rem;
+    /* Push Clear All to the bottom of the filter panel */
+    margin-top: auto;
     padding-top: 1rem;
     border-top: 2px solid rgba(59, 130, 246, 0.1);
 }
@@ -829,6 +877,7 @@ select.form-input {
 /* Metrics Grid */
 .metrics-grid {
     flex: 1;
+    align-self: stretch;
     border: none;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     padding: 0.75rem;
@@ -896,9 +945,8 @@ select.form-input {
 
 .metrics-container-bottom {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     grid-auto-rows: minmax(240px, auto);
-    justify-items: center;
     margin-top: 0.5rem;
     gap: 0.75rem;
     width: 100%;
@@ -1094,10 +1142,8 @@ select.form-input {
     }
     
     .logo-icon {
-        width: 36px;
-        height: 36px;
-        font-size: 1.125rem;
-        border-radius: 10px;
+        width: 48px;
+        height: 48px;
     }
     
     .header-logo-text div {
@@ -1178,14 +1224,14 @@ select.form-input {
 .metric-card {
     border: 1px solid rgba(203, 213, 225, 0.5);
     background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-    padding: 0.75rem;
+    padding: 0.5rem;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.25rem;
     border-radius: 16px;
     box-shadow: 
         0 4px 6px -1px rgba(0, 0, 0, 0.1),
@@ -1195,6 +1241,8 @@ select.form-input {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     backdrop-filter: blur(10px);
+    user-select: none;
+    cursor: pointer;
 }
 
 .metric-card::before {
@@ -1226,20 +1274,19 @@ select.form-input {
 .metric-title {
     text-align: center;
     color: #1e293b;
-    margin-bottom: 0;
-    margin-top: 0;
-    padding: 0.5rem 0.75rem;
+    margin: 0;
+    padding: 0.25rem 0.5rem;
     min-height: auto;
     height: auto;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.875rem;
-    line-height: 1.3;
+    line-height: 1.2;
     font-weight: 700;
     letter-spacing: 0.025em;
     background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
-    border-radius: 10px;
+    border-radius: 8px;
     border: 1px solid rgba(59, 130, 246, 0.1);
     text-transform: uppercase;
     font-size: 0.75rem;
@@ -1275,13 +1322,13 @@ select.form-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: 0;
-    padding-top: 0;
-    padding-bottom: 0;
+    margin: 0;
+    padding: 0;
     background: rgba(255, 255, 255, 0.5);
     border-radius: 12px;
-    padding: 0.15rem;
     transition: background 0.3s ease;
+    cursor: pointer;
+    pointer-events: auto;
 }
 
 .metric-card:hover .chart-container {
@@ -1294,6 +1341,8 @@ select.form-input {
     width: 100% !important;
     height: 100% !important;
     object-fit: contain;
+    pointer-events: auto;
+    cursor: pointer;
 }
 
 .chart-container > div[id^="chart"] {
@@ -1311,6 +1360,8 @@ select.form-input {
     width: 100% !important;
     height: 100% !important;
     overflow: visible !important;
+    pointer-events: auto;
+    cursor: pointer;
 }
 
 .chart-container svg {
@@ -1318,6 +1369,8 @@ select.form-input {
     max-height: 100% !important;
     width: 100% !important;
     height: 100% !important;
+    pointer-events: auto;
+    cursor: pointer;
 }
 
 /* Additional ApexCharts wrapper fixes */
@@ -1328,6 +1381,8 @@ select.form-input {
     max-width: 100% !important;
     max-height: 100% !important;
     overflow: visible !important;
+    pointer-events: auto;
+    cursor: pointer;
 }
 
 /* Ensure metric cards don't overflow */
@@ -1625,21 +1680,23 @@ table colgroup {
 /* Table stays fixed layout on all screens for consistency */
 
 /* Column width definitions - optimized to fit all columns on all devices */
-col:nth-child(1) { width: 4.5%; }  /* Ref ID */
-col:nth-child(2) { width: 4.5%; }  /* Emp ID */
-col:nth-child(3) { width: 8%; }    /* Name */
-col:nth-child(4) { width: 6.5%; }  /* Mobile */
-col:nth-child(5) { width: 6.5%; }  /* Depart */
-col:nth-child(6) { width: 4%; }    /* BMI */
-col:nth-child(7) { width: 6.5%; }  /* BP/BG */
-col:nth-child(8) { width: 5.5%; }  /* Cholestrol - reduced */
-col:nth-child(9) { width: 6.5%; }  /* Medication */
-col:nth-child(10) { width: 7%; }   /* Cardiac Risk - reduced */
-col:nth-child(11) { width: 7.5%; } /* Health Habit */
-col:nth-child(12) { width: 5.5%; } /* Fitness */
-col:nth-child(13) { width: 5.5%; } /* Stress */
-col:nth-child(14) { width: 5%; }   /* DOSC */
-col:nth-child(15) { width: 5%; } /* View Report - increased for full text visibility */
+col:nth-child(1) { width: 4%; }    /* Ref ID */
+col:nth-child(2) { width: 4%; }    /* Emp ID */
+col:nth-child(3) { width: 7.5%; }  /* Name */
+col:nth-child(4) { width: 6%; }    /* Mobile */
+col:nth-child(5) { width: 6%; }    /* Depart */
+col:nth-child(6) { width: 3.5%; }  /* BMI */
+col:nth-child(7) { width: 5%; }    /* BP */
+col:nth-child(8) { width: 5%; }    /* Blood Sugar */
+col:nth-child(9) { width: 5%; }    /* Cholestrol */
+col:nth-child(10) { width: 5.5%; } /* Medication */
+col:nth-child(11) { width: 6%; }   /* Cardiac Risk */
+col:nth-child(12) { width: 6%; }   /* Health Habit */
+col:nth-child(13) { width: 4.5%; } /* Nutrient Status */
+col:nth-child(14) { width: 4.5%; } /* Fitness */
+col:nth-child(15) { width: 4.5%; } /* Stress */
+col:nth-child(16) { width: 4%; }   /* DOSC */
+col:nth-child(17) { width: 4%; }   /* View Report */
 
 /* Responsive table adjustments - ensure all columns visible on all devices */
 @media (max-width: 1600px) {
@@ -1672,21 +1729,23 @@ col:nth-child(15) { width: 5%; } /* View Report - increased for full text visibi
     }
     
     /* Further reduce column widths */
-    col:nth-child(1) { width: 4%; }
-    col:nth-child(2) { width: 4%; }
-    col:nth-child(3) { width: 7.5%; }
-    col:nth-child(4) { width: 6%; }
-    col:nth-child(5) { width: 6%; }
-    col:nth-child(6) { width: 3.5%; }
-    col:nth-child(7) { width: 6%; }
-    col:nth-child(8) { width: 5%; }   /* Cholestrol - reduced */
-    col:nth-child(9) { width: 6%; }
-    col:nth-child(10) { width: 6.5%; } /* Cardiac Risk - reduced */
-    col:nth-child(11) { width: 7%; }
-    col:nth-child(12) { width: 5%; }
-    col:nth-child(13) { width: 5%; }
-    col:nth-child(14) { width: 4.5%; }
-    col:nth-child(15) { width: 4.5%; } /* View Report - increased */
+    col:nth-child(1) { width: 3.5%; }
+    col:nth-child(2) { width: 3.5%; }
+    col:nth-child(3) { width: 7%; }
+    col:nth-child(4) { width: 5.5%; }
+    col:nth-child(5) { width: 5.5%; }
+    col:nth-child(6) { width: 3%; }
+    col:nth-child(7) { width: 4.5%; }  /* BP */
+    col:nth-child(8) { width: 4.5%; }  /* Blood Sugar */
+    col:nth-child(9) { width: 4.5%; }  /* Cholestrol */
+    col:nth-child(10) { width: 5%; }   /* Medication */
+    col:nth-child(11) { width: 5.5%; } /* Cardiac Risk */
+    col:nth-child(12) { width: 5.5%; } /* Health Habit */
+    col:nth-child(13) { width: 4%; }   /* Nutrient Status */
+    col:nth-child(14) { width: 4%; }   /* Fitness */
+    col:nth-child(15) { width: 3.8%; } /* Stress */
+    col:nth-child(16) { width: 3.8%; } /* DOSC */
+    col:nth-child(17) { width: 3.4%; } /* View Report */
 }
 
 @media (max-width: 1200px) {
@@ -1704,21 +1763,23 @@ col:nth-child(15) { width: 5%; } /* View Report - increased for full text visibi
     }
     
     /* Even more compact columns */
-    col:nth-child(1) { width: 3.5%; }
-    col:nth-child(2) { width: 3.5%; }
-    col:nth-child(3) { width: 7%; }
-    col:nth-child(4) { width: 5.5%; }
-    col:nth-child(5) { width: 5.5%; }
-    col:nth-child(6) { width: 3%; }
-    col:nth-child(7) { width: 5.5%; }
-    col:nth-child(8) { width: 4.5%; }  /* Cholestrol - reduced */
-    col:nth-child(9) { width: 5.5%; }
-    col:nth-child(10) { width: 6%; }    /* Cardiac Risk - reduced */
-    col:nth-child(11) { width: 6.5%; }
-    col:nth-child(12) { width: 4.5%; }
-    col:nth-child(13) { width: 4.5%; }
-    col:nth-child(14) { width: 4%; }
-    col:nth-child(15) { width: 4%; } /* View Report - increased */
+    col:nth-child(1) { width: 3%; }
+    col:nth-child(2) { width: 3%; }
+    col:nth-child(3) { width: 6.5%; }
+    col:nth-child(4) { width: 5%; }
+    col:nth-child(5) { width: 5%; }
+    col:nth-child(6) { width: 2.5%; }
+    col:nth-child(7) { width: 3.8%; }    /* BP */
+    col:nth-child(8) { width: 3.8%; }    /* Blood Sugar */
+    col:nth-child(9) { width: 3.8%; }    /* Cholestrol */
+    col:nth-child(10) { width: 4.8%; }   /* Medication */
+    col:nth-child(11) { width: 5.2%; }   /* Cardiac Risk */
+    col:nth-child(12) { width: 5.2%; }   /* Health Habit */
+    col:nth-child(13) { width: 3.8%; }   /* Nutrient Status */
+    col:nth-child(14) { width: 3.8%; }   /* Fitness */
+    col:nth-child(15) { width: 3.4%; }   /* Stress */
+    col:nth-child(16) { width: 3.4%; }   /* DOSC */
+    col:nth-child(17) { width: 3.1%; }   /* View Report */
 }
 
 @media (max-width: 1024px) {
@@ -1828,8 +1889,8 @@ thead th:hover {
     font-weight: 600;
     white-space: nowrap;
     text-align: center;
-    width: 100%; /* Make button fill the cell */
-    min-width: fit-content;
+    width: auto;          /* Let content define width */
+    min-width: 60px;      /* Small, fixed-ish width */
     letter-spacing: 0.25px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     transition: all 0.2s ease;
@@ -1840,6 +1901,8 @@ thead th:hover {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transform: translateY(-0.5px);
 }
+
+/* (View Report column uses the same header/cell styles as other action columns) */
 
 /* Style for status flags - balanced and professional */
 .flag-indicator {

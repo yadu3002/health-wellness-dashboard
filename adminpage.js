@@ -6,7 +6,6 @@ let chartInstances = {}; // Object to store all Chart.js instances by their canv
 let lastFilteredData = null; 
 // --- NEW GLOBAL VARIABLE FOR DATE RANGE ---
 let selectedDateRange = null;
-let selectedLocation = 'ALL';
 
 // --- NEW GLOBAL VARIABLES FOR FILTERING ---
 let companyNames = new Set();
@@ -14,8 +13,13 @@ let selectedCompany = 'ALL'; // Default to show all companies
 
 // --- Column Finder Helpers ---
 // Change this at the top of adminpage.js
-const findCol = (header, name) => header.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
-const findCols = (header, names) => names.map(name => findCol(header, name)).filter(i => i !== -1);
+if (typeof findCol === 'undefined') {
+    window.findCol = (header, name) => header.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+}
+
+if (typeof findCols === 'undefined') {
+    window.findCols = (header, names) => names.map(name => findCol(header, name)).filter(i => i !== -1);
+}
 
 function openLoginPopup() {
     const url = 'loginpage2.html';
@@ -36,7 +40,7 @@ function populateDataTable(data) {
     tableBody.innerHTML = ''; 
 
     if (!data || data.length <= 1) {
-        tableBody.innerHTML = '<tr><td colspan="14" style="text-align:center;">No data records found.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="16" style="text-align:center;">No data records found.</td></tr>';
         return;
     }
 
@@ -61,8 +65,11 @@ function populateDataTable(data) {
         bs2: getCol('BS2'), // Matches BS2 or Random BS2
         chol: getCol('CHOLESTEROL'),
         med: getCol('MEDICATION'),
+        nut1: getCol('NUT1'),
+        nut2: getCol('NUT2'),
+        nut3: getCol('NUT3'),
+        nut4: getCol('NUT4'),
         // Flag mapping based on your Excel sheet columns
-        orgs: [getCol('ORG1'), getCol('ORG2'), getCol('ORG3')],
         habs: [getCol('HAB1'), getCol('HAB2')],
         exes: [getCol('EXE1'), getCol('EXE2'), getCol('EXE3')],
         strs: [getCol('STR1'), getCol('STR2'), getCol('STR3'), getCol('STR4')],
@@ -91,11 +98,13 @@ function populateDataTable(data) {
         tr.insertCell().textContent = row[colIdx.dept] || '-';
         tr.insertCell().textContent = formattedBMI;
         
-        
-        // BP/BG Combined Logic
+        // BP - Separate column
         const bp = (row[colIdx.bp1] && row[colIdx.bp2]) ? `${row[colIdx.bp1]}/${row[colIdx.bp2]}` : '-';
-        const bs = (row[colIdx.bs1] || row[colIdx.bs2]) ? ` (${row[colIdx.bs1] || row[colIdx.bs2]})` : '';
-        tr.insertCell().textContent = bp + bs;
+        tr.insertCell().textContent = bp;
+        
+        // Blood Sugar - Separate column
+        const bs = (row[colIdx.bs1] || row[colIdx.bs2]) ? (row[colIdx.bs1] || row[colIdx.bs2]) : '-';
+        tr.insertCell().textContent = bs;
 
         tr.insertCell().textContent = row[colIdx.chol] || '0';
         
@@ -110,20 +119,76 @@ function populateDataTable(data) {
         // 1. Medication
         createFlag(tr.insertCell(), row[colIdx.med] === 'Y', 'YES', 'NO');
 
-        // 2. Cardiac Risk (If any ORG column is 'Y')
-        const cardiacRisk = colIdx.orgs.some(i => row[i] === 'Y');
+        // 2. Cardiac Risk (derived from BP, Blood Sugar, Cholesterol)
+        const sbp  = parseFloat(row[colIdx.bp1]);
+        const dbp  = parseFloat(row[colIdx.bp2]);
+        const fbs  = parseFloat(row[colIdx.bs1]);
+        const rbs  = parseFloat(row[colIdx.bs2]);
+        const chol = parseFloat(row[colIdx.chol]);
+
+        const highBP   = ((!isNaN(sbp) && sbp > 140) || (!isNaN(dbp) && dbp > 90));
+        const highBS   = ((!isNaN(fbs) && fbs > 126) || (!isNaN(rbs) && rbs > 200));
+        const highChol = (!isNaN(chol) && chol > 200);
+
+        const cardiacRisk = highBP || highBS || highChol;
         createFlag(tr.insertCell(), cardiacRisk, 'HIGH', 'LOW');
 
         // 3. Health Habit (If any HAB column is 'N')
-        const poorHabit = colIdx.habs.some(i => row[i] === 'N');
+        const poorHabit = colIdx.habs.some(i => i !== -1 && String(row[i] || '').toUpperCase().trim() === 'N');
         createFlag(tr.insertCell(), poorHabit, 'POOR', 'GOOD');
 
-        // 4. Fitness (If any EXE column is 'N')
-        const lowFitness = colIdx.exes.some(i => row[i] === 'N');
+        // 4. Nutrient Status (NUT1–4)
+        const isYes = (v) => {
+            const t = (v || '').toString().toUpperCase().trim();
+            return t.startsWith('Y');
+        };
+        const isNo = (v) => {
+            const t = (v || '').toString().toUpperCase().trim();
+            return t.startsWith('N');
+        };
+        let nutScore = 0;
+        if (colIdx.nut1 !== -1 && isYes(row[colIdx.nut1])) nutScore++;
+        if (colIdx.nut2 !== -1 && isYes(row[colIdx.nut2])) nutScore++;
+        if (colIdx.nut3 !== -1 && isYes(row[colIdx.nut3])) nutScore++;
+        if (colIdx.nut4 !== -1 && isNo(row[colIdx.nut4])) nutScore++;
+        const nutrientStatus = nutScore >= 3 ? 'Adequate' : 'Inadequate';
+        createFlag(tr.insertCell(), nutrientStatus === 'Inadequate', 'Inadequate', 'Adequate');
+
+        // 5. Fitness – align with chart logic (EXE1/2/3, >1 'Y' = ACTIVE/WNL)
+        let exeYCount = 0;
+        colIdx.exes.forEach(i => {
+            if (i === -1) return;
+            const v = (row[i] || '').toString().toUpperCase().trim();
+            if (v === 'Y') exeYCount++;
+        });
+        const lowFitness = exeYCount <= 1;
         createFlag(tr.insertCell(), lowFitness, 'LOW', 'ACTIVE');
 
-        // 5. Stress (If any STR column is 'Y')
-        const highStress = colIdx.strs.some(i => row[i] === 'Y');
+        // 6. Stress – weighted stress_score from STR1–STR4 (data grid only)
+        // STR1 (Job satisfaction):   "No"  -> +3
+        // STR2 (Home situation):     "No"  -> +3
+        // STR3 (Major problems):     "Yes" -> +4
+        // STR4 (Sufficient sleep):   "No"  -> +2
+        // If stress_score >= 4 THEN "High Stress"
+        const [str1Idx, str2Idx, str3Idx, str4Idx] = colIdx.strs;
+        let stressScore = 0;
+
+        const getStrVal = (idx) => {
+            if (idx === -1) return '';
+            return (row[idx] || '').toString().toUpperCase().trim();
+        };
+
+        const s1 = getStrVal(str1Idx);
+        const s2 = getStrVal(str2Idx);
+        const s3 = getStrVal(str3Idx);
+        const s4 = getStrVal(str4Idx);
+
+        if (s1.startsWith('N')) stressScore += 3; // STR1 == "No"
+        if (s2.startsWith('N')) stressScore += 3; // STR2 == "No"
+        if (s3.startsWith('Y')) stressScore += 4; // STR3 == "Yes"
+        if (s4.startsWith('N')) stressScore += 2; // STR4 == "No"
+
+        const highStress = stressScore >= 4;
         createFlag(tr.insertCell(), highStress, 'HIGH', 'NORMAL');
 
         tr.insertCell().textContent = row[colIdx.dosc] || '-';
@@ -134,31 +199,6 @@ function populateDataTable(data) {
     });
 }
 
-// (6) Location Dropdown Population
-function populateLocationDropdown(filteredData) {
-    const select = document.getElementById('locationSelect');
-    if (!select) return;
-
-    const locIdx = findCol(headerRow, 'FACTORY'); // Or 'LOCATION' depending on your Excel
-    const uniqueLocs = new Set();
-
-    filteredData.forEach(row => {
-        const val = String(row[locIdx] || '').trim();
-        if (val) uniqueLocs.add(val);
-    });
-
-    const current = select.value;
-    select.innerHTML = '<option value="ALL">ALL LOCATIONS</option>';
-    Array.from(uniqueLocs).sort().forEach(loc => {
-        const opt = document.createElement('option');
-        opt.value = loc;
-        opt.textContent = loc;
-        select.appendChild(opt);
-    });
-    
-    // Keep the selection if it's still valid, otherwise reset to ALL
-    select.value = uniqueLocs.has(current) ? current : 'ALL';
-}
 
 
 // --- Placeholder for Dashboard Filter Update ---
@@ -218,12 +258,9 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
         toolbar: { show: false },
         zoom: { enabled: false },
         offsetY: 0,
-        events: {
-            // This replaces the old onclick attribute logic
-            dataPointSelection: (event, chartContext, config) => {
-                if (onClickHandler) onClickHandler();
-            }
-        },
+        // IMPORTANT: We intentionally do NOT wire chart-level click handlers here.
+        // Popup opening is handled at the card level in setupMetricCardClickHandlers()
+        // to avoid multiple popups from a single user click.
         dropShadow: {
             enabled: true,
             blur: 5,
@@ -250,11 +287,12 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
         },
         plotOptions: {
             pie: {
-                startAngle: -90, // Creating the "Arch" look
+                startAngle: -90, // Semi-circle gauge
                 endAngle: 90,
                 offsetY: 10,
                 donut: {
-                    size: '80%',
+                    // Make the ring thicker by reducing the inner hole
+                    size: '72%',
                     labels: {
                         show: true,
                         name: { show: true, fontSize: '14px', offsetY: -8, color: '#000000' },
@@ -307,16 +345,16 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
         },
         legend: { 
             position: 'bottom',
-            offsetY: -5,
-            height: 30,
+            offsetY: -20,
+            height: 20,
             labels: {
                 colors: '#000000',
                 useSeriesColors: false,
-                fontSize: '12px'
+                fontSize: '11px'
             },
             itemMargin: {
-                horizontal: 8,
-                vertical: 3
+                horizontal: 6,
+                vertical: 1
             }
         }
     };
@@ -330,6 +368,15 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
             chartInstances[chartId].resize();
         }
     }, 100);
+}
+
+// Helper: fixed ordering & colors on admin charts: Risk first (red), WNL second (green)
+function buildRiskWnlSeriesAdmin(counts) {
+    return {
+        labels: ['Risk', 'WNL'],
+        values: [counts['Risk'] || 0, counts['WNL'] || 0],
+        colors: ['#dc3545', '#28a745']
+    };
 }
 
 // Dedicated renderer for the age-by-gender chart
@@ -364,16 +411,6 @@ function drawAgeChart(chartId, ageData, onClickHandler = null) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            onClick: (e, elements) => {
-                if (onClickHandler && elements.length > 0) {
-                    onClickHandler();
-                }
-            },
-            onHover: (event, chartElement) => {
-                if (onClickHandler) {
-                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
-                }
-            },
             plugins: {
                 legend: { position: 'right' },
                 datalabels: { display: false } // Remove datalabels for cleaner display
@@ -422,6 +459,60 @@ function preDrawCleanup(chartId) {
 
 // --- Dashboard Update Logic (No Change) ---
 
+// Function to create simple display with values and icons
+function createOverviewGraph(containerId, numCompanies, numEmployees, maxCompanies, maxEmployees) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    // Clear existing chart
+    if (chartInstances[containerId]) {
+        if (typeof chartInstances[containerId].destroy === 'function') {
+            chartInstances[containerId].destroy();
+        }
+        delete chartInstances[containerId];
+    }
+    container.innerHTML = '';
+    
+    // Create sleek professional display with icons and values
+    container.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 1rem; height: 100%; min-height: 100%; justify-content: center; align-items: center; padding: 0.75rem; width: 100%; position: relative;">
+            <div style="display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.6); border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.15); backdrop-filter: blur(10px); transition: all 0.2s ease; width: 100%; max-width: 180px;">
+                <div style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 8px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem;">Corporates</div>
+                    <div style="font-size: 20px; font-weight: 700; color: #1e293b; line-height: 1.1;">${numCompanies.toLocaleString()}</div>
+                </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.6); border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.15); backdrop-filter: blur(10px); transition: all 0.2s ease; width: 100%; max-width: 180px;">
+                <div style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #10b981, #34d399); border-radius: 8px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem;">Employees</div>
+                    <div style="font-size: 20px; font-weight: 700; color: #1e293b; line-height: 1.1;">${numEmployees.toLocaleString()}</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Ensure the container fills its area visually (no click behavior)
+    container.style.height = '100%';
+    container.style.minHeight = '100%';
+    container.style.width = '100%';
+    container.style.position = 'relative';
+}
+
 async function updateDashboardAndCharts(data) {
     
     const totalEmployees = data.length - 1; 
@@ -431,14 +522,29 @@ async function updateDashboardAndCharts(data) {
         'chartStress', 'chartMedication'
     ];
 
-    // Update the stat card immediately
-    const screenedEl = document.getElementById('numScreenedValue');
-    if (screenedEl) {
-        screenedEl.textContent = totalEmployees <= 0 ? '0' : totalEmployees.toLocaleString();
+    // Update overview graph - ALWAYS use unfiltered data totals
+    let totalUnfilteredEmployees = 0;
+    let totalUnfilteredCompanies = companyNames.size; // This already contains all companies
+    
+    // Calculate total employees from all loaded data (unfiltered)
+    if (allLoadedData && allLoadedData.length > 0) {
+        allLoadedData.forEach(dataObj => {
+            if (dataObj.data && dataObj.data.length > 1) {
+                totalUnfilteredEmployees += dataObj.data.length - 1; // Subtract header row
+            }
+        });
     }
+    
+    const maxCompanies = Math.max(totalUnfilteredCompanies * 1.2, 10);
+    const maxEmployees = Math.max(totalUnfilteredEmployees * 1.2, 100);
+    
+    // Always show unfiltered totals in overview graph
+    createOverviewGraph('overviewGraph', totalUnfilteredCompanies, totalUnfilteredEmployees, maxCompanies, maxEmployees);
 
     if (totalEmployees <= 0) {
         allChartIds.forEach(id => clearChart(id, 'No data available for the current filters.'));
+        // Still show unfiltered totals even when filtered data is empty
+        createOverviewGraph('overviewGraph', totalUnfilteredCompanies, totalUnfilteredEmployees, maxCompanies, maxEmployees);
         return;
     }
     lastFilteredData = data;
@@ -460,48 +566,85 @@ async function updateDashboardAndCharts(data) {
     
         { id: 'chartChronic', fn: () => {
             const d = calculateChronicData(data, header);
-            if (d) { preDrawCleanup('chartChronic'); drawChart('chartChronic', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#4e73df'], openPDetailsPopup); }
-            else { clearChart('chartChronic', 'Data missing.'); }
+            if (d) { 
+                preDrawCleanup('chartChronic'); 
+                const series = buildRiskWnlSeriesAdmin(d);
+                drawChart('chartChronic', 'pie', '', series.labels, series.values, series.colors, openPDetailsPopup); 
+            } else { 
+                clearChart('chartChronic', 'Data missing.'); 
+            }
         }},
         { id: 'chartHypertension', fn: () => {
             const d = calculateHypertensionData(data, header);
-            if (d) { preDrawCleanup('chartHypertension'); drawChart('chartHypertension', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745'],openHypertensionPopup); }
-            else { clearChart('chartHypertension', 'Data missing.'); }
+            if (d) { 
+                preDrawCleanup('chartHypertension'); 
+                const series = buildRiskWnlSeriesAdmin(d);
+                drawChart('chartHypertension', 'pie', '', series.labels, series.values, series.colors, openHypertensionPopup); 
+            } else { 
+                clearChart('chartHypertension', 'Data missing.'); 
+            }
         }},
         { id: 'chartDiabetes', fn: () => {
             const d = calculateDiabetesData(data, header);
-            if (d) { preDrawCleanup('chartDiabetes'); drawChart('chartDiabetes', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745'],openDiabetesPopup); }
-            else { clearChart('chartDiabetes', 'Data missing.'); }
+            if (d) { 
+                preDrawCleanup('chartDiabetes'); 
+                const series = buildRiskWnlSeriesAdmin(d);
+                drawChart('chartDiabetes', 'pie', '', series.labels, series.values, series.colors, openDiabetesPopup); 
+            } else { 
+                clearChart('chartDiabetes', 'Data missing.'); 
+            }
         }},
         { id: 'chartCholestrol', fn: () => {
             const d = calculateDyslipidemiaData(data, header);
-            if (d) { preDrawCleanup('chartCholestrol'); drawChart('chartCholestrol', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745'],openCholesterolPopup); }
-            else { clearChart('chartCholestrol', 'Data missing.'); }
+            if (d) { 
+                preDrawCleanup('chartCholestrol'); 
+                const series = buildRiskWnlSeriesAdmin(d);
+                drawChart('chartCholestrol', 'pie', '', series.labels, series.values, series.colors, openCholesterolPopup); 
+            } else { 
+                clearChart('chartCholestrol', 'Data missing.'); 
+            }
         }},
         { id: 'chartObesity', fn: () => {
             const d = calculateObesityData(data, header);
-            if (d) { preDrawCleanup('chartObesity'); drawChart('chartObesity', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545', '#28a745'],openObesityPopup); }
-            else { clearChart('chartObesity', 'Data missing.'); }
+            if (d) { 
+                preDrawCleanup('chartObesity'); 
+                const series = buildRiskWnlSeriesAdmin(d);
+                drawChart('chartObesity', 'pie', '', series.labels, series.values, series.colors, openObesityPopup); 
+            } else { 
+                clearChart('chartObesity', 'Data missing.'); 
+            }
         }},
         { id: 'chartFitness', fn: () => {
             const d = calculateFitnessData(data, header);
-            if (d) { preDrawCleanup('chartFitness'); drawChart('chartFitness', 'pie', '', Object.keys(d), Object.values(d), ['#28a745', '#dc3545'],openFitnessPopup); }
-            else { clearChart('chartFitness', 'Data missing.'); }
+            if (d) { 
+                preDrawCleanup('chartFitness'); 
+                const series = buildRiskWnlSeriesAdmin(d);
+                drawChart('chartFitness', 'pie', '', series.labels, series.values, series.colors, openFitnessPopup); 
+            } else { 
+                clearChart('chartFitness', 'Data missing.'); 
+            }
         }},
         { id: 'chartStress', fn: () => {
             const d = calculateStressData(data, header);
-            if (d) { preDrawCleanup('chartStress'); drawChart('chartStress', 'pie', '', Object.keys(d), Object.values(d), ['#dc3545','#28a745'],openStressHabitsPopup); }
-            else { clearChart('chartStress', 'Data missing.'); }
+            if (d) { 
+                preDrawCleanup('chartStress'); 
+                const series = buildRiskWnlSeriesAdmin(d);
+                drawChart('chartStress', 'pie', '', series.labels, series.values, series.colors, openStressHabitsPopup); 
+            } else { 
+                clearChart('chartStress', 'Data missing.'); 
+            }
         }},
         { id: 'chartMedication', fn: () => {
-    const d = calculateMedicationData(data, header);
-    if (d) { 
-        preDrawCleanup('chartMedication'); 
-        // We pass openPDetailsPopup as the final argument here
-        drawChart('chartMedication', 'pie', '', Object.keys(d), Object.values(d), ['#4e73df', '#28a745'],openChronicMedicationPopup);
-    }
-    else { clearChart('chartMedication', 'No medication data.'); }
-}},
+            const d = calculateMedicationData(data, header);
+            if (d) { 
+                preDrawCleanup('chartMedication'); 
+                const mapped = { Risk: d['Yes'] || 0, WNL: d['No'] || 0 };
+                const series = buildRiskWnlSeriesAdmin(mapped);
+                drawChart('chartMedication', 'pie', '', series.labels, series.values, series.colors, openChronicMedicationPopup);
+            } else { 
+                clearChart('chartMedication', 'No medication data.'); 
+            }
+        }},
     ];
 
     // Execute each chart render one by one, allowing UI updates in between
@@ -509,6 +652,216 @@ async function updateDashboardAndCharts(data) {
         await yieldToBrowser(); 
         task.fn();
     }
+    
+    // Make metric cards clickable
+    setupMetricCardClickHandlers();
+}
+
+// Function to open overview popup
+function openOverviewPopup() {
+    if (!allLoadedData || allLoadedData.length === 0) return;
+    
+    // Calculate totals from all unfiltered data
+    let totalEmployees = 0;
+    const companyEmployeeMap = new Map();
+    
+    allLoadedData.forEach(dataObj => {
+        if (dataObj.data && dataObj.data.length > 1) {
+            const header = dataObj.header || dataObj.data[0];
+            const companyCol = findCol(header, 'company');
+            
+            if (companyCol !== -1) {
+                dataObj.data.slice(1).forEach(row => {
+                    const company = (row[companyCol] || '').toString().toUpperCase().trim();
+                    if (company && company !== 'UNKNOWN') {
+                        companyEmployeeMap.set(company, (companyEmployeeMap.get(company) || 0) + 1);
+                        totalEmployees++;
+                    }
+                });
+            } else {
+                totalEmployees += dataObj.data.length - 1;
+            }
+        }
+    });
+    
+    const companies = Array.from(companyEmployeeMap.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count);
+    
+    const popup = window.open('', '_blank', 'width=1100,height=700');
+    popup.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Overview - Corporates & Employees</title>
+            <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    padding: 40px;
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .chart-wrapper {
+                    background: white;
+                    padding: 40px;
+                    border-radius: 20px;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                    width: 100%;
+                    max-width: 1000px;
+                    animation: slideUp 0.5s ease-out;
+                }
+                @keyframes slideUp {
+                    from { opacity: 0; transform: translateY(30px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                h2 {
+                    text-align: center;
+                    color: #1e293b;
+                    margin-bottom: 30px;
+                    font-size: 28px;
+                    font-weight: 700;
+                }
+                #chart { min-height: 450px; }
+            </style>
+        </head>
+        <body>
+            <div class="chart-wrapper">
+                <h2>Overview - Corporates & Employees</h2>
+                <div id="chart"></div>
+            </div>
+            <script>
+                var options = {
+                    series: [{ name: 'Employees', data: ${JSON.stringify(companies.map(c => c.count))} }],
+                    chart: {
+                        type: 'bar',
+                        height: 500,
+                        fontFamily: 'Inter, sans-serif',
+                        toolbar: { show: false },
+                        animations: {
+                            enabled: true,
+                            easing: 'easeinout',
+                            speed: 800
+                        }
+                    },
+                    plotOptions: {
+                        bar: {
+                            borderRadius: 8,
+                            horizontal: false,
+                            distributed: true,
+                            columnWidth: '60%'
+                        }
+                    },
+                    dataLabels: {
+                        enabled: true,
+                        formatter: function(val) {
+                            return val.toLocaleString();
+                        },
+                        style: {
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            colors: ['#1e293b']
+                        }
+                    },
+                    xaxis: {
+                        categories: ${JSON.stringify(companies.map(c => c.name))},
+                        labels: {
+                            style: {
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                colors: '#1e293b'
+                            },
+                            rotate: -45,
+                            rotateAlways: true
+                        }
+                    },
+                    yaxis: {
+                        title: {
+                            text: 'No. of Employees',
+                            style: {
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                color: '#1e293b'
+                            }
+                        },
+                        labels: {
+                            formatter: function(val) {
+                                return val.toLocaleString();
+                            },
+                            style: {
+                                fontSize: '12px',
+                                colors: '#64748b'
+                            }
+                        }
+                    },
+                    colors: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316'],
+                    tooltip: {
+                        y: {
+                            formatter: function(val) {
+                                return val.toLocaleString() + ' employees';
+                            }
+                        }
+                    },
+                    grid: {
+                        borderColor: '#e2e8f0',
+                        strokeDashArray: 4
+                    }
+                };
+                var chart = new ApexCharts(document.querySelector("#chart"), options);
+                chart.render();
+            </script>
+        </body>
+        </html>
+    `);
+    popup.document.close();
+}
+
+// Function to setup click handlers for metric cards
+function setupMetricCardClickHandlers() {
+    const chartPopupMap = {
+        'chartParticipants': openAgePopup,
+        'chartChronic': openPDetailsPopup,
+        'chartHypertension': openHypertensionPopup,
+        'chartDiabetes': openDiabetesPopup,
+        'chartCholestrol': openCholesterolPopup,
+        'chartObesity': openObesityPopup,
+        'chartFitness': openFitnessPopup,
+        'chartStress': openStressHabitsPopup,
+        'chartMedication': openChronicMedicationPopup
+    };
+    
+    Object.keys(chartPopupMap).forEach(chartId => {
+        const chartContainer = document.getElementById(chartId);
+                if (chartContainer) {
+                    const metricCard = chartContainer.closest('.metric-card');
+                    if (metricCard && !metricCard.dataset.clickHandlerAdded) {
+                        const popupFn = chartPopupMap[chartId];
+
+                        // For overview graph, all click wiring is handled in createOverviewGraph.
+                        // We only need to ensure the cursor looks clickable.
+                        if (chartId === 'overviewGraph') {
+                            metricCard.style.cursor = 'pointer';
+                        } else {
+                            // Single, card-level click handler to avoid multiple popup invocations.
+                            const clickHandler = (e) => {
+                                if (popupFn && typeof popupFn === 'function') {
+                                    popupFn();
+                                }
+                            };
+
+                            metricCard.addEventListener('click', clickHandler);
+                            metricCard.style.cursor = 'pointer';
+                        }
+
+                        metricCard.dataset.clickHandlerAdded = 'true';
+                    }
+                }
+    });
 }
 
 function renderChart(canvasId, config) {
@@ -634,7 +987,7 @@ function openDataGridPopup(data, rangeText) {
         ref: getCol('REFID'), emp: getCol('EMPID'), name: getCol('EMPNAME'), phone: getCol('PHONE'),
         dept: getCol('DEPART'), bmi: getCol('BMI'), bp1: getCol('BP1'), bp2: getCol('BP2'),
         bs1: getCol('BS1'), bs2: getCol('BS2'), chol: getCol('CHOLESTEROL'), med: getCol('MEDICATION'),
-        orgs: [getCol('ORG1'), getCol('ORG2'), getCol('ORG3')],
+        nut1: getCol('NUT1'), nut2: getCol('NUT2'), nut3: getCol('NUT3'), nut4: getCol('NUT4'),
         habs: [getCol('HAB1'), getCol('HAB2')],
         exes: [getCol('EXE1'), getCol('EXE2'), getCol('EXE3')],
         strs: [getCol('STR1'), getCol('STR2'), getCol('STR3'), getCol('STR4')],
@@ -658,10 +1011,10 @@ function openDataGridPopup(data, rangeText) {
             if (!isNaN(bmiNum)) formattedBMI = bmiNum.toFixed(2);
         }
 
-        // BP/BG Combined Logic
+        // BP - Separate column
         const bp = (row[colIdx.bp1] && row[colIdx.bp2]) ? `${row[colIdx.bp1]}/${row[colIdx.bp2]}` : '-';
-        const bs = (row[colIdx.bs1] || row[colIdx.bs2]) ? ` (${row[colIdx.bs1] || row[colIdx.bs2]})` : '';
-        const bpBg = bp + bs;
+        // Blood Sugar - Separate column
+        const bs = (row[colIdx.bs1] || row[colIdx.bs2]) ? (row[colIdx.bs1] || row[colIdx.bs2]) : '-';
 
         return `
             <tr>
@@ -671,13 +1024,70 @@ function openDataGridPopup(data, rangeText) {
                 <td>${row[colIdx.phone] || '-'}</td>
                 <td>${row[colIdx.dept] || '-'}</td>
                 <td>${formattedBMI}</td>
-                <td>${bpBg}</td>
+                <td>${bp}</td>
+                <td>${bs}</td>
                 <td>${row[colIdx.chol] || '0'}</td>
-                ${getFlagHtml(row[colIdx.med] === 'Y', 'YES', 'NO')}
-                ${getFlagHtml(colIdx.orgs.some(i => row[i] === 'Y'), 'HIGH', 'LOW')}
-                ${getFlagHtml(colIdx.habs.some(i => row[i] === 'N'), 'POOR', 'GOOD')}
-                ${getFlagHtml(colIdx.exes.some(i => row[i] === 'N'), 'LOW', 'ACTIVE')}
-                ${getFlagHtml(colIdx.strs.some(i => row[i] === 'Y'), 'HIGH', 'NORMAL')}
+                ${getFlagHtml(String(row[colIdx.med] || '').toUpperCase().trim() === 'Y', 'YES', 'NO')}
+                ${(() => {
+                    // Cardiac risk from BP, Blood Sugar, Cholesterol
+                    const sbp  = parseFloat(row[colIdx.bp1]);
+                    const dbp  = parseFloat(row[colIdx.bp2]);
+                    const fbs  = parseFloat(row[colIdx.bs1]);
+                    const rbs  = parseFloat(row[colIdx.bs2]);
+                    const chol = parseFloat(row[colIdx.chol]);
+
+                    const highBP   = ((!isNaN(sbp) && sbp > 140) || (!isNaN(dbp) && dbp > 90));
+                    const highBS   = ((!isNaN(fbs) && fbs > 126) || (!isNaN(rbs) && rbs > 200));
+                    const highChol = (!isNaN(chol) && chol > 200);
+
+                    const risk = highBP || highBS || highChol;
+                    return getFlagHtml(risk, 'HIGH', 'LOW');
+                })()}
+                ${getFlagHtml(colIdx.habs.some(i => i !== -1 && String(row[i] || '').toUpperCase().trim() === 'N'), 'POOR', 'GOOD')}
+                ${(() => {
+                    // Nutrient status: NUT1/2/3 YES, NUT4 NO; score >=3 = Adequate
+                    const isYes = (v) => {
+                        const t = (v || '').toString().toUpperCase().trim();
+                        return t.startsWith('Y');
+                    };
+                    const isNo = (v) => {
+                        const t = (v || '').toString().toUpperCase().trim();
+                        return t.startsWith('N');
+                    };
+                    let score = 0;
+                    if (colIdx.nut1 !== -1 && isYes(row[colIdx.nut1])) score++;
+                    if (colIdx.nut2 !== -1 && isYes(row[colIdx.nut2])) score++;
+                    if (colIdx.nut3 !== -1 && isYes(row[colIdx.nut3])) score++;
+                    if (colIdx.nut4 !== -1 && isNo(row[colIdx.nut4])) score++;
+                    const inadequate = score < 3;
+                    return getFlagHtml(inadequate, 'Inadequate', 'Adequate');
+                })()}
+                ${(() => {
+                    // Fitness: >1 EXE 'Y' = ACTIVE/WNL, else LOW (same as chart logic)
+                    let exeYCount = 0;
+                    colIdx.exes.forEach(i => {
+                        if (i === -1) return;
+                        const v = (row[i] || '').toString().toUpperCase().trim();
+                        if (v === 'Y') exeYCount++;
+                    });
+                    const lowFitness = exeYCount <= 1;
+                    return getFlagHtml(lowFitness, 'LOW', 'ACTIVE');
+                })()}
+                ${(() => {
+                    // Stress: STR1-3 Y = Risk, STR4 N = Risk (align with calculateStressData)
+                    const str4Idx = colIdx.strs.length ? colIdx.strs[colIdx.strs.length - 1] : -1;
+                    let highStress = false;
+                    colIdx.strs.forEach(i => {
+                        if (i === -1) return;
+                        const v = (row[i] || '').toString().toUpperCase().trim();
+                        if (i === str4Idx) {
+                            if (v.startsWith('N')) highStress = true;
+                        } else {
+                            if (v.startsWith('Y')) highStress = true;
+                        }
+                    });
+                    return getFlagHtml(highStress, 'HIGH', 'NORMAL');
+                })()}
                 <td>${row[colIdx.dosc] || '-'}</td>
             </tr>`;
     }).join('');
@@ -729,8 +1139,8 @@ function openDataGridPopup(data, rangeText) {
                 <thead>
                     <tr>
                         <th>Ref ID</th><th>Emp ID</th><th>Name</th><th>Mobile</th><th>Depart</th>
-                        <th>BMI</th><th>BP/BG</th><th>Cholestrol</th><th>Medication</th>
-                        <th>Cardiac</th><th>Habit</th><th>Fitness</th><th>Stress</th><th>DOSC</th>
+                        <th>BMI</th><th>BP</th><th>Blood Sugar</th><th>Cholestrol</th><th>Medication</th>
+                        <th>Cardiac</th><th>Habit</th><th>Nutrient</th><th>Fitness</th><th>Stress</th><th>DOSC</th>
                     </tr>
                 </thead>
                 <tbody>${tableRows}</tbody>
@@ -795,13 +1205,12 @@ async function generateWordFileOnServer(count, s_date, e_date, data) {
 
 
 // --- MODIFIED FUNCTION: Apply Dynamic Filter ---
-function filterData(ignoreLocation = false) {
+function filterData() {
     if (!headerRow) return [];
     let combined = [headerRow];
     
     // Find column indices
     const compIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('COMPANY'));
-    const locIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('FACTORY'));
     const doscIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('DOSC'));
 
     const refIdx = headerRow.findIndex(h => String(h||'').toUpperCase().includes('REFID'));
@@ -821,28 +1230,15 @@ function filterData(ignoreLocation = false) {
     allLoadedData.forEach(obj => {
         obj.data.slice(1).forEach(row => {
             const rowComp = String(row[compIdx] || '').toUpperCase().trim();
-            const rowLoc = String(row[locIdx] || '').trim();
             const rowDateRaw = String(row[doscIdx] || '').trim(); // "DD.MM.YYYY"
             
             const compMatch = (selectedCompany === 'ALL' || rowComp === selectedCompany);
-            const locMatch = ignoreLocation || (selectedLocation === 'ALL' || rowLoc === selectedLocation);
             
-            // --- UPDATED: Range Filtering Logic ---
+            // --- UPDATED: Single Date Filtering Logic ---
             let dateMatch = true;
             if (selectedDateRange) {
-                const rowDateObj = parseDateStr(rowDateRaw);
-
-                if (selectedDateRange.includes(" to ")) {
-                    // It's a range: "01.01.2025 to 07.01.2025"
-                    const [startStr, endStr] = selectedDateRange.split(" to ");
-                    const startDate = parseDateStr(startStr);
-                    const endDate = parseDateStr(endStr);
-                    
-                    dateMatch = rowDateObj && rowDateObj >= startDate && rowDateObj <= endDate;
-                } else {
-                    // It's a single date
-                    dateMatch = (rowDateRaw === selectedDateRange);
-                }
+                // It's a single date - exact match
+                dateMatch = (rowDateRaw === selectedDateRange);
             }
             
             let searchMatch = true;
@@ -858,7 +1254,7 @@ function filterData(ignoreLocation = false) {
                               valPhone.includes(searchQuery);
             }
 
-            if (compMatch && locMatch && searchMatch && dateMatch) {
+            if (compMatch && searchMatch && dateMatch) {
                 combined.push(row);
             }
         });
@@ -886,14 +1282,8 @@ function filterData(ignoreLocation = false) {
 
     
 
-    // Step 1: Filter raw data by Company & Date ONLY to see available locations
-    const companyDateFiltered = filterData(true); 
-    
-    // Step 2: Update the Location Dropdown based on those results
-    populateLocationDropdown(companyDateFiltered);
-
-    // Step 3: Apply FINAL filter (Company + Date + Location + Search)
-    lastFilteredData = filterData(false); 
+    // Apply filter (Company + Date + Search)
+    lastFilteredData = filterData(); 
     
     // Step 4: Refresh UI
     setTimeout(() => {
@@ -1095,14 +1485,13 @@ fetch('/get-my-data')
     }
     
 
-    // 3. Date Range Picker (Flatpickr)
+    // 3. Date Picker (Flatpickr) - Single Date
 const datePickerInput = document.getElementById('dosDateRangePicker');
 if (datePickerInput) {
     flatpickr(datePickerInput, {
-        mode: "range", // Changed from "single"
+        mode: "single",
         dateFormat: "d.m.Y",
         onClose: function(selectedDates, dateStr) {
-            // Only update and filter if a single date OR a full range is selected
             if (selectedDates.length > 0) {
                 selectedDateRange = dateStr; 
                 handleFilterChange();
@@ -1118,7 +1507,6 @@ if (datePickerInput) {
             // Reset all global variables
             selectedDateRange = null;
             selectedCompany = 'ALL';
-            selectedLocation = 'ALL';
             searchQuery = '';
 
             // Clear all input fields
@@ -1126,9 +1514,7 @@ if (datePickerInput) {
             const monthPickerInput = document.getElementById('monthPicker');
             const groupProfileInput = document.getElementById('groupProfile');
             const employeeSearch = document.getElementById('employeeSearch');
-            const departmentInput = document.getElementById('departmentInput');
             const companySelect = document.getElementById('companySelect');
-            const locationSelect = document.getElementById('locationSelect');
 
             // Clear date inputs
             if (dateInput) {
@@ -1146,11 +1532,9 @@ if (datePickerInput) {
 
             // Clear text inputs
             if (employeeSearch) employeeSearch.value = '';
-            if (departmentInput) departmentInput.value = '';
 
             // Reset dropdowns to default values
             if (companySelect) companySelect.value = 'ALL';
-            if (locationSelect) locationSelect.value = 'ALL';
 
             // Trigger the filter refresh
             handleFilterChange();
@@ -1197,17 +1581,20 @@ if (monthPickerInput) {
     if (companySelect) {
         companySelect.addEventListener('change', (event) => {
             selectedCompany = event.target.value;
-            selectedLocation = 'ALL'; // Reset location on company change
             handleFilterChange(); 
         });
     }
     
-    // 5. Location Dropdown
-    const locationSelect = document.getElementById('locationSelect');
-    if (locationSelect) {
-        locationSelect.addEventListener('change', (event) => {
-            selectedLocation = event.target.value;
-            handleFilterChange();
+    // 5. Logout Button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            const confirmed = window.confirm('Are you sure you want to logout?');
+            if (!confirmed) return;
+            
+            localStorage.removeItem('adminName');
+            localStorage.removeItem('loggedInUsername');
+            window.location.href = 'index.html';
         });
     }
 
@@ -1226,11 +1613,13 @@ if (monthPickerInput) {
     
     
     // 6. Initial Stats & Chart Placeholders
-    const numCompaniesValue = document.getElementById('numCompaniesValue');
-    const numScreenedValue = document.getElementById('numScreenedValue');
-
-    if (numCompaniesValue) numCompaniesValue.textContent = '0';
-    if (numScreenedValue) numScreenedValue.textContent = '0';
+    // Initialize overview graph with zero values
+    createOverviewGraph('overviewGraph', 0, 0, 10, 100);
+    
+    // Setup click handlers for metric cards after initial render
+    setTimeout(() => {
+        setupMetricCardClickHandlers();
+    }, 500);
     
     const allChartIds = [
         'chartParticipants','chartChronic', 'chartHypertension',

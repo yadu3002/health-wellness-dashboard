@@ -1,0 +1,20 @@
+*** Update File: index.html
+@@
+-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+-        
+-            <div class="bg-white rounded-xl shadow-md chart-container p-4">
+-                <div class="text-sm font-semibold text-center mb-2 text-gray-700">Age/Gender</div>
+-                <canvas id="chartParticipants"></canvas>
+-            </div>
++        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
++
++            <!-- Overview Graph (Corporates & Employees) -->
++            <div class="bg-white rounded-xl shadow-md chart-container p-4">
++                <div class="text-sm font-semibold text-center mb-2 text-gray-700">Overview</div>
++                <div id="overviewGraph" class="w-full h-[200px] flex items-center justify-center"></div>
++            </div>
++
++            <div class="bg-white rounded-xl shadow-md chart-container p-4">
++                <div class="text-sm font-semibold text-center mb-2 text-gray-700">Age/Gender</div>
++                <canvas id="chartParticipants"></canvas>
++            </div>

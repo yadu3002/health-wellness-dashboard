@@ -7,27 +7,45 @@ let lastFilteredData = null;
 // --- Column Finder Helpers ---
 // Change from strict (===) to flexible (.includes)
 
-const findCol = (header, name) => header.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+if (typeof findCol === 'undefined') {
+    window.findCol = (header, name) => header.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+}
 
-const findCols = (header, names) => names.map(name => findCol(header, name)).filter(i => i !== -1);
+if (typeof findCols === 'undefined') {
+    window.findCols = (header, names) => names.map(name => findCol(header, name)).filter(i => i !== -1);
+}
 
 function openLoginPopup() {
     const modal = document.getElementById('loginModal');
     const frame = document.getElementById('loginFrame');
+    if (!modal) {
+        console.error('Login modal not found');
+        return;
+    }
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     // Force a refresh so previously typed credentials never persist
     if (frame) frame.src = 'loginpage2.html?embedded=1&_ts=' + Date.now();
 }
 
+// Ensure function is available globally
+window.openLoginPopup = openLoginPopup;
+
 function closeLoginModal() {
     const modal = document.getElementById('loginModal');
+    if (!modal) {
+        console.error('Login modal not found');
+        return;
+    }
     modal.classList.add('hidden');
     modal.classList.remove('flex');
     // Clear the iframe DOM by unloading it (avoids cached input values)
     const frame = document.getElementById('loginFrame');
     if (frame) frame.src = 'about:blank';
 }
+
+// Ensure function is available globally
+window.closeLoginModal = closeLoginModal;
 
 
 // --- Chart Drawing Functions ---
@@ -215,6 +233,15 @@ function drawAgeChart(chartId, ageData) {
     });
 }
 
+// Helper: fixed ordering & colors: Risk first (red), WNL second (green)
+function buildRiskWnlSeries(counts) {
+    return {
+        labels: ['Risk', 'WNL'],
+        values: [counts['Risk'] || 0, counts['WNL'] || 0],
+        colors: ['#e74a3b', '#1cc88a']
+    };
+}
+
 function clearChart(chartId, message = 'No data available.') {
     if (chartInstances[chartId]) {
         chartInstances[chartId].destroy();
@@ -247,6 +274,47 @@ function preDrawCleanup(chartId) {
     }
 }
 
+// --- Overview Graph (Index Page) ---
+// Simple overview card showing total corporates & employees
+function createOverviewGraphIndex(containerId, numCompanies, numEmployees) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 1rem; height: 100%; min-height: 100%; justify-content: center; align-items: center; padding: 0.75rem; width: 100%; position: relative;">
+            <div style="display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.6); border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.15); backdrop-filter: blur(10px); transition: all 0.2s ease; width: 100%; max-width: 180px;">
+                <div style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 8px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);">
+                    <!-- House icon (same as adminpage) -->
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem;">Corporates</div>
+                    <div style="font-size: 20px; font-weight: 700; color: #1e293b; line-height: 1.1;">${numCompanies.toLocaleString()}</div>
+                </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.6); border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.15); backdrop-filter: blur(10px); transition: all 0.2s ease; width: 100%; max-width: 180px;">
+                <div style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #10b981, #34d399); border-radius: 8px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
+                    <!-- People icon (same as adminpage) -->
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem;">Employees</div>
+                    <div style="font-size: 20px; font-weight: 700; color: #1e293b; line-height: 1.1;">${numEmployees.toLocaleString()}</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 // --- Dashboard Update Logic ---
 
 function updateDashboardAndCharts(data) {
@@ -269,6 +337,23 @@ function updateDashboardAndCharts(data) {
         }
     }
 
+    // Compute total companies for overview graph (from the same data set)
+    const companyCol = header.findIndex(h => h.includes('company'));
+    let companiesInSelection = new Set();
+    if (companyCol !== -1) {
+        for (let i = 1; i < data.length; i++) {
+            const rowCompany = (data[i][companyCol] || '').toString().toUpperCase().trim();
+            if (rowCompany) companiesInSelection.add(rowCompany);
+        }
+    }
+    // Update topline corporates count (already shown near header)
+    const numCompaniesEl = document.getElementById('numCompaniesValue');
+    if (numCompaniesEl) {
+        numCompaniesEl.textContent = companiesInSelection.size.toLocaleString();
+    }
+    // Draw the overview graph card
+    createOverviewGraphIndex('overviewGraph', companiesInSelection.size, totalEmployees);
+
     // Process all charts
     // Inside updateDashboardAndCharts function in script.js
 const charts = [
@@ -279,42 +364,72 @@ const charts = [
     }},
     { id: 'chartChronic', fn: () => {
         const d = calculateChronicData(data, header);
-        if (d) { preDrawCleanup('chartChronic'); drawChart('chartChronic', 'pie', '', Object.keys(d), Object.values(d), ['#df4e4e', '#1cc88a'], openPDetailsPopup); }
+        if (d) { 
+            preDrawCleanup('chartChronic'); 
+            const series = buildRiskWnlSeries(d);
+            drawChart('chartChronic', 'pie', '', series.labels, series.values, series.colors, openPDetailsPopup); 
+        }
     }},
     { id: 'chartHypertension', fn: () => {
         const d = calculateHypertensionData(data, header);
-        if (d) { preDrawCleanup('chartHypertension'); drawChart('chartHypertension', 'pie', '', Object.keys(d), Object.values(d), ['#1cc88a', '#e74a3b'], openHypertensionPopup); }
-        
+        if (d) { 
+            preDrawCleanup('chartHypertension'); 
+            const series = buildRiskWnlSeries(d);
+            drawChart('chartHypertension', 'pie', '', series.labels, series.values, series.colors, openHypertensionPopup); 
+        }
     }},
     { id: 'chartDiabetes', fn: () => {
         const d = calculateDiabetesData(data, header);
-        if (d) { preDrawCleanup('chartDiabetes'); drawChart('chartDiabetes', 'pie', '', Object.keys(d), Object.values(d), ['#e74a3b', '#1cc88a'], openDiabetesPopup); }
+        if (d) { 
+            preDrawCleanup('chartDiabetes'); 
+            const series = buildRiskWnlSeries(d);
+            drawChart('chartDiabetes', 'pie', '', series.labels, series.values, series.colors, openDiabetesPopup); 
+        }
     }},
     { id: 'chartCholestrol', fn: () => {
         const d = calculateDyslipidemiaData(data, header);
-        if (d) { preDrawCleanup('chartCholestrol'); drawChart('chartCholestrol', 'pie', '', Object.keys(d), Object.values(d), ['#e74a3b', '#1cc88a'], openCholesterolPopup); }
+        if (d) { 
+            preDrawCleanup('chartCholestrol'); 
+            const series = buildRiskWnlSeries(d);
+            drawChart('chartCholestrol', 'pie', '', series.labels, series.values, series.colors, openCholesterolPopup); 
+        }
     }},
     { id: 'chartObesity', fn: () => {
         const d = calculateObesityData(data, header);
-        if (d) { preDrawCleanup('chartObesity'); drawChart('chartObesity', 'pie', '', Object.keys(d), Object.values(d), ['#e74a3b', '#1cc88a'], openObesityPopup); }
+        if (d) { 
+            preDrawCleanup('chartObesity'); 
+            const series = buildRiskWnlSeries(d);
+            drawChart('chartObesity', 'pie', '', series.labels, series.values, series.colors, openObesityPopup); 
+        }
     }},
     { id: 'chartFitness', fn: () => {
         const d = calculateFitnessData(data, header);
-        if (d) { preDrawCleanup('chartFitness'); drawChart('chartFitness', 'pie', '', Object.keys(d), Object.values(d), ['#1cc88a', '#e74a3b'], openFitnessPopup); }
+        if (d) { 
+            preDrawCleanup('chartFitness'); 
+            const series = buildRiskWnlSeries(d);
+            drawChart('chartFitness', 'pie', '', series.labels, series.values, series.colors, openFitnessPopup); 
+        }
     }},
     { id: 'chartStress', fn: () => {
         const d = calculateStressData(data, header);
-        if (d) { preDrawCleanup('chartStress'); drawChart('chartStress', 'pie', '', Object.keys(d), Object.values(d), ['#e74a3b','#1cc88a'], openStressHabitsPopup); }
+        if (d) { 
+            preDrawCleanup('chartStress'); 
+            const series = buildRiskWnlSeries(d);
+            drawChart('chartStress', 'pie', '', series.labels, series.values, series.colors, openStressHabitsPopup); 
+        }
     }},
     { id: 'chartMedication', fn: () => {
-    const d = calculateMedicationData(data, header);
-    if (d) { 
-        preDrawCleanup('chartMedication'); 
-        // We pass openPDetailsPopup as the final argument here
-        drawChart('chartMedication', 'pie', '', Object.keys(d), Object.values(d), ['#4e73df', '#1cc88a']);
-    }
-    else { clearChart('chartMedication', 'No medication data.'); }
-}}
+        const d = calculateMedicationData(data, header);
+        if (d) { 
+            preDrawCleanup('chartMedication'); 
+            // Map YES/NO to Risk/WNL, then ensure larger side is green
+            const mapped = { Risk: d['Yes'] || 0, WNL: d['No'] || 0 };
+            const series = buildRiskWnlSeries(mapped);
+            drawChart('chartMedication', 'pie', '', series.labels, series.values, series.colors);
+        } else { 
+            clearChart('chartMedication', 'No medication data.'); 
+        }
+    }}
 ];
 
     charts.forEach(c => {

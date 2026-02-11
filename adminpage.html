@@ -58,16 +58,12 @@
                         <i class="fas fa-print"></i>
                         <span>Print Report</span>
                     </button>                
-                    <button class="action-button action-button-secondary">
-                        <i class="fas fa-user-plus"></i>
-                        <span>Create User</span>
-                    </button>
-                    <button class="action-button action-button-tertiary">
-                        <i class="fas fa-file-medical"></i>
-                        <span>HRA</span>
+                    <button id="logoutBtn" class="action-button action-button-secondary">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
                     </button>
                 </div>
-            </div>
+</div>
             <div class="header-center">
                 <h2 class="header-title">
                     Corporate Health & Wellness Program
@@ -77,16 +73,14 @@
             <div class="header-right">
                 <div class="header-logo">
                     <div class="logo-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                        </svg>
+                        <img src="Logo.png" alt="Corporate logo">
                     </div>
                     <div class="header-logo-text">
                         <div>Corporate Health &</div>
                         <div>Wellness Program</div>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
 
@@ -105,7 +99,7 @@
                             Corporate
                         </label>
                         <select id="companySelect" class="form-input">
-                            <option value="ALL">All Companies</option>
+                        <option value="ALL">All Companies</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -113,23 +107,7 @@
                             <i class="fas fa-calendar-alt"></i>
                             DOS
                         </label>
-                        <input type="text" id="dosDateRangePicker" class="form-input" placeholder="Select Date Range">
-                    </div>
-                   <div class="form-group">
-                        <label for="locationSelect">
-                            <i class="fas fa-map-marker-alt"></i>
-                            Location
-                        </label>
-                        <select id="locationSelect" class="form-input">
-                            <option value="ALL">All Locations</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="departmentInput">
-                            <i class="fas fa-briefcase"></i>
-                            Department
-                        </label>
-                        <input type="text" id="departmentInput" class="form-input" placeholder="Enter Department">
+                        <input type="text" id="dosDateRangePicker" class="form-input" placeholder="Select Date">
                     </div>
                      <div class="form-group">
                         <label for="monthPicker">
@@ -153,34 +131,6 @@
                         <input type="text" id="groupProfile" class="form-input" placeholder="Select Date">
                     </div>
                     
-                    <div class="stats-section">
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%">
-                                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                                </svg>
-                            </div>
-                            <div class="stat-content">
-                                <div class="stat-label">Total Corporates</div>
-                                <div class="stat-value" id="numCompaniesValue">0</div>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%">
-                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                    <circle cx="9" cy="7" r="4"></circle>
-                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                                </svg>
-                            </div>
-                            <div class="stat-content">
-                                <div class="stat-label">Employees Screened</div>
-                                <div class="stat-value" id="numScreenedValue">0</div>
-                            </div>
-                        </div>
-                    </div>
 
                     <!-- Master Clear Button -->
                     <div class="clear-all-container">
@@ -193,14 +143,11 @@
             </div>
 
             <div class="metrics-grid">
-                <div class="metrics-section-header">
-                    <h3 class="metrics-section-title">
-                        <i class="fas fa-chart-line" style="margin-right: 0.5rem; color: #3b82f6;"></i>
-                        Health Metrics Dashboard
-                    </h3>
-                    <p class="metrics-section-subtitle">Comprehensive analytics and insights</p>
-                </div>
                 <div class="metrics-container" id="metricsContainer">
+                    <div class="metric-card">
+                        <div class="metric-title">Overview</div>
+                        <div class="chart-container"><div id="overviewGraph"></div></div>
+                    </div>
                     <div class="metric-card">
                         <div class="metric-title">Age/Gender</div>
                         <div class="chart-container"><canvas id="chartParticipants"></canvas></div>
@@ -211,7 +158,7 @@
                     </div>
 
                     <div class="metric-card">
-                        <div class="metric-title">Hypertension Risk (BP)</div>
+                        <div class="metric-title">Hypertension Risk</div>
                         <div class="chart-container"><div id="chartHypertension"></div></div>
                     </div>
 
@@ -219,14 +166,14 @@
                         <div class="metric-title">Diabetes Risk</div>
                         <div class="chart-container"><div id="chartDiabetes"></div></div>
                     </div>
+                    </div>
                     
+                <div class="metrics-container metrics-container-bottom" id="metricsContainerBottom">
                     <div class="metric-card">
                         <div class="metric-title">Dyslipidemia Risk</div>
                         <div class="chart-container"><div id="chartCholestrol"></div></div>
                     </div>
-                </div>
-                
-                <div class="metrics-container metrics-container-bottom" id="metricsContainerBottom">
+                    
                     <div class="metric-card">
                         <div class="metric-title">Obesity Risk</div>
                         <div class="chart-container"><div id="chartObesity"></div></div>
@@ -254,7 +201,8 @@
         <div class="data-table-container" style="width: 100%; max-width: 100%; box-sizing: border-box; margin-left: 0; margin-right: 0;">
             <table>
                 <colgroup>
-                    <col><col><col><col><col><col><col><col><col><col><col><col><col><col><col>
+                    <col><col><col><col><col><col><col><col><col>
+                    <col><col><col><col><col><col><col><col>
                 </colgroup>
                 <thead>
                     <tr>
@@ -264,11 +212,13 @@
                         <th class="header-col">Mobile</th>
                         <th class="header-col">Depart</th>
                         <th class="header-col">BMI</th>
-                        <th class="header-col">BP/BG</th>
+                        <th class="header-col">BP</th>
+                        <th class="header-col">Blood Sugar</th>
                         <th class="header-col">Cholestrol</th>
                         <th class="header-col">Medication</th>
                         <th class="action-col-1">Cardiac Risk</th>
                         <th class="action-col-2">Health Habit</th>
+                        <th class="action-col-2">Nutrient Status</th>
                         <th class="action-col-3">Fitness</th>
                         <th class="action-col-3">Stress</th>
                         <th class="header-col">DOSC</th>

@@ -99,6 +99,12 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
 
+            <!-- Overview card (matches adminpage overview concept) -->
+            <div class="bg-white rounded-xl shadow-md chart-container p-4">
+                <div class="text-sm font-semibold text-center mb-2 text-gray-700">Overview</div>
+                <div id="overviewGraph"></div>
+            </div>
+
             <div class="bg-white rounded-xl shadow-md chart-container p-4">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Age/Gender</div>
                 <canvas id="chartParticipants"></canvas>
@@ -111,7 +117,7 @@
             </div>
 
             <div class="bg-white rounded-xl shadow-md chart-container p-4">
-                <div class="text-sm font-semibold text-center mb-2 text-gray-700">Hypertension Risk (BP)</div>
+                <div class="text-sm font-semibold text-center mb-2 text-gray-700">Hypertension Risk</div>
                 <div id="chartHypertension"></div>
             </div>
 
@@ -119,17 +125,16 @@
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Diabetes Risk</div>
                 <div id="chartDiabetes"></div>
             </div>
-
-            <div class="bg-white rounded-xl shadow-md chart-container p-4">
-                <div class="text-sm font-semibold text-center mb-2 text-gray-700">Dyslipidemia Risk</div>
-                <div id="chartCholestrol"></div>
-            </div>
         </div>
 
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6 justify-items-center" style="max-width: 100%; box-sizing: border-box;">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-6 justify-items-center" style="max-width: 100%; box-sizing: border-box;">
             
-            
+            <!-- Risk cluster: Dyslipidemia aligned with Obesity and others -->
+            <div class="bg-white rounded-xl shadow-md chart-container p-4 w-full">
+                <div class="text-sm font-semibold text-center mb-2 text-gray-700">Dyslipidemia Risk</div>
+                <div id="chartCholestrol"></div>
+            </div>
             
             <div class="bg-white rounded-xl shadow-md chart-container p-4 w-full">
                 <div class="text-sm font-semibold text-center mb-2 text-gray-700">Obesity Risk</div>
