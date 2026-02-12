@@ -275,8 +275,8 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 }
 
 .logo-icon {
-    width: 64px;
-    height: 64px;
+    width: 80px;
+    height: 80px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -321,7 +321,7 @@ td:nth-child(6) { /* Assuming BMI is the 6th column */
 .main-content {
     display: flex;
     gap: 0.75rem;
-    margin-bottom: 0.5rem;
+    margin: 2rem 0 0.75rem 0;
     /* Stretch filter + charts to same height so Clear All aligns with charts */
     align-items: stretch;
     width: 100%;
@@ -1142,8 +1142,8 @@ select.form-input {
     }
     
     .logo-icon {
-        width: 48px;
-        height: 48px;
+        width: 64px;
+        height: 64px;
     }
     
     .header-logo-text div {

@@ -5,9 +5,332 @@
 fetch('http://127.0.0.1:7242/ingest/1d97a748-68d6-4f07-a07e-26d0c0815749',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'report-generator.js:load',message:'report-generator.js loaded',data:{ready:true},timestamp:Date.now()})}).catch(()=>{});
 // #endregion agent log
 
+// ─────────────────────────────────────────────────────────────
+// HELPER: Render an ApexChart off-screen, capture its dataURI,
+//         then destroy it.  Returns the base64 PNG string.
+// ─────────────────────────────────────────────────────────────
+async function _renderAndCapture(apexOptions, width = 700, height = 400) {
+    const div = document.createElement('div');
+    div.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:' + width + 'px;height:' + height + 'px;';
+    document.body.appendChild(div);
+    try {
+        const chart = new ApexCharts(div, apexOptions);
+        await chart.render();
+        // Small delay to let the SVG settle
+        await new Promise(r => setTimeout(r, 350));
+        const { imgURI } = await chart.dataURI({ scale: 2 });
+        chart.destroy();
+        return imgURI || null;
+    } catch (err) {
+        console.error('_renderAndCapture error:', err);
+        return null;
+    } finally {
+        div.remove();
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Generate popup-style chart images from the report data.
+// These charts normally only exist inside window.open() popups,
+// so we re-create them in hidden divs, capture, then destroy.
+// Returns { tagName: base64PNG, … }
+// ─────────────────────────────────────────────────────────────
+async function capturePopupChartImages(reportData) {
+    const images = {};
+    if (!reportData || reportData.length <= 1) return images;
+
+    const header = reportData[0].map(h => String(h || '').toLowerCase().trim());
+    const _col = (name) => header.findIndex(h => h.includes(name));
+    const rows = reportData.slice(1);
+
+    // ── 1. AGE / GENDER (grouped bar) ────────────────────────
+    try {
+        const ageCol = _col('age');
+        const dobCol = _col('dob');
+        const genderCol = _col('gender');
+        if (genderCol !== -1 && (ageCol !== -1 || dobCol !== -1)) {
+            const buckets = { 'Under 30': { M: 0, F: 0 }, '30-40': { M: 0, F: 0 }, '40+': { M: 0, F: 0 } };
+            const parseAge = (a, d) => { const n = parseFloat(a); if (!isNaN(n) && n > 0 && n < 120) return n; const dt = new Date(d ?? a); if (!isNaN(dt)) { let y = new Date().getFullYear() - dt.getFullYear(); const md = new Date().getMonth() - dt.getMonth(); if (md < 0 || (md === 0 && new Date().getDate() < dt.getDate())) y--; return y >= 0 && y < 120 ? y : null; } return null; };
+            rows.forEach(row => {
+                const age = parseAge(ageCol !== -1 ? row[ageCol] : null, dobCol !== -1 ? row[dobCol] : null);
+                if (age === null) return;
+                const g = (row[genderCol] || '').toString().toLowerCase();
+                const gk = g.startsWith('m') ? 'M' : g.startsWith('f') ? 'F' : null;
+                if (!gk) return;
+                const bk = age < 30 ? 'Under 30' : age <= 40 ? '30-40' : '40+';
+                buckets[bk][gk]++;
+            });
+            const labels = Object.keys(buckets);
+            const img = await _renderAndCapture({
+                series: [{ name: 'Male', data: labels.map(l => buckets[l].M) }, { name: 'Female', data: labels.map(l => buckets[l].F) }],
+                chart: { type: 'bar', height: 400, toolbar: { show: false }, animations: { enabled: false } },
+                plotOptions: { bar: { borderRadius: 8, columnWidth: '60%' } },
+                colors: ['#4e73df', '#fb7185'],
+                xaxis: { categories: labels },
+                yaxis: { title: { text: 'Count' } },
+                legend: { position: 'top' }
+            });
+            if (img) { images['age_popup_chart_image'] = img; console.log('📸 Popup captured: age_popup_chart_image'); }
+        }
+    } catch (e) { console.error('❌ Age popup capture failed:', e); }
+
+    // ── 2. OBESITY (bar) ─────────────────────────────────────
+    try {
+        const bmiIdx = _col('bmi');
+        if (bmiIdx !== -1) {
+            const stages = [
+                { name: 'Underweight', color: '#36b9cc', check: v => v < 18.5, count: 0 },
+                { name: 'Normal', color: '#1cc88a', check: v => v >= 18.5 && v <= 24.9, count: 0 },
+                { name: 'Overweight', color: '#f6c23e', check: v => v >= 25.0 && v <= 29.9, count: 0 },
+                { name: 'Obesity Gr 1', color: '#fd7e14', check: v => v >= 30.0 && v <= 34.9, count: 0 },
+                { name: 'Obesity Gr 2', color: '#e74a3b', check: v => v >= 35.0 && v <= 39.9, count: 0 },
+                { name: 'Grossly Obese', color: '#851010', check: v => v >= 40.0, count: 0 }
+            ];
+            rows.forEach(row => { const v = parseFloat(row[bmiIdx]); if (isNaN(v)) return; for (const s of stages) { if (s.check(v)) { s.count++; break; } } });
+            const img = await _renderAndCapture({
+                series: [{ name: 'Count', data: stages.map(s => s.count) }],
+                chart: { type: 'bar', height: 400, toolbar: { show: false }, animations: { enabled: false } },
+                plotOptions: { bar: { borderRadius: 10, distributed: true, columnWidth: '70%' } },
+                colors: stages.map(s => s.color),
+                xaxis: { categories: stages.map(s => s.name) },
+                yaxis: { title: { text: 'Count' } },
+                legend: { show: false }
+            });
+            if (img) { images['obesity_popup_chart_image'] = img; console.log('📸 Popup captured: obesity_popup_chart_image'); }
+        }
+    } catch (e) { console.error('❌ Obesity popup capture failed:', e); }
+
+    // ── 3. DIABETES (bar) ────────────────────────────────────
+    try {
+        const fbsIdx = _col('bs1');
+        const rbsIdx = _col('bs2');
+        if (fbsIdx !== -1 || rbsIdx !== -1) {
+            const stages = [
+                { name: 'Normal', color: '#1cc88a', count: 0 },
+                { name: 'Pre-Diabetic', color: '#f6c23e', count: 0 },
+                { name: 'Moderate', color: '#fd7e14', count: 0 },
+                { name: 'Diabetic', color: '#e74a3b', count: 0 }
+            ];
+            rows.forEach(row => {
+                const f = fbsIdx !== -1 ? parseFloat(row[fbsIdx]) : NaN;
+                const r = rbsIdx !== -1 ? parseFloat(row[rbsIdx]) : NaN;
+                if (isNaN(f) && isNaN(r)) return;
+                if (f >= 130 || r >= 251) stages[3].count++;
+                else if ((f >= 111 && f <= 129) || (r >= 201 && r <= 250)) stages[2].count++;
+                else if ((f >= 101 && f <= 110) || (r >= 161 && r <= 200)) stages[1].count++;
+                else stages[0].count++;
+            });
+            const img = await _renderAndCapture({
+                series: [{ name: 'Count', data: stages.map(s => s.count) }],
+                chart: { type: 'bar', height: 400, toolbar: { show: false }, animations: { enabled: false } },
+                plotOptions: { bar: { borderRadius: 12, distributed: true, columnWidth: '70%' } },
+                colors: stages.map(s => s.color),
+                xaxis: { categories: stages.map(s => s.name) },
+                yaxis: { title: { text: 'Count' } },
+                legend: { show: false }
+            });
+            if (img) { images['diabetes_popup_chart_image'] = img; console.log('📸 Popup captured: diabetes_popup_chart_image'); }
+        }
+    } catch (e) { console.error('❌ Diabetes popup capture failed:', e); }
+
+    // ── 4. HYPERTENSION (bar) ────────────────────────────────
+    try {
+        const bp1Idx = _col('bp1');
+        const bp2Idx = _col('bp2');
+        if (bp1Idx !== -1 && bp2Idx !== -1) {
+            const grades = [
+                { name: 'Normal', color: '#1cc88a', count: 0 },
+                { name: 'Pre-HTN', color: '#f6c23e', count: 0 },
+                { name: 'Grade I HTN', color: '#fd7e14', count: 0 },
+                { name: 'Grade II HTN', color: '#e74a3b', count: 0 },
+                { name: 'Grade III HTN', color: '#851010', count: 0 }
+            ];
+            rows.forEach(row => {
+                const s = parseFloat(row[bp1Idx]), d = parseFloat(row[bp2Idx]);
+                if (isNaN(s) || isNaN(d) || s <= 0 || d <= 0) return;
+                if (s >= 180 || d >= 110) grades[4].count++;
+                else if (s >= 160 || d >= 100) grades[3].count++;
+                else if (s >= 140 || d >= 90) grades[2].count++;
+                else if (s >= 121 || d >= 81) grades[1].count++;
+                else grades[0].count++;
+            });
+            const img = await _renderAndCapture({
+                series: [{ name: 'Count', data: grades.map(g => g.count) }],
+                chart: { type: 'bar', height: 400, toolbar: { show: false }, animations: { enabled: false } },
+                plotOptions: { bar: { borderRadius: 12, distributed: true, columnWidth: '70%' } },
+                colors: grades.map(g => g.color),
+                xaxis: { categories: grades.map(g => g.name) },
+                yaxis: { title: { text: 'Count' } },
+                legend: { show: false }
+            });
+            if (img) { images['hypertension_popup_chart_image'] = img; console.log('📸 Popup captured: hypertension_popup_chart_image'); }
+        }
+    } catch (e) { console.error('❌ Hypertension popup capture failed:', e); }
+
+    // ── 5. CHOLESTEROL / DYSLIPIDEMIA (bar) ──────────────────
+    try {
+        const cholIdx = _col('cholesterol');
+        if (cholIdx !== -1) {
+            const stages = [
+                { name: 'Normal', color: '#1cc88a', count: 0 },
+                { name: 'Borderline', color: '#f6c23e', count: 0 },
+                { name: 'Moderate', color: '#fd7e14', count: 0 },
+                { name: 'Dyslipidemia', color: '#e74a3b', count: 0 }
+            ];
+            rows.forEach(row => {
+                const v = parseFloat(row[cholIdx]);
+                if (isNaN(v) || v <= 0) return;
+                if (v >= 251) stages[3].count++;
+                else if (v >= 220 && v <= 250) stages[2].count++;
+                else if (v >= 201 && v <= 219) stages[1].count++;
+                else stages[0].count++;
+            });
+            const img = await _renderAndCapture({
+                series: [{ name: 'Count', data: stages.map(s => s.count) }],
+                chart: { type: 'bar', height: 400, toolbar: { show: false }, animations: { enabled: false } },
+                plotOptions: { bar: { borderRadius: 12, distributed: true, columnWidth: '70%' } },
+                colors: stages.map(s => s.color),
+                xaxis: { categories: stages.map(s => s.name) },
+                yaxis: { title: { text: 'Count' } },
+                legend: { show: false }
+            });
+            if (img) { images['cholesterol_popup_chart_image'] = img; console.log('📸 Popup captured: cholesterol_popup_chart_image'); }
+        }
+    } catch (e) { console.error('❌ Cholesterol popup capture failed:', e); }
+
+    // ── 6. FITNESS (bar) ─────────────────────────────────────
+    try {
+        const metrics = [
+            { id: 'exe1', name: 'Regular Exercise', color: '#1cc88a', type: 'binary', count: 0 },
+            { id: 'breath', name: 'Good Lung Cap.', color: '#36b9cc', type: 'numeric', threshold: 30, isLess: false, count: 0 },
+            { id: 'exe3', name: 'Good Strength', color: '#4e73df', type: 'binary', count: 0 },
+            { id: 'exe2', name: 'Good Flexibility', color: '#858796', type: 'binary', count: 0 }
+        ];
+        const hrCats = [
+            { name: 'HR: Resting (<60)', color: '#4e73df', check: v => v < 60, count: 0 },
+            { name: 'HR: Normal (60-100)', color: '#1cc88a', check: v => v >= 60 && v <= 100, count: 0 },
+            { name: 'HR: High (101-120)', color: '#f6c23e', check: v => v >= 101 && v <= 120, count: 0 },
+            { name: 'HR: Tachy (>120)', color: '#e74a3b', check: v => v > 120, count: 0 }
+        ];
+        const pulseIdx = _col('pulse');
+        rows.forEach(row => {
+            metrics.forEach(m => { const ci = _col(m.id); if (ci === -1) return; const rv = (row[ci] || '').toString().trim(); if (m.type === 'binary' && rv.toUpperCase().startsWith('Y')) m.count++; if (m.type === 'numeric') { const v = parseFloat(rv); if (!isNaN(v) && (m.isLess ? v < m.threshold : v >= m.threshold)) m.count++; } });
+            if (pulseIdx !== -1) { const pv = parseFloat(row[pulseIdx]); if (!isNaN(pv)) { for (const c of hrCats) { if (c.check(pv)) { c.count++; break; } } } }
+        });
+        const allItems = [...metrics, ...hrCats];
+        const img = await _renderAndCapture({
+            series: [{ name: 'Count', data: allItems.map(i => i.count) }],
+            chart: { type: 'bar', height: 450, toolbar: { show: false }, animations: { enabled: false } },
+            plotOptions: { bar: { borderRadius: 10, distributed: true, columnWidth: '65%' } },
+            colors: allItems.map(i => i.color),
+            xaxis: { categories: allItems.map(i => i.name), labels: { rotate: -45, rotateAlways: true, style: { fontSize: '10px' } } },
+            yaxis: { title: { text: 'Count' } },
+            legend: { show: false }
+        }, 800, 450);
+        if (img) { images['fitness_popup_chart_image'] = img; console.log('📸 Popup captured: fitness_popup_chart_image'); }
+    } catch (e) { console.error('❌ Fitness popup capture failed:', e); }
+
+    // ── 7. STRESS & HABITS (bar) ─────────────────────────────
+    try {
+        const indicators = [
+            { id: 'str1', name: 'Work Stress', color: '#e74a3b', isReversed: false },
+            { id: 'str2', name: 'Family Stress', color: '#e74a3b', isReversed: false },
+            { id: 'str3', name: 'Financial Stress', color: '#e74a3b', isReversed: false },
+            { id: 'str4', name: 'Poor Sleep', color: '#e74a3b', isReversed: true },
+            { id: 'hab1', name: 'Smoking', color: '#f6c23e', isReversed: false },
+            { id: 'hab2', name: 'Alcohol', color: '#f6c23e', isReversed: false },
+            { id: 'hab3', name: 'Other Habits', color: '#f6c23e', isReversed: false }
+        ];
+        indicators.forEach(ind => {
+            const ci = _col(ind.id); ind.count = 0;
+            if (ci !== -1) { rows.forEach(row => { const v = (row[ci] || '').toString().toUpperCase().trim(); if (!ind.isReversed && v.startsWith('Y')) ind.count++; else if (ind.isReversed && v.startsWith('N')) ind.count++; }); }
+        });
+        const img = await _renderAndCapture({
+            series: [{ name: 'Count', data: indicators.map(i => i.count) }],
+            chart: { type: 'bar', height: 450, toolbar: { show: false }, animations: { enabled: false } },
+            plotOptions: { bar: { borderRadius: 10, distributed: true, columnWidth: '65%' } },
+            colors: indicators.map(i => i.color),
+            xaxis: { categories: indicators.map(i => i.name), labels: { rotate: -45, rotateAlways: true, style: { fontSize: '10px' } } },
+            yaxis: { title: { text: 'Count' } },
+            legend: { show: false }
+        }, 800, 450);
+        if (img) { images['stress_popup_chart_image'] = img; console.log('📸 Popup captured: stress_popup_chart_image'); }
+    } catch (e) { console.error('❌ Stress popup capture failed:', e); }
+
+    // ── 8. CHRONIC DISEASE (horizontal bar) ──────────────────
+    try {
+        const condCols = [
+            { id: 'art', name: 'Arthritis' }, { id: 'spo', name: 'Spondylitis' },
+            { id: 'bac', name: 'Back Ache' }, { id: 'muscu_oth', name: 'Musculo Other' }
+        ];
+        const condMap = {};
+        condCols.forEach(cc => {
+            const ci = _col(cc.id); if (ci === -1) return;
+            let cnt = 0;
+            rows.forEach(row => { const v = String(row[ci] || '').trim(); if (cc.id === 'muscu_oth' ? v !== '' : v.toUpperCase().startsWith('Y')) cnt++; });
+            if (cnt > 0) condMap[cc.name] = cnt;
+        });
+        const sorted = Object.entries(condMap).sort((a, b) => b[1] - a[1]);
+        if (sorted.length > 0) {
+            const img = await _renderAndCapture({
+                series: [{ name: 'Count', data: sorted.map(s => s[1]) }],
+                chart: { type: 'bar', height: Math.min(500, 40 * sorted.length + 160), toolbar: { show: false }, animations: { enabled: false } },
+                plotOptions: { bar: { horizontal: true, borderRadius: 10, barHeight: '70%' } },
+                colors: ['#4e73df'],
+                xaxis: { title: { text: 'Number of Reports' } },
+                yaxis: { categories: sorted.map(s => s[0]) },
+                legend: { show: false }
+            }, 800, Math.min(500, 40 * sorted.length + 160));
+            if (img) { images['chronic_popup_chart_image'] = img; console.log('📸 Popup captured: chronic_popup_chart_image'); }
+        }
+    } catch (e) { console.error('❌ Chronic popup capture failed:', e); }
+
+    // ── 9. MEDICATION / AT-RISK UNMEDICATED (bar) ────────────
+    try {
+        const medIdx = _col('medication');
+        const fbsIdx = _col('bs1');
+        const rbsIdx = _col('bs2');
+        const bp1Idx = _col('bp1');
+        const cholIdx = _col('cholesterol');
+        if (medIdx !== -1) {
+            const counts = { diabetes: 0, hypertension: 0, cholesterol: 0 };
+            rows.forEach(row => {
+                if (String(row[medIdx]).toUpperCase() !== 'N') return;
+                const fbs = parseFloat(row[fbsIdx]), rbs = parseFloat(row[rbsIdx]);
+                const sys = parseFloat(row[bp1Idx]), chol = parseFloat(row[cholIdx]);
+                if (fbs >= 126 || rbs >= 200) counts.diabetes++;
+                if (sys >= 140) counts.hypertension++;
+                if (chol >= 200) counts.cholesterol++;
+            });
+            const labels = ['Diabetes', 'Hypertension', 'Cholesterol'];
+            const data = [counts.diabetes, counts.hypertension, counts.cholesterol];
+            const img = await _renderAndCapture({
+                series: [{ name: 'Count', data: data }],
+                chart: { type: 'bar', height: 400, toolbar: { show: false }, animations: { enabled: false } },
+                plotOptions: { bar: { borderRadius: 12, distributed: true, columnWidth: '60%' } },
+                colors: ['#e74a3b', '#fd7e14', '#f6c23e'],
+                xaxis: { categories: labels },
+                yaxis: { title: { text: 'Count' } },
+                legend: { show: false }
+            });
+            if (img) { images['medication_popup_chart_image'] = img; console.log('📸 Popup captured: medication_popup_chart_image'); }
+        }
+    } catch (e) { console.error('❌ Medication popup capture failed:', e); }
+
+    console.log(`📊 Popup chart capture complete: ${Object.keys(images).length}/9 popup charts captured`);
+    return images;
+}
+
 async function generateUserReport() {
+    console.log('📋 generateUserReport() called');
+    
     const userReportInput = document.getElementById('monthPicker');
     const groupProfileInput = document.getElementById('groupProfile');
+
+    console.log('📅 Date inputs:', {
+        monthPicker: userReportInput ? userReportInput.value : 'NOT FOUND',
+        groupProfile: groupProfileInput ? groupProfileInput.value : 'NOT FOUND'
+    });
 
     const userDateValue = userReportInput ? userReportInput.value : '';
     const wordDateValue = groupProfileInput ? groupProfileInput.value : '';
@@ -24,7 +347,8 @@ async function generateUserReport() {
     // #endregion agent log
 
     if (!userDateValue && !wordDateValue) {
-        alert("Please select a date range.");
+        console.warn('⚠️ No date range selected');
+        alert("Please select a date range in the 'Group Profile' date picker before generating the report.");
         return;
     }
 
@@ -708,56 +1032,7 @@ async function generateUserReport() {
                 s_date = e_date = wordDateValue;
             }
 
-            // 3. Capture Chart Images
-            // Get chart images from the admin page
-            const chartImages = {};
-            
-            // Wait for charts to fully render (charts might be rendering asynchronously)
-            console.log('Waiting for charts to render...');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            if (typeof window.captureChartAsImage === 'function') {
-                console.log('=== Capturing Chart Images ===');
-                
-                // Capture key charts for the report (only existing charts)
-                const chartIds = {
-                    ageChart: 'chartParticipants',
-                    stressChart: 'chartStress',
-                    fitnessChart: 'chartFitness',
-                    hypertensionChart: 'chartHypertension',
-                    cholesterolChart: 'chartCholesterol',
-                    diabetesChart: 'chartDiabetes',
-                    medicationChart: 'chartMedication'
-                };
-
-                for (const [key, chartId] of Object.entries(chartIds)) {
-                    const canvas = document.getElementById(chartId);
-                    if (canvas) {
-                        // Check if canvas has content
-                        const hasContent = canvas.width > 0 && canvas.height > 0;
-                        if (hasContent) {
-                            const image = window.captureChartAsImage(chartId);
-                            if (image && image.length > 100) {
-                                chartImages[key] = image;
-                                console.log(`✅ ${key} (${chartId}): Captured successfully, length: ${image.length}`);
-                            } else {
-                                console.log(`⚠️ ${key} (${chartId}): Capture returned invalid data`);
-                            }
-                        } else {
-                            console.log(`⚠️ ${key} (${chartId}): Canvas exists but has no content (${canvas.width}x${canvas.height})`);
-                        }
-                    } else {
-                        console.log(`❌ ${key} (${chartId}): Canvas element not found in DOM`);
-                    }
-                }
-                
-                console.log(`Total charts captured: ${Object.keys(chartImages).length}`);
-            } else {
-                console.error('❌ captureChartAsImage function not available on window object');
-                console.log('Available window functions:', Object.keys(window).filter(k => k.includes('chart') || k.includes('Chart')));
-            }
-
-            // 4. Send to Server
+            // 3. Send to Server
             // We pass an object so it's easy to add more stats later
             const reportPayload = {
                 count: employeeCount,
@@ -807,19 +1082,68 @@ async function generateUserReport() {
                 hyperlipidemia_pct,
                 cardiac_risk_pct,
                 bmi_above_25_1_pct,
-                current_date,
-                // Chart images
-                age_chart_image: chartImages.ageChart,
-                stress_chart_image: chartImages.stressChart,
-                fitness_chart_image: chartImages.fitnessChart,
-                hypertension_chart_image: chartImages.hypertensionChart,
-                cholesterol_chart_image: chartImages.cholesterolChart,
-                diabetes_chart_image: chartImages.diabetesChart,
-                medication_chart_image: chartImages.medicationChart
+                current_date
             };
 
+            // --- CHART IMAGE CAPTURE (ApexCharts only) ---
+            // Map chart IDs to their template placeholder names
+            const chartToTagMap = {
+                'chartChronic':      'chronic_chart_image',
+                'chartHypertension': 'hypertension_chart_image',
+                'chartDiabetes':     'diabetes_chart_image',
+                'chartCholestrol':   'cholesterol_chart_image',
+                'chartObesity':      'obesity_chart_image',
+                'chartFitness':      'fitness_chart_image',
+                'chartStress':       'stress_chart_image',
+                'chartMedication':   'medication_chart_image'
+            };
+
+            const chartImages = {};
+
+            // Iterate through all chart instances, only process ApexCharts
+            // ApexCharts have a .dataURI() method; Chart.js instances do NOT
+            for (const [chartId, instance] of Object.entries(chartInstances)) {
+                // Skip if not in our export map
+                if (!chartToTagMap[chartId]) continue;
+
+                // Skip non-ApexCharts (Chart.js, null, HTML elements, etc.)
+                if (!instance || typeof instance.dataURI !== 'function') {
+                    console.warn(`⏭️ Skipping "${chartId}" — not an ApexCharts instance (no dataURI method)`);
+                    continue;
+                }
+
+                try {
+                    const { imgURI } = await instance.dataURI({ scale: 2 });
+                    if (imgURI) {
+                        const tagName = chartToTagMap[chartId];
+                        chartImages[tagName] = imgURI; // full data:image/png;base64,... string
+                        console.log(`📸 Captured "${chartId}" → {%${tagName}} (${(imgURI.length / 1024).toFixed(1)} KB)`);
+                    } else {
+                        console.warn(`⚠️ dataURI() returned empty for "${chartId}"`);
+                    }
+                } catch (err) {
+                    console.error(`❌ Failed to capture chart "${chartId}":`, err);
+                }
+            }
+
+            const capturedCount = Object.keys(chartImages).length;
+            console.log(`📊 Dashboard chart capture complete: ${capturedCount}/${Object.keys(chartToTagMap).length} ApexCharts captured`);
+
+            // --- POPUP CHART CAPTURE (re-create popup charts off-screen) ---
+            console.log('📊 Starting popup chart capture...');
+            const popupImages = await capturePopupChartImages(reportData);
+
+            // Merge popup images into chartImages
+            Object.assign(chartImages, popupImages);
+
+            const totalCaptured = Object.keys(chartImages).length;
+            console.log(`📊 Total chart capture: ${totalCaptured} images (${capturedCount} dashboard + ${Object.keys(popupImages).length} popup)`);
+
+            // Attach chart images to the payload
+            reportPayload._chartImages = chartImages;
+
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/1d97a748-68d6-4f07-a07e-26d0c0815749',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2',location:'report-generator.js:generateUserReport',message:'Calling generateWordFileOnServer',data:{payloadKeys:Object.keys(reportPayload),count:reportPayload.count,s_date:reportPayload.s_date,e_date:reportPayload.e_date},timestamp:Date.now()})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/1d97a748-68d6-4f07-a07e-26d0c0815749',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2',location:'report-generator.js:generateUserReport',message:'Calling generateWordFileOnServer',data:{payloadKeys:Object.keys(reportPayload),count:reportPayload.count,s_date:reportPayload.s_date,e_date:reportPayload.e_date,chartImagesCaptured:capturedCount},timestamp:Date.now()})}).catch(()=>{});
             // #endregion agent log
 
             generateWordFileOnServer(reportPayload);

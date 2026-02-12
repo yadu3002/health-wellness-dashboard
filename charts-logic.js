@@ -232,7 +232,7 @@ popup.document.write(`
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return val; } }
+                    y: { formatter: function(val) { return 'Employees: ' + val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
@@ -423,7 +423,7 @@ function openDiabetesPopup() {
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return val; } }
+                    y: { formatter: function(val) { return 'Employees: ' + val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
@@ -625,7 +625,7 @@ function openFitnessPopup() {
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return val; } }
+                    y: { formatter: function(val) { return 'Employees: ' + val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
@@ -813,7 +813,7 @@ function openChronicMedicationPopup() {
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return val; } }
+                    y: { formatter: function(val) { return 'Employees: ' + val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }
@@ -956,7 +956,7 @@ function openStressHabitsPopup() {
                 tooltip: {
                     theme: 'dark',
                     style: { fontSize: '14px' },
-                    y: { formatter: function(val) { return val; } }
+                    y: { formatter: function(val) { return 'Employees: ' + val; } }
                 },
                 grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
                 legend: { show: false }

@@ -8,10 +8,255 @@ const Docxtemplater = require('docxtemplater');
 const AdmZip = require('adm-zip');
 const app = express();
 
+// ─────────────────────────────────────────────────────────────
+// HELPER: Convert a data-URI (or raw base64) to a Node Buffer
+// ─────────────────────────────────────────────────────────────
+function base64ToBuffer(dataURI) {
+    const base64 = dataURI.replace(/^data:image\/\w+;base64,/, '');
+    return Buffer.from(base64, 'base64');
+}
+
+// ─────────────────────────────────────────────────────────────
+// HELPER: Escape special regex characters in a string
+// ─────────────────────────────────────────────────────────────
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ─────────────────────────────────────────────────────────────
+// HELPER: Find the next available rId number in a rels XML
+// ─────────────────────────────────────────────────────────────
+function getNextRelId(relsXml) {
+    const rIds = relsXml.match(/rId(\d+)/g);
+    if (rIds) {
+        return Math.max(...rIds.map(m => parseInt(m.replace('rId', '')))) + 1;
+    }
+    return 100;
+}
+
+// ─────────────────────────────────────────────────────────────
+// CORE: Inject chart images into the Word template.
+//
+// Matches elements by ALT-TEXT (the "descr" attribute on
+// <wp:docPr> inside each <w:drawing> block).
+//
+// Handles TWO types of elements:
+//
+//  A) WORD-NATIVE CHARTS  (Insert → Chart)
+//     These use <a:graphicData uri="…/chart"> with <c:chart r:id="…"/>.
+//     There is NO <a:blip> / r:embed.
+//     → We replace the <a:graphic>…</a:graphic> section with a
+//       picture-based graphic, preserving the wrapper (wp:inline
+//       or wp:anchor), size, and position.
+//
+//  B) REGULAR PICTURES  (inserted images / pasted screenshots)
+//     These use <a:blip r:embed="rIdN"/>.
+//     → If the rId is unique, we just update the relationship
+//       Target to point to our new PNG.
+//     → If multiple images share the same rId, we create a new
+//       rId for this specific image so the others are unaffected.
+//
+// Also searches header*.xml and footer*.xml.
+// ─────────────────────────────────────────────────────────────
+function injectChartImages(wordBuffer, imageBuffers) {
+    try {
+        const zip = new PizZip(wordBuffer);
+
+        // --- [Content_Types].xml — make sure PNG is declared ----
+        let ctXml = zip.files['[Content_Types].xml'].asText();
+        if (!ctXml.includes('image/png')) {
+            ctXml = ctXml.replace(
+                '</Types>',
+                '<Default Extension="png" ContentType="image/png"/></Types>'
+            );
+            zip.file('[Content_Types].xml', ctXml);
+        }
+
+        // --- Collect all XML parts that can contain images ----
+        const xmlParts = Object.keys(zip.files).filter(f =>
+            f === 'word/document.xml' ||
+            /^word\/header\d+\.xml$/.test(f) ||
+            /^word\/footer\d+\.xml$/.test(f)
+        );
+
+        let injectedCount = 0;
+        let docPrCounter = 90000;   // high number to avoid ID collisions
+
+        for (const [tagName, imgBuffer] of Object.entries(imageBuffers)) {
+            let matched = false;
+            // Regex to match descr="tagName" with optional trailing &#xA; (Word adds newlines)
+            const descrPattern = new RegExp(
+                `descr="${escapeRegex(tagName)}(&#xA;)*"`
+            );
+
+            for (const xmlFile of xmlParts) {
+                let docXml = zip.files[xmlFile].asText();
+                const relsPath = xmlFile.replace('word/', 'word/_rels/') + '.rels';
+                if (!zip.files[relsPath]) continue;
+                let relsXml = zip.files[relsPath].asText();
+
+                // Find all <w:drawing>…</w:drawing> blocks
+                const drawingRegex = /<w:drawing>[\s\S]*?<\/w:drawing>/g;
+                let dm;
+
+                while ((dm = drawingRegex.exec(docXml)) !== null) {
+                    const block = dm[0];
+
+                    // ── Match alt-text ──
+                    if (!descrPattern.test(block)) continue;
+
+                    // Determine element type
+                    const isChart = block.includes('drawingml/2006/chart');
+                    const embedMatch = /r:embed="(rId\d+)"/.exec(block);
+
+                    // Extract original size from <wp:extent cx="…" cy="…"/>
+                    const extM = /<wp:extent[^>]*cx="(\d+)"[^>]*cy="(\d+)"/.exec(block);
+                    const cx = extM ? extM[1] : '4572000';
+                    const cy = extM ? extM[2] : '3200400';
+
+                    // New media file for this chart image
+                    const newMediaFile = `media/chart_${tagName}.png`;
+                    zip.file(`word/${newMediaFile}`, imgBuffer);
+
+                    // ─────────────────────────────────────
+                    // CASE A: WORD-NATIVE CHART
+                    // Replace <a:graphic>…</a:graphic> section
+                    // with picture-based content.  Everything
+                    // outside <a:graphic> is preserved (wrapper,
+                    // size, anchoring, position).
+                    // ─────────────────────────────────────
+                    if (isChart || !embedMatch) {
+                        const newRelId = `rId${getNextRelId(relsXml)}`;
+                        relsXml = relsXml.replace(
+                            '</Relationships>',
+                            `<Relationship Id="${newRelId}" ` +
+                            `Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" ` +
+                            `Target="${newMediaFile}"/></Relationships>`
+                        );
+
+                        // Build replacement <a:graphic> with picture content
+                        const picGraphic =
+                            `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
+                                `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+                                    `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+                                        `<pic:nvPicPr>` +
+                                            `<pic:cNvPr id="0" name="chart_${tagName}.png"/>` +
+                                            `<pic:cNvPicPr/>` +
+                                        `</pic:nvPicPr>` +
+                                        `<pic:blipFill>` +
+                                            `<a:blip r:embed="${newRelId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>` +
+                                            `<a:stretch><a:fillRect/></a:stretch>` +
+                                        `</pic:blipFill>` +
+                                        `<pic:spPr>` +
+                                            `<a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
+                                            `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
+                                        `</pic:spPr>` +
+                                    `</pic:pic>` +
+                                `</a:graphicData>` +
+                            `</a:graphic>`;
+
+                        // Replace the <a:graphic>…</a:graphic> section inside this block
+                        const gStart = block.indexOf('<a:graphic');
+                        const gEnd   = block.indexOf('</a:graphic>');
+                        if (gStart >= 0 && gEnd >= 0) {
+                            const gEndFull = gEnd + '</a:graphic>'.length;
+                            let newBlock = block.substring(0, gStart) + picGraphic + block.substring(gEndFull);
+
+                            // Add cNvGraphicFramePr if missing (needed for pictures)
+                            if (!newBlock.includes('cNvGraphicFramePr')) {
+                                newBlock = newBlock.replace(
+                                    '<a:graphic',
+                                    '<wp:cNvGraphicFramePr>' +
+                                        '<a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>' +
+                                    '</wp:cNvGraphicFramePr>' +
+                                    '<a:graphic'
+                                );
+                            }
+
+                            docXml = docXml.substring(0, dm.index) + newBlock +
+                                     docXml.substring(dm.index + block.length);
+                        }
+
+                        zip.file(relsPath, relsXml);
+                        zip.file(xmlFile, docXml);
+                        injectedCount++;
+                        matched = true;
+                        console.log(`  ✅ "${tagName}" → replaced CHART with image (${cx}×${cy} EMU, ${newRelId} in ${xmlFile})`);
+                        break;
+                    }
+
+                    // ─────────────────────────────────────
+                    // CASE B: REGULAR PICTURE
+                    // Swap the underlying media file.  If
+                    // multiple images share the same rId,
+                    // create a dedicated rId for this one.
+                    // ─────────────────────────────────────
+                    const relId = embedMatch[1];
+                    const rIdOccurrences = (docXml.match(new RegExp(`r:embed="${relId}"`, 'g')) || []).length;
+
+                    if (rIdOccurrences <= 1) {
+                        // Unique relationship — just retarget it
+                        const relElemRegex = new RegExp(`<Relationship[^>]*\\sId="${relId}"[^>]*/?>`, 'i');
+                        const relMatch = relElemRegex.exec(relsXml);
+                        if (relMatch) {
+                            const tgtMatch = /Target="([^"]+)"/.exec(relMatch[0]);
+                            if (tgtMatch) {
+                                relsXml = relsXml.replace(`Target="${tgtMatch[1]}"`, `Target="${newMediaFile}"`);
+                            }
+                        }
+                        zip.file(relsPath, relsXml);
+                        zip.file(xmlFile, docXml);
+                        injectedCount++;
+                        matched = true;
+                        console.log(`  ✅ "${tagName}" → retargeted PICTURE ${relId} → ${newMediaFile} (${xmlFile})`);
+                        break;
+                    } else {
+                        // Shared relationship — give this image its own rId
+                        const newRelId = `rId${getNextRelId(relsXml)}`;
+                        relsXml = relsXml.replace(
+                            '</Relationships>',
+                            `<Relationship Id="${newRelId}" ` +
+                            `Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" ` +
+                            `Target="${newMediaFile}"/></Relationships>`
+                        );
+
+                        // Update ONLY this drawing block's r:embed
+                        const updatedBlock = block.replace(`r:embed="${relId}"`, `r:embed="${newRelId}"`);
+                        docXml = docXml.substring(0, dm.index) + updatedBlock +
+                                 docXml.substring(dm.index + block.length);
+
+                        zip.file(relsPath, relsXml);
+                        zip.file(xmlFile, docXml);
+                        injectedCount++;
+                        matched = true;
+                        console.log(`  ✅ "${tagName}" → new rId ${newRelId} for shared PICTURE (was ${relId}, ${rIdOccurrences} uses) in ${xmlFile}`);
+                        break;
+                    }
+                }
+
+                if (matched) break;
+            }
+
+            if (!matched) {
+                console.warn(`  ⚠️ No image/chart with alt-text "${tagName}" found — skipping`);
+            }
+        }
+
+        const out = zip.generate({ type: 'nodebuffer' });
+        console.log(`📦 Image injection complete: ${injectedCount}/${Object.keys(imageBuffers).length} images swapped (${(out.length / 1024).toFixed(0)} KB)`);
+        return out;
+
+    } catch (err) {
+        console.error('❌ injectChartImages failed:', err);
+        console.error('Stack:', err.stack);
+        return wordBuffer;   // return the text-only doc so nothing is lost
+    }
+}
+
 app.use(express.static(__dirname));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(express.json())
+app.use(express.json());
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST'],
@@ -26,143 +271,124 @@ const cachedData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
 
 console.log("Data loaded! Server is now lightning fast.");
 
-// Function to insert images into Word document
-function insertImagesIntoWord(wordBuffer, images) {
-    try {
-        const zip = new AdmZip(wordBuffer);
-        
-        // Read document.xml
-        const documentEntry = zip.getEntry('word/document.xml');
-        if (!documentEntry) {
-            console.error('Could not find document.xml');
-            return wordBuffer;
-        }
-        
-        let documentXml = documentEntry.getData().toString('utf8');
-        
-        // Read and update relationships
-        let relsXml = '';
-        let nextRelId = 1;
-        const relsEntry = zip.getEntry('word/_rels/document.xml.rels');
-        if (relsEntry) {
-            relsXml = relsEntry.getData().toString('utf8');
-            // Find highest existing rId
-            const relIdMatches = relsXml.match(/rId(\d+)/g);
-            if (relIdMatches) {
-                const maxId = Math.max(...relIdMatches.map(m => parseInt(m.replace('rId', ''))));
-                nextRelId = maxId + 1;
-            }
-        } else {
-            // Create new relationships file
-            relsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
-        }
-        
-        // Process each image
-        Object.keys(images).forEach(imageKey => {
-            const imageBuffer = images[imageKey];
-            const imageName = `image_${imageKey.replace('_image', '')}.png`;
-            const relId = `rId${nextRelId++}`;
-            
-            // Add image to word/media/ folder
-            zip.addFile(`word/media/${imageName}`, imageBuffer);
-            console.log(`✅ Added image file: word/media/${imageName}`);
-            
-            // Add relationship
-            const relEntry = `<Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${imageName}"/>`;
-            relsXml = relsXml.replace('</Relationships>', `${relEntry}</Relationships>`);
-            
-            // Calculate size (6x4 inches default, 7x5 for age chart)
-            const width = imageKey.includes('age') ? 7 : 6;
-            const height = imageKey.includes('age') ? 5 : 4;
-            const cx = width * 914400; // Convert inches to EMUs
-            const cy = height * 914400;
-            
-            // Create image XML element
-            const imageXml = `<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${relId}" name="${imageName}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="${imageName}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>`;
-            
-            // Replace placeholder with image XML
-            const placeholder = `{${imageKey}}`;
-            if (documentXml.includes(placeholder)) {
-                documentXml = documentXml.replace(placeholder, imageXml);
-                console.log(`✅ Replaced ${placeholder} with image (${width}x${height} inches)`);
-            } else {
-                console.log(`⚠️ Placeholder ${placeholder} not found in document`);
-            }
-        });
-        
-        // Update files
-        zip.updateFile('word/document.xml', Buffer.from(documentXml, 'utf8'));
-        zip.updateFile('word/_rels/document.xml.rels', Buffer.from(relsXml, 'utf8'));
-        
-        return zip.toBuffer();
-    } catch (error) {
-        console.error('Error inserting images:', error);
-        console.error('Stack:', error.stack);
-        return wordBuffer;
-    }
-}
-
+// ─────────────────────────────────────────────────────────────
+// POST /generate-report
+//
+// Receives:
+//   • text data  ({{tag}} placeholders handled by docxtemplater)
+//   • _chartImages  (base64 PNGs — matched by ALT-TEXT on stock
+//                     images in the template, then the media
+//                     file is swapped in-place)
+// ─────────────────────────────────────────────────────────────
 app.post('/generate-report', (req, res) => {
     try {
-        // Use the spread operator to get all variables sent from the frontend
         const data = req.body;
-        
-        // Extract and process images
-        const images = {};
+
+        // --- Separate chart images from text data ---
+        const chartImages = data._chartImages || {};
         const textData = { ...data };
-        
-        Object.keys(data).filter(k => k.includes('_image')).forEach(key => {
-            const imageValue = data[key];
-            if (imageValue && typeof imageValue === 'string' && imageValue.startsWith('data:image')) {
-                try {
-                    const base64Data = imageValue.split(',')[1];
-                    const imageBuffer = Buffer.from(base64Data, 'base64');
-                    images[key] = imageBuffer;
-                    // Remove from text data
-                    delete textData[key];
-                    console.log(`✅ Processed ${key}, size: ${imageBuffer.length} bytes`);
-                } catch (e) {
-                    console.error(`❌ Failed to process ${key}:`, e.message);
-                }
-            }
-        }); 
-
-        const content = fs.readFileSync(
-            path.resolve(__dirname, 'Group Profile CorporateHRA Scan.docx'),
-            'binary'
-        );
-
-        const zip = new PizZip(content);
-        
-        // Generate document with text placeholders only (no images)
-        const doc = new Docxtemplater(zip, {
-            paragraphLoop: true,
-            linebreaks: true
+        delete textData._chartImages;
+        // Strip any stale image keys that might have leaked in
+        Object.keys(textData).filter(k => k.includes('_image')).forEach(key => {
+            delete textData[key];
         });
 
-        // Render document with text data only
-        console.log('\n=== Starting document render (text only) ===');
-        doc.render(textData);
-        console.log('✅ Document rendered successfully');
+        console.log('\n=== Chart images received ===');
+        const imageTagNames = Object.keys(chartImages);
+        console.log(`📸 ${imageTagNames.length} chart images:`, imageTagNames);
 
-        // Generate Word document buffer
-        let buf = doc.getZip().generate({ type: 'nodebuffer' });
-        
-        // Insert images into the document
-        if (Object.keys(images).length > 0) {
-            console.log(`\n=== Inserting ${Object.keys(images).length} images ===`);
-            buf = insertImagesIntoWord(buf, images);
-            console.log('✅ Images inserted successfully');
+        // --- Convert base64 data-URIs → raw Buffers ---
+        const imageBuffers = {};
+        for (const [tagName, dataURI] of Object.entries(chartImages)) {
+            try {
+                const buf = base64ToBuffer(dataURI);
+                if (buf && buf.length > 0) {
+                    imageBuffers[tagName] = buf;
+                    console.log(`  ✅ ${tagName}: ${(buf.length / 1024).toFixed(1)} KB`);
+                } else {
+                    console.warn(`  ⚠️ ${tagName}: empty buffer — skipping`);
+                }
+            } catch (convErr) {
+                console.error(`  ❌ ${tagName}: base64 conversion failed —`, convErr.message);
+            }
         }
+
+        // --- Locate template ---
+        let templatePath = path.resolve(__dirname, 'data', 'Group Profile CorporateHRA Scan.docx');
+        if (!fs.existsSync(templatePath)) {
+            templatePath = path.resolve(__dirname, 'Group Profile CorporateHRA Scan.docx');
+        }
+        if (!fs.existsSync(templatePath)) {
+            console.error(`❌ Template not found`);
+            return res.status(500).send("Template file not found.");
+        }
+
+        const content = fs.readFileSync(templatePath, 'binary');
+        if (content.length < 4 || content.substring(0, 2) !== 'PK') {
+            return res.status(500).send("Template file is corrupted (not a valid ZIP/Word file).");
+        }
+
+        const zip = new PizZip(content);
+        if (!zip.files['word/document.xml']) {
+            return res.status(500).send("Template is missing word/document.xml.");
+        }
+
+        // ──────────────────────────────────────────────
+        // PHASE 1 — Docxtemplater: TEXT-ONLY replacement
+        // Uses {{ }} delimiters.  {%...} tags are left as-is.
+        // ──────────────────────────────────────────────
+        const doc = new Docxtemplater(zip, {
+            paragraphLoop: false,
+            linebreaks: true,
+            delimiters: { start: '{{', end: '}}' }
+            // NO image module — it corrupts the file with docxtemplater v3.67
+        });
+
+        console.log('\n=== Phase 1: Text replacement ===');
+        console.log('Text data keys:', Object.keys(textData).slice(0, 10), '...');
+        try {
+            doc.render(textData);
+            console.log('✅ Text rendered successfully');
+        } catch (renderError) {
+            console.error('❌ Docxtemplater render error:', renderError.message);
+            if (renderError.properties?.explanation) {
+                console.error('Explanation:', renderError.properties.explanation);
+            }
+            return res.status(500).send(`Template rendering failed: ${renderError.message}`);
+        }
+
+        let buf;
+        try {
+            buf = doc.getZip().generate({ type: 'nodebuffer' });
+            console.log(`✅ Text-only document: ${(buf.length / 1024).toFixed(0)} KB`);
+        } catch (genErr) {
+            console.error('❌ Failed to generate buffer:', genErr.message);
+            return res.status(500).send("Failed to generate Word document.");
+        }
+
+        // ──────────────────────────────────────────────
+        // PHASE 2 — Image swap via alt-text matching
+        // Finds stock images whose alt-text matches a tag
+        // name, then replaces the underlying media file.
+        // ──────────────────────────────────────────────
+        if (Object.keys(imageBuffers).length > 0) {
+            console.log('\n=== Phase 2: Image injection ===');
+            buf = injectChartImages(buf, imageBuffers);
+        } else {
+            console.log('\n=== Phase 2: Skipped (no images) ===');
+        }
+
+        // --- Send response ---
         res.set({
             'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'Content-Disposition': `attachment; filename=Analysis_${data.s_date}.docx`
+            'Content-Disposition': `attachment; filename=Analysis_${data.s_date || 'report'}.docx`
         });
         res.send(buf);
 
     } catch (error) {
-        console.error(error);
-        res.status(500).send("Internal Server Error");
+        console.error('❌ Generate report error:', error);
+        console.error('Stack:', error.stack);
+        res.status(500).send(`Internal Server Error: ${error.message}`);
     }
 });
 

@@ -209,29 +209,6 @@ function updateDashboardFilters() {
 
 // --- Chart Drawing Functions (No Change) ---
 
-
-// Function to capture chart as base64 image
-function captureChartAsImage(chartId) {
-    const chartInstance = chartInstances[chartId];
-    if (!chartInstance) {
-        console.warn(`Chart ${chartId} not found in chartInstances`);
-        return null;
-    }
-    try {
-        const image = chartInstance.toBase64Image('image/png', 1.0);
-        if (image) {
-            console.log(`Successfully captured ${chartId}, image length: ${image.length}`);
-        }
-        return image;
-    } catch (error) {
-        console.error(`Error capturing chart ${chartId}:`, error);
-        return null;
-    }
-}
-
-// Expose function to window for report generator
-window.captureChartAsImage = captureChartAsImage;
-
 /**
  * Modern ApexCharts implementation for all charts except Age
  */
@@ -522,35 +499,44 @@ async function updateDashboardAndCharts(data) {
         'chartStress', 'chartMedication'
     ];
 
-    // Update overview graph - ALWAYS use unfiltered data totals
-    let totalUnfilteredEmployees = 0;
-    let totalUnfilteredCompanies = companyNames.size; // This already contains all companies
-    
-    // Calculate total employees from all loaded data (unfiltered)
-    if (allLoadedData && allLoadedData.length > 0) {
-        allLoadedData.forEach(dataObj => {
-            if (dataObj.data && dataObj.data.length > 1) {
-                totalUnfilteredEmployees += dataObj.data.length - 1; // Subtract header row
-            }
-        });
+    // --- OVERVIEW: use CURRENT FILTERED DATA, not global totals ---
+    let filteredEmployees = Math.max(totalEmployees, 0);
+    let filteredCompanies = 0;
+
+    let header = null;
+    if (data && data.length > 0) {
+        header = data[0].map(h => String(h || '').toLowerCase().trim());
+
+        const companyIdx = findCol(header, 'company');
+        if (companyIdx !== -1 && data.length > 1) {
+            const companySet = new Set();
+            data.slice(1).forEach(row => {
+                const comp = (row[companyIdx] || '').toString().toUpperCase().trim();
+                if (comp) companySet.add(comp);
+            });
+            filteredCompanies = companySet.size;
+        } else if (selectedCompany && selectedCompany !== 'ALL') {
+            // Fallback: we know the user filtered by a specific company
+            filteredCompanies = 1;
+        } else {
+            // No company column detected – fall back to total known companies
+            filteredCompanies = companyNames.size;
+        }
     }
-    
-    const maxCompanies = Math.max(totalUnfilteredCompanies * 1.2, 10);
-    const maxEmployees = Math.max(totalUnfilteredEmployees * 1.2, 100);
-    
-    // Always show unfiltered totals in overview graph
-    createOverviewGraph('overviewGraph', totalUnfilteredCompanies, totalUnfilteredEmployees, maxCompanies, maxEmployees);
+
+    const maxCompanies = Math.max((filteredCompanies || 0) * 1.2, 10);
+    const maxEmployees = Math.max((filteredEmployees || 0) * 1.2, 100);
+
+    createOverviewGraph('overviewGraph', filteredCompanies, filteredEmployees, maxCompanies, maxEmployees);
 
     if (totalEmployees <= 0) {
         allChartIds.forEach(id => clearChart(id, 'No data available for the current filters.'));
-        // Still show unfiltered totals even when filtered data is empty
-        createOverviewGraph('overviewGraph', totalUnfilteredCompanies, totalUnfilteredEmployees, maxCompanies, maxEmployees);
         return;
     }
     lastFilteredData = data;
     
     // --- PRE-CALCULATION BLOCK (Runs quickly) ---
-    const header = data[0].map(h => String(h || '').toLowerCase().trim());
+    // header already computed above
 
     // --- ASYNCHRONOUS RENDERING BLOCK ---
     // This helper allows the browser to "breathe" so the search bar doesn't freeze
@@ -1158,8 +1144,10 @@ function openDataGridPopup(data, rangeText) {
 document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('generateUserReportBtn');
     if (btn) {
-        btn.addEventListener('click', (event) => {
+        btn.addEventListener('click', async (event) => {
             event.preventDefault(); // Prevent default form submission if any
+
+            console.log('🖨️ Print Report button clicked');
 
             // Validate that a company is selected
             const companySelect = document.getElementById('companySelect');
@@ -1168,10 +1156,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // Check if generateUserReport function exists
+            if (typeof generateUserReport !== 'function') {
+                console.error('❌ generateUserReport function is not defined');
+                alert('Error: Report generator function is not available. Please refresh the page and try again.');
+                return;
+            }
+
             // #region agent log
             fetch('http://127.0.0.1:7242/ingest/1d97a748-68d6-4f07-a07e-26d0c0815749',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'adminpage.js:generateUserReportBtnClick',message:'Group Profile button clicked',data:{hasHeaderRowOnWindow:!!window.headerRow,selectedCompany:companySelect.value},timestamp:Date.now()})}).catch(()=>{});
             // #endregion agent log
-            generateUserReport(window.headerRow); // Pass headerRow here
+
+            try {
+                console.log('📊 Starting report generation...');
+                await generateUserReport();
+                console.log('✅ Report generation completed');
+            } catch (error) {
+                console.error('❌ Error generating report:', error);
+                console.error('Error stack:', error.stack);
+                alert(`Error generating report: ${error.message}. Please check the browser console for details.`);
+            }
         });
     } else {
         console.error("Could not find button with ID 'generateUserReportBtn'");
