@@ -83,11 +83,15 @@ function injectChartImages(wordBuffer, imageBuffers) {
         let docPrCounter = 90000;   // high number to avoid ID collisions
 
         for (const [tagName, imgBuffer] of Object.entries(imageBuffers)) {
-            let matched = false;
+            let matchCount = 0;
             // Regex to match descr="tagName" with optional trailing &#xA; (Word adds newlines)
             const descrPattern = new RegExp(
                 `descr="${escapeRegex(tagName)}(&#xA;)*"`
             );
+
+            // New media file for this chart image (shared across all matches)
+            const newMediaFile = `media/chart_${tagName}.png`;
+            zip.file(`word/${newMediaFile}`, imgBuffer);
 
             for (const xmlFile of xmlParts) {
                 let docXml = zip.files[xmlFile].asText();
@@ -95,35 +99,34 @@ function injectChartImages(wordBuffer, imageBuffers) {
                 if (!zip.files[relsPath]) continue;
                 let relsXml = zip.files[relsPath].asText();
 
-                // Find all <w:drawing>…</w:drawing> blocks
+                // ── PASS 1: Collect ALL matching drawings ──
+                // We gather positions first because modifying docXml
+                // mid-scan invalidates regex indices.
+                const matches = [];
                 const drawingRegex = /<w:drawing>[\s\S]*?<\/w:drawing>/g;
                 let dm;
-
                 while ((dm = drawingRegex.exec(docXml)) !== null) {
-                    const block = dm[0];
+                    if (descrPattern.test(dm[0])) {
+                        matches.push({ index: dm.index, block: dm[0] });
+                    }
+                }
 
-                    // ── Match alt-text ──
-                    if (!descrPattern.test(block)) continue;
+                if (matches.length === 0) continue;
 
-                    // Determine element type
+                // ── PASS 2: Replace from END to START ──
+                // Reverse order ensures earlier indices stay valid.
+                for (let mi = matches.length - 1; mi >= 0; mi--) {
+                    const { index: blockIdx, block } = matches[mi];
+
                     const isChart = block.includes('drawingml/2006/chart');
                     const embedMatch = /r:embed="(rId\d+)"/.exec(block);
 
-                    // Extract original size from <wp:extent cx="…" cy="…"/>
                     const extM = /<wp:extent[^>]*cx="(\d+)"[^>]*cy="(\d+)"/.exec(block);
                     const cx = extM ? extM[1] : '4572000';
                     const cy = extM ? extM[2] : '3200400';
 
-                    // New media file for this chart image
-                    const newMediaFile = `media/chart_${tagName}.png`;
-                    zip.file(`word/${newMediaFile}`, imgBuffer);
-
                     // ─────────────────────────────────────
                     // CASE A: WORD-NATIVE CHART
-                    // Replace <a:graphic>…</a:graphic> section
-                    // with picture-based content.  Everything
-                    // outside <a:graphic> is preserved (wrapper,
-                    // size, anchoring, position).
                     // ─────────────────────────────────────
                     if (isChart || !embedMatch) {
                         const newRelId = `rId${getNextRelId(relsXml)}`;
@@ -134,7 +137,6 @@ function injectChartImages(wordBuffer, imageBuffers) {
                             `Target="${newMediaFile}"/></Relationships>`
                         );
 
-                        // Build replacement <a:graphic> with picture content
                         const picGraphic =
                             `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
                                 `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
@@ -155,14 +157,12 @@ function injectChartImages(wordBuffer, imageBuffers) {
                                 `</a:graphicData>` +
                             `</a:graphic>`;
 
-                        // Replace the <a:graphic>…</a:graphic> section inside this block
                         const gStart = block.indexOf('<a:graphic');
                         const gEnd   = block.indexOf('</a:graphic>');
                         if (gStart >= 0 && gEnd >= 0) {
                             const gEndFull = gEnd + '</a:graphic>'.length;
                             let newBlock = block.substring(0, gStart) + picGraphic + block.substring(gEndFull);
 
-                            // Add cNvGraphicFramePr if missing (needed for pictures)
                             if (!newBlock.includes('cNvGraphicFramePr')) {
                                 newBlock = newBlock.replace(
                                     '<a:graphic',
@@ -173,29 +173,23 @@ function injectChartImages(wordBuffer, imageBuffers) {
                                 );
                             }
 
-                            docXml = docXml.substring(0, dm.index) + newBlock +
-                                     docXml.substring(dm.index + block.length);
+                            docXml = docXml.substring(0, blockIdx) + newBlock +
+                                     docXml.substring(blockIdx + block.length);
                         }
 
-                        zip.file(relsPath, relsXml);
-                        zip.file(xmlFile, docXml);
                         injectedCount++;
-                        matched = true;
-                        console.log(`  ✅ "${tagName}" → replaced CHART with image (${cx}×${cy} EMU, ${newRelId} in ${xmlFile})`);
-                        break;
+                        matchCount++;
+                        console.log(`  ✅ "${tagName}" → replaced CHART #${mi + 1} with image (${cx}×${cy} EMU, ${newRelId} in ${xmlFile})`);
+                        continue;
                     }
 
                     // ─────────────────────────────────────
                     // CASE B: REGULAR PICTURE
-                    // Swap the underlying media file.  If
-                    // multiple images share the same rId,
-                    // create a dedicated rId for this one.
                     // ─────────────────────────────────────
                     const relId = embedMatch[1];
                     const rIdOccurrences = (docXml.match(new RegExp(`r:embed="${relId}"`, 'g')) || []).length;
 
                     if (rIdOccurrences <= 1) {
-                        // Unique relationship — just retarget it
                         const relElemRegex = new RegExp(`<Relationship[^>]*\\sId="${relId}"[^>]*/?>`, 'i');
                         const relMatch = relElemRegex.exec(relsXml);
                         if (relMatch) {
@@ -204,14 +198,10 @@ function injectChartImages(wordBuffer, imageBuffers) {
                                 relsXml = relsXml.replace(`Target="${tgtMatch[1]}"`, `Target="${newMediaFile}"`);
                             }
                         }
-                        zip.file(relsPath, relsXml);
-                        zip.file(xmlFile, docXml);
                         injectedCount++;
-                        matched = true;
-                        console.log(`  ✅ "${tagName}" → retargeted PICTURE ${relId} → ${newMediaFile} (${xmlFile})`);
-                        break;
+                        matchCount++;
+                        console.log(`  ✅ "${tagName}" → retargeted PICTURE #${mi + 1} ${relId} → ${newMediaFile} (${xmlFile})`);
                     } else {
-                        // Shared relationship — give this image its own rId
                         const newRelId = `rId${getNextRelId(relsXml)}`;
                         relsXml = relsXml.replace(
                             '</Relationships>',
@@ -220,24 +210,22 @@ function injectChartImages(wordBuffer, imageBuffers) {
                             `Target="${newMediaFile}"/></Relationships>`
                         );
 
-                        // Update ONLY this drawing block's r:embed
                         const updatedBlock = block.replace(`r:embed="${relId}"`, `r:embed="${newRelId}"`);
-                        docXml = docXml.substring(0, dm.index) + updatedBlock +
-                                 docXml.substring(dm.index + block.length);
+                        docXml = docXml.substring(0, blockIdx) + updatedBlock +
+                                 docXml.substring(blockIdx + block.length);
 
-                        zip.file(relsPath, relsXml);
-                        zip.file(xmlFile, docXml);
                         injectedCount++;
-                        matched = true;
-                        console.log(`  ✅ "${tagName}" → new rId ${newRelId} for shared PICTURE (was ${relId}, ${rIdOccurrences} uses) in ${xmlFile}`);
-                        break;
+                        matchCount++;
+                        console.log(`  ✅ "${tagName}" → new rId ${newRelId} for shared PICTURE #${mi + 1} (was ${relId}, ${rIdOccurrences} uses) in ${xmlFile}`);
                     }
                 }
 
-                if (matched) break;
+                // Write back the modified XML for this file
+                zip.file(relsPath, relsXml);
+                zip.file(xmlFile, docXml);
             }
 
-            if (!matched) {
+            if (matchCount === 0) {
                 console.warn(`  ⚠️ No image/chart with alt-text "${tagName}" found — skipping`);
             }
         }

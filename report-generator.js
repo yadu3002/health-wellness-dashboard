@@ -64,7 +64,8 @@ async function capturePopupChartImages(reportData) {
             const img = await _renderAndCapture({
                 series: [{ name: 'Male', data: labels.map(l => buckets[l].M) }, { name: 'Female', data: labels.map(l => buckets[l].F) }],
                 chart: { type: 'bar', height: 400, toolbar: { show: false }, animations: { enabled: false } },
-                plotOptions: { bar: { borderRadius: 8, columnWidth: '60%' } },
+                plotOptions: { bar: { borderRadius: 8, columnWidth: '60%', dataLabels: { position: 'top' } } },
+                dataLabels: { enabled: true, formatter: function(val) { return val; }, offsetY: -20, style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] } },
                 colors: ['#4e73df', '#fb7185'],
                 xaxis: { categories: labels },
                 yaxis: { title: { text: 'Count' } },
@@ -90,7 +91,8 @@ async function capturePopupChartImages(reportData) {
             const img = await _renderAndCapture({
                 series: [{ name: 'Count', data: stages.map(s => s.count) }],
                 chart: { type: 'bar', height: 400, toolbar: { show: false }, animations: { enabled: false } },
-                plotOptions: { bar: { borderRadius: 10, distributed: true, columnWidth: '70%' } },
+                plotOptions: { bar: { borderRadius: 10, distributed: true, columnWidth: '70%', dataLabels: { position: 'top' } } },
+                dataLabels: { enabled: true, formatter: function(val) { return val; }, offsetY: -20, style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] } },
                 colors: stages.map(s => s.color),
                 xaxis: { categories: stages.map(s => s.name) },
                 yaxis: { title: { text: 'Count' } },
@@ -123,7 +125,8 @@ async function capturePopupChartImages(reportData) {
             const img = await _renderAndCapture({
                 series: [{ name: 'Count', data: stages.map(s => s.count) }],
                 chart: { type: 'bar', height: 400, toolbar: { show: false }, animations: { enabled: false } },
-                plotOptions: { bar: { borderRadius: 12, distributed: true, columnWidth: '70%' } },
+                plotOptions: { bar: { borderRadius: 12, distributed: true, columnWidth: '70%', dataLabels: { position: 'top' } } },
+                dataLabels: { enabled: true, formatter: function(val) { return val; }, offsetY: -20, style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] } },
                 colors: stages.map(s => s.color),
                 xaxis: { categories: stages.map(s => s.name) },
                 yaxis: { title: { text: 'Count' } },
@@ -157,7 +160,8 @@ async function capturePopupChartImages(reportData) {
             const img = await _renderAndCapture({
                 series: [{ name: 'Count', data: grades.map(g => g.count) }],
                 chart: { type: 'bar', height: 400, toolbar: { show: false }, animations: { enabled: false } },
-                plotOptions: { bar: { borderRadius: 12, distributed: true, columnWidth: '70%' } },
+                plotOptions: { bar: { borderRadius: 12, distributed: true, columnWidth: '70%', dataLabels: { position: 'top' } } },
+                dataLabels: { enabled: true, formatter: function(val) { return val; }, offsetY: -20, style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] } },
                 colors: grades.map(g => g.color),
                 xaxis: { categories: grades.map(g => g.name) },
                 yaxis: { title: { text: 'Count' } },
@@ -188,7 +192,8 @@ async function capturePopupChartImages(reportData) {
             const img = await _renderAndCapture({
                 series: [{ name: 'Count', data: stages.map(s => s.count) }],
                 chart: { type: 'bar', height: 400, toolbar: { show: false }, animations: { enabled: false } },
-                plotOptions: { bar: { borderRadius: 12, distributed: true, columnWidth: '70%' } },
+                plotOptions: { bar: { borderRadius: 12, distributed: true, columnWidth: '70%', dataLabels: { position: 'top' } } },
+                dataLabels: { enabled: true, formatter: function(val) { return val; }, offsetY: -20, style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] } },
                 colors: stages.map(s => s.color),
                 xaxis: { categories: stages.map(s => s.name) },
                 yaxis: { title: { text: 'Count' } },
@@ -221,7 +226,8 @@ async function capturePopupChartImages(reportData) {
         const img = await _renderAndCapture({
             series: [{ name: 'Count', data: allItems.map(i => i.count) }],
             chart: { type: 'bar', height: 450, toolbar: { show: false }, animations: { enabled: false } },
-            plotOptions: { bar: { borderRadius: 10, distributed: true, columnWidth: '65%' } },
+            plotOptions: { bar: { borderRadius: 10, distributed: true, columnWidth: '65%', dataLabels: { position: 'top' } } },
+            dataLabels: { enabled: true, formatter: function(val) { return val; }, offsetY: -20, style: { fontSize: '12px', fontWeight: 600, colors: ['#1e293b'] } },
             colors: allItems.map(i => i.color),
             xaxis: { categories: allItems.map(i => i.name), labels: { rotate: -45, rotateAlways: true, style: { fontSize: '10px' } } },
             yaxis: { title: { text: 'Count' } },
@@ -230,32 +236,104 @@ async function capturePopupChartImages(reportData) {
         if (img) { images['fitness_popup_chart_image'] = img; console.log('📸 Popup captured: fitness_popup_chart_image'); }
     } catch (e) { console.error('❌ Fitness popup capture failed:', e); }
 
-    // ── 7. STRESS & HABITS (bar) ─────────────────────────────
+    // ── 7a. STRESS (STR1-4 bar) ──────────────────────────────
     try {
-        const indicators = [
+        const stressInds = [
             { id: 'str1', name: 'Work Stress', color: '#e74a3b', isReversed: false },
             { id: 'str2', name: 'Family Stress', color: '#e74a3b', isReversed: false },
             { id: 'str3', name: 'Financial Stress', color: '#e74a3b', isReversed: false },
-            { id: 'str4', name: 'Poor Sleep', color: '#e74a3b', isReversed: true },
-            { id: 'hab1', name: 'Smoking', color: '#f6c23e', isReversed: false },
-            { id: 'hab2', name: 'Alcohol', color: '#f6c23e', isReversed: false },
-            { id: 'hab3', name: 'Other Habits', color: '#f6c23e', isReversed: false }
+            { id: 'str4', name: 'Poor Sleep', color: '#e74a3b', isReversed: true }
         ];
-        indicators.forEach(ind => {
+        stressInds.forEach(ind => {
             const ci = _col(ind.id); ind.count = 0;
             if (ci !== -1) { rows.forEach(row => { const v = (row[ci] || '').toString().toUpperCase().trim(); if (!ind.isReversed && v.startsWith('Y')) ind.count++; else if (ind.isReversed && v.startsWith('N')) ind.count++; }); }
         });
         const img = await _renderAndCapture({
-            series: [{ name: 'Count', data: indicators.map(i => i.count) }],
+            series: [{ name: 'Count', data: stressInds.map(i => i.count) }],
             chart: { type: 'bar', height: 450, toolbar: { show: false }, animations: { enabled: false } },
-            plotOptions: { bar: { borderRadius: 10, distributed: true, columnWidth: '65%' } },
-            colors: indicators.map(i => i.color),
-            xaxis: { categories: indicators.map(i => i.name), labels: { rotate: -45, rotateAlways: true, style: { fontSize: '10px' } } },
+            plotOptions: { bar: { borderRadius: 10, distributed: true, columnWidth: '65%', dataLabels: { position: 'top' } } },
+            dataLabels: { enabled: true, formatter: function(val) { return val; }, offsetY: -20, style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] } },
+            colors: stressInds.map(i => i.color),
+            xaxis: { categories: stressInds.map(i => i.name), labels: { rotate: -45, rotateAlways: true, style: { fontSize: '10px' } } },
             yaxis: { title: { text: 'Count' } },
             legend: { show: false }
         }, 800, 450);
         if (img) { images['stress_popup_chart_image'] = img; console.log('📸 Popup captured: stress_popup_chart_image'); }
     } catch (e) { console.error('❌ Stress popup capture failed:', e); }
+
+    // ── 7b. HABITS (HAB1-4 bar) ────────────────────────────
+    try {
+        const habitsInds = [
+            { id: 'hab1', name: 'Smoking', color: '#f6c23e', isReversed: false },
+            { id: 'hab2', name: 'Alcohol', color: '#f6c23e', isReversed: false },
+            { id: 'hab3', name: 'Oral Tobacco', color: '#f6c23e', isReversed: false },
+            { id: 'hab4', name: 'Poor Safety', color: '#f6c23e', isReversed: true }
+        ];
+        habitsInds.forEach(ind => {
+            const ci = _col(ind.id); ind.count = 0;
+            if (ci !== -1) { rows.forEach(row => { const v = (row[ci] || '').toString().toUpperCase().trim(); if (!ind.isReversed && v.startsWith('Y')) ind.count++; else if (ind.isReversed && v.startsWith('N')) ind.count++; }); }
+        });
+        const img = await _renderAndCapture({
+            series: [{ name: 'Count', data: habitsInds.map(i => i.count) }],
+            chart: { type: 'bar', height: 450, toolbar: { show: false }, animations: { enabled: false } },
+            plotOptions: { bar: { borderRadius: 10, distributed: true, columnWidth: '65%', dataLabels: { position: 'top' } } },
+            dataLabels: { enabled: true, formatter: function(val) { return val; }, offsetY: -20, style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] } },
+            colors: habitsInds.map(i => i.color),
+            xaxis: { categories: habitsInds.map(i => i.name), labels: { rotate: -45, rotateAlways: true, style: { fontSize: '10px' } } },
+            yaxis: { title: { text: 'Count' } },
+            legend: { show: false }
+        }, 800, 450);
+        if (img) { images['habits_popup_chart_image'] = img; console.log('📸 Popup captured: habits_popup_chart_image'); }
+    } catch (e) { console.error('❌ Habits popup capture failed:', e); }
+
+    // ── 7c. NUTRITION (NUT1-4 bar) ─────────────────────────
+    try {
+        const nutInds = [
+            { id: 'nut1', name: 'Fruits & Vegetables', color: '#1cc88a', isReversed: false },
+            { id: 'nut2', name: 'Milk/Curd/Eggs', color: '#36b9cc', isReversed: false },
+            { id: 'nut3', name: 'Water', color: '#4e73df', isReversed: false },
+            { id: 'nut4', name: 'Commercial Foods', color: '#858796', isReversed: true }
+        ];
+        nutInds.forEach(ind => {
+            const ci = _col(ind.id); ind.count = 0;
+            if (ci !== -1) { rows.forEach(row => { const v = (row[ci] || '').toString().toUpperCase().trim(); if (!ind.isReversed && v.startsWith('Y')) ind.count++; else if (ind.isReversed && v.startsWith('N')) ind.count++; }); }
+        });
+        const img = await _renderAndCapture({
+            series: [{ name: 'Count', data: nutInds.map(i => i.count) }],
+            chart: { type: 'bar', height: 450, toolbar: { show: false }, animations: { enabled: false } },
+            plotOptions: { bar: { borderRadius: 10, distributed: true, columnWidth: '65%', dataLabels: { position: 'top' } } },
+            dataLabels: { enabled: true, formatter: function(val) { return val; }, offsetY: -20, style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] } },
+            colors: nutInds.map(i => i.color),
+            xaxis: { categories: nutInds.map(i => i.name), labels: { style: { fontSize: '12px' } } },
+            yaxis: { title: { text: 'Count' } },
+            legend: { show: false }
+        }, 800, 450);
+        if (img) { images['nutrition_popup_chart_image'] = img; console.log('📸 Popup captured: nutrition_popup_chart_image'); }
+    } catch (e) { console.error('❌ Nutrition popup capture failed:', e); }
+
+    // ── 7d. EXERCISE (EXE1-3 bar) ──────────────────────────
+    try {
+        const exeInds = [
+            { id: 'exe1', name: 'Daily Exercise', color: '#1cc88a', isReversed: false },
+            { id: 'exe2', name: 'Toe Touch', color: '#858796', isReversed: false },
+            { id: 'exe3', name: 'Push Ups', color: '#4e73df', isReversed: false }
+        ];
+        exeInds.forEach(ind => {
+            const ci = _col(ind.id); ind.count = 0;
+            if (ci !== -1) { rows.forEach(row => { const v = (row[ci] || '').toString().toUpperCase().trim(); if (v.startsWith('Y')) ind.count++; }); }
+        });
+        const img = await _renderAndCapture({
+            series: [{ name: 'Count', data: exeInds.map(i => i.count) }],
+            chart: { type: 'bar', height: 450, toolbar: { show: false }, animations: { enabled: false } },
+            plotOptions: { bar: { borderRadius: 10, distributed: true, columnWidth: '65%', dataLabels: { position: 'top' } } },
+            dataLabels: { enabled: true, formatter: function(val) { return val; }, offsetY: -20, style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] } },
+            colors: exeInds.map(i => i.color),
+            xaxis: { categories: exeInds.map(i => i.name), labels: { style: { fontSize: '12px' } } },
+            yaxis: { title: { text: 'Count' } },
+            legend: { show: false }
+        }, 800, 450);
+        if (img) { images['exercise_popup_chart_image'] = img; console.log('📸 Popup captured: exercise_popup_chart_image'); }
+    } catch (e) { console.error('❌ Exercise popup capture failed:', e); }
 
     // ── 8. CHRONIC DISEASE (horizontal bar) ──────────────────
     try {
@@ -275,7 +353,8 @@ async function capturePopupChartImages(reportData) {
             const img = await _renderAndCapture({
                 series: [{ name: 'Count', data: sorted.map(s => s[1]) }],
                 chart: { type: 'bar', height: Math.min(500, 40 * sorted.length + 160), toolbar: { show: false }, animations: { enabled: false } },
-                plotOptions: { bar: { horizontal: true, borderRadius: 10, barHeight: '70%' } },
+                plotOptions: { bar: { horizontal: true, borderRadius: 10, barHeight: '70%', dataLabels: { position: 'top' } } },
+                dataLabels: { enabled: true, formatter: function(val) { return val; }, offsetX: 8, style: { fontSize: '12px', fontWeight: 600, colors: ['#1e293b'] } },
                 colors: ['#4e73df'],
                 xaxis: { title: { text: 'Number of Reports' } },
                 yaxis: { categories: sorted.map(s => s[0]) },
@@ -307,7 +386,8 @@ async function capturePopupChartImages(reportData) {
             const img = await _renderAndCapture({
                 series: [{ name: 'Count', data: data }],
                 chart: { type: 'bar', height: 400, toolbar: { show: false }, animations: { enabled: false } },
-                plotOptions: { bar: { borderRadius: 12, distributed: true, columnWidth: '60%' } },
+                plotOptions: { bar: { borderRadius: 12, distributed: true, columnWidth: '60%', dataLabels: { position: 'top' } } },
+                dataLabels: { enabled: true, formatter: function(val) { return val; }, offsetY: -20, style: { fontSize: '14px', fontWeight: 600, colors: ['#1e293b'] } },
                 colors: ['#e74a3b', '#fd7e14', '#f6c23e'],
                 xaxis: { categories: labels },
                 yaxis: { title: { text: 'Count' } },
@@ -1032,12 +1112,224 @@ async function generateUserReport() {
                 s_date = e_date = wordDateValue;
             }
 
+            // 2b. Build employee list for the Word table
+            // Columns: Sl. No (auto), Emp Id, Name, Department
+            const empHeader  = reportData[0].map(h => String(h || '').toLowerCase().trim());
+            const empIdCol   = empHeader.findIndex(h => h.includes('empid'));
+            const empNameCol = empHeader.findIndex(h => h.includes('empname'));
+            const empDeptCol = empHeader.findIndex(h => h.includes('depart'));
+            const employees  = [];
+            for (let i = 1; i < reportData.length; i++) {
+                const row = reportData[i];
+                employees.push({
+                    sl_no:  i,
+                    emp_id: empIdCol   !== -1 ? String(row[empIdCol]   || '') : '',
+                    name:   empNameCol !== -1 ? String(row[empNameCol] || '') : '',
+                    dept:   empDeptCol !== -1 ? String(row[empDeptCol] || '') : ''
+                });
+            }
+            console.log(`👥 Employee list built: ${employees.length} rows (columns: empId=${empIdCol}, name=${empNameCol}, dept=${empDeptCol})`);
+
+            // ─────────────────────────────────────────────────
+            // 2c. Count Y and N for lifestyle flag columns
+            //     NUT1-4, EXE1-3, STR1-4, HAB1-4
+            // ─────────────────────────────────────────────────
+            const flagCols = [
+                'nut1','nut2','nut3','nut4',
+                'exe1','exe2','exe3',
+                'str1','str2','str3','str4',
+                'hab1','hab2','hab3','hab4'
+            ];
+            const flagHeader = reportData[0].map(h => String(h || '').toLowerCase().trim());
+            const flagIdx = {};
+            flagCols.forEach(c => { flagIdx[c] = flagHeader.findIndex(h => h.includes(c)); });
+
+            // Initialise raw counters  { nut1_y: 0, nut1_n: 0, … }
+            const _flagRaw = {};
+            flagCols.forEach(c => { _flagRaw[c + '_y'] = 0; _flagRaw[c + '_n'] = 0; });
+
+            for (let i = 1; i < reportData.length; i++) {
+                const row = reportData[i];
+                flagCols.forEach(c => {
+                    if (flagIdx[c] === -1) return;
+                    const v = String(row[flagIdx[c]] || '').toUpperCase().trim();
+                    if (v.startsWith('Y')) _flagRaw[c + '_y']++;
+                    else if (v.startsWith('N')) _flagRaw[c + '_n']++;
+                });
+            }
+
+            // Count employees where ALL of HAB1, HAB2, HAB3 are Y
+            let _hab_all_y = 0;
+            if (flagIdx['hab1'] !== -1 && flagIdx['hab2'] !== -1 && flagIdx['hab3'] !== -1) {
+                for (let i = 1; i < reportData.length; i++) {
+                    const row = reportData[i];
+                    const h1 = String(row[flagIdx['hab1']] || '').toUpperCase().trim();
+                    const h2 = String(row[flagIdx['hab2']] || '').toUpperCase().trim();
+                    const h3 = String(row[flagIdx['hab3']] || '').toUpperCase().trim();
+                    if (h1.startsWith('Y') && h2.startsWith('Y') && h3.startsWith('Y')) {
+                        _hab_all_y++;
+                    }
+                }
+            }
+
+            // Count employees where NUT1-3 are N AND NUT4 is Y (poor nutrition)
+            let _nut_poor = 0;
+            if (flagIdx['nut1'] !== -1 && flagIdx['nut2'] !== -1 && flagIdx['nut3'] !== -1 && flagIdx['nut4'] !== -1) {
+                for (let i = 1; i < reportData.length; i++) {
+                    const row = reportData[i];
+                    const n1 = String(row[flagIdx['nut1']] || '').toUpperCase().trim();
+                    const n2 = String(row[flagIdx['nut2']] || '').toUpperCase().trim();
+                    const n3 = String(row[flagIdx['nut3']] || '').toUpperCase().trim();
+                    const n4 = String(row[flagIdx['nut4']] || '').toUpperCase().trim();
+                    if (n1.startsWith('N') && n2.startsWith('N') && n3.startsWith('N') && n4.startsWith('Y')) {
+                        _nut_poor++;
+                    }
+                }
+            }
+
+            // Count employees where ALL of EXE1, EXE2, EXE3 are N
+            let _exe_all_n = 0;
+            if (flagIdx['exe1'] !== -1 && flagIdx['exe2'] !== -1 && flagIdx['exe3'] !== -1) {
+                for (let i = 1; i < reportData.length; i++) {
+                    const row = reportData[i];
+                    const e1 = String(row[flagIdx['exe1']] || '').toUpperCase().trim();
+                    const e2 = String(row[flagIdx['exe2']] || '').toUpperCase().trim();
+                    const e3 = String(row[flagIdx['exe3']] || '').toUpperCase().trim();
+                    if (e1.startsWith('N') && e2.startsWith('N') && e3.startsWith('N')) {
+                        _exe_all_n++;
+                    }
+                }
+            }
+
+            // Convert raw counts → percentages (of total employees screened)
+            const flagCounts = {};
+            Object.keys(_flagRaw).forEach(k => {
+                flagCounts[k] = employeeCount > 0
+                    ? ((_flagRaw[k] / employeeCount) * 100).toFixed(1)
+                    : '0.0';
+            });
+            const hab_all_y = employeeCount > 0 ? ((_hab_all_y / employeeCount) * 100).toFixed(1) : '0.0';
+            const nut_poor = employeeCount > 0 ? ((_nut_poor / employeeCount) * 100).toFixed(1) : '0.0';
+            const exe_all_n = employeeCount > 0 ? ((_exe_all_n / employeeCount) * 100).toFixed(1) : '0.0';
+            console.log('📊 Flag Y/N percentages:', flagCounts);
+            console.log(`📊 HAB1-4 all Y: ${_hab_all_y} employees (${hab_all_y}%)`);
+            console.log(`📊 NUT1-3 N & NUT4 Y: ${_nut_poor} employees (${nut_poor}%)`);
+            console.log(`📊 EXE1-3 all N: ${_exe_all_n} employees (${exe_all_n}%)`);
+
+            // Count employees with low heart rate (pulse < 60) OR low breath retention (breath < 30)
+            const _pulseCol  = flagHeader.findIndex(h => h.includes('pulse'));
+            const _breathCol = flagHeader.findIndex(h => h.includes('breath'));
+            let _low_hr_breath = 0;
+            for (let i = 1; i < reportData.length; i++) {
+                const row = reportData[i];
+                const pulse  = _pulseCol  !== -1 ? parseFloat(row[_pulseCol])  : NaN;
+                const breath = _breathCol !== -1 ? parseFloat(row[_breathCol]) : NaN;
+                const lowPulse  = !isNaN(pulse)  && pulse > 0  && pulse < 60;
+                const lowBreath = !isNaN(breath) && breath > 0 && breath < 30;
+                if (lowPulse || lowBreath) _low_hr_breath++;
+            }
+            const low_hr_breath = employeeCount > 0 ? ((_low_hr_breath / employeeCount) * 100).toFixed(1) : '0.0';
+            console.log(`💓 Low HR or Low Breath Retention: ${_low_hr_breath} employees (${low_hr_breath}%)`);
+
+            // Count employees with any non-empty value in MUSCU_OTH
+            const _muscuOthCol = flagHeader.findIndex(h => h.includes('muscu_oth'));
+            let _muscu_oth_count = 0;
+            if (_muscuOthCol !== -1) {
+                for (let i = 1; i < reportData.length; i++) {
+                    const val = String(reportData[i][_muscuOthCol] || '').trim();
+                    if (val.length > 0 && val !== '0' && val.toLowerCase() !== 'none' && val.toLowerCase() !== 'n/a') {
+                        _muscu_oth_count++;
+                    }
+                }
+            }
+            const muscu_oth_pct = employeeCount > 0 ? ((_muscu_oth_count / employeeCount) * 100).toFixed(1) : '0.0';
+            console.log(`🦴 MUSCU_OTH non-empty: ${_muscu_oth_count} employees (${muscu_oth_pct}%)`);
+
+            // ─────────────────────────────────────────────────
+            // 2d. Diabetes-related special counts (as percentages)
+            // ─────────────────────────────────────────────────
+            const _medCol       = flagHeader.findIndex(h => h.includes('medication'));
+            const _medDetCol    = flagHeader.findIndex(h => h.includes('med_details'));
+            const _pDetCol      = flagHeader.findIndex(h => h.includes('p_details'));
+            const _fbsCol       = flagHeader.findIndex(h => h.includes('bs1'));
+            const _rbsCol       = flagHeader.findIndex(h => h.includes('bs2'));
+
+            let _diabetes_med_y  = 0;   // MEDICATION=Y  AND  MED_DETAILS contains DIABETES
+            let _diabetes_unmed  = 0;   // MEDICATION=N  BUT  blood-sugar classifies as diabetic
+            let _family_hist     = 0;   // P_DETAILS contains SUGAR → Family History
+
+            for (let i = 1; i < reportData.length; i++) {
+                const row = reportData[i];
+                const medVal    = _medCol    !== -1 ? String(row[_medCol]    || '').toUpperCase().trim() : '';
+                const medDet    = _medDetCol !== -1 ? String(row[_medDetCol] || '').toLowerCase().trim() : '';
+                const pDet      = _pDetCol   !== -1 ? String(row[_pDetCol]  || '').toLowerCase().trim() : '';
+                const fbs       = _fbsCol    !== -1 ? parseFloat(row[_fbsCol]) : NaN;
+                const rbs       = _rbsCol    !== -1 ? parseFloat(row[_rbsCol]) : NaN;
+
+                // (a) On medication AND MED_DETAILS mentions diabetes
+                if (medVal === 'Y' && medDet.includes('diabetes')) {
+                    _diabetes_med_y++;
+                }
+
+                // (b) NOT on medication BUT graph classifies as diabetic
+                //     Thresholds from charts-logic.js diabetes popup:
+                //       Pre-Diabetic:  FBS 101-110  OR  RBS 161-200
+                //       Moderate:      FBS 111-129  OR  RBS 201-250
+                //       Diabetic:      FBS >= 130   OR  RBS >= 251
+                if (medVal === 'N' || medVal === '') {
+                    const fOk = !isNaN(fbs) && fbs > 0;
+                    const rOk = !isNaN(rbs) && rbs > 0;
+                    if (fOk || rOk) {
+                        const isDiabRisk =
+                            (fOk && fbs >= 101) ||
+                            (rOk && rbs >= 161);
+                        if (isDiabRisk) _diabetes_unmed++;
+                    }
+                }
+
+                // (c) Family History = P_DETAILS contains SUGAR
+                if (pDet.includes('sugar')) {
+                    _family_hist++;
+                }
+            }
+
+            // Convert counts → % Yes and % No (of total employees screened)
+            const pct   = (n) => employeeCount > 0 ? ((n / employeeCount) * 100).toFixed(1) : '0.0';
+            const pctNo = (n) => employeeCount > 0 ? (((employeeCount - n) / employeeCount) * 100).toFixed(1) : '0.0';
+
+            const diabetes_med_yes   = pct(_diabetes_med_y);
+            const diabetes_med_no    = pctNo(_diabetes_med_y);
+            const diabetes_unmed_yes = pct(_diabetes_unmed);
+            const diabetes_unmed_no  = pctNo(_diabetes_unmed);
+            const family_hist_yes    = pct(_family_hist);
+            const family_hist_no     = pctNo(_family_hist);
+
+            console.log(`🩺 Diabetes & family history (% Yes / % No of ${employeeCount} employees):`);
+            console.log(`   Known diabetics on medication:     ${diabetes_med_yes}% / ${diabetes_med_no}%`);
+            console.log(`   Known diabetics NOT on medication: ${diabetes_unmed_yes}% / ${diabetes_unmed_no}%`);
+            console.log(`   Family history (SUGAR in P_DETAILS): ${family_hist_yes}% / ${family_hist_no}%`);
+
             // 3. Send to Server
             // We pass an object so it's easy to add more stats later
             const reportPayload = {
                 count: employeeCount,
                 s_date,
                 e_date,
+                employees,
+                // Y/N flag counts (NUT, EXE, STR, HAB)
+                ...flagCounts,
+                hab_all_y,      // % of employees where HAB1-4 are all Y
+                nut_poor,       // % of employees where NUT1-3 are N and NUT4 is Y
+                exe_all_n,      // % of employees where EXE1-3 are all N
+                low_hr_breath,  // % of employees with low heart rate OR low breath retention
+                muscu_oth_pct,  // % of employees with non-empty MUSCU_OTH
+                // Diabetes & family history (% Yes / % No)
+                diabetes_med_yes,
+                diabetes_med_no,
+                diabetes_unmed_yes,
+                diabetes_unmed_no,
+                family_hist_yes,
+                family_hist_no,
                 m_per,
                 f_per,
                 under_30_per,

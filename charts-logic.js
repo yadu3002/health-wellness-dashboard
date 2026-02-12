@@ -837,7 +837,8 @@ function openStressHabitsPopup() {
         { id: 'str4', name: 'Poor Sleep', color: '#e74a3b', isReversed: true },
         { id: 'hab1', name: 'Smoking', color: '#f6c23e', isReversed: false },
         { id: 'hab2', name: 'Alcohol', color: '#f6c23e', isReversed: false },
-        { id: 'hab3', name: 'Other Habits', color: '#f6c23e', isReversed: false }
+        { id: 'hab3', name: 'Oral Tobacco', color: '#f6c23e', isReversed: false },
+        { id: 'hab4', name: 'Poor Safety', color: '#f6c23e', isReversed: true }
     ];
 
     indicators.forEach(ind => {
@@ -1750,7 +1751,8 @@ window.openUserReportPopup = function(graphType, barCategory) {
         str4: getCol('str4'),
         hab1: getCol('hab1'),
         hab2: getCol('hab2'),
-        hab3: getCol('hab3')
+        hab3: getCol('hab3'),
+        hab4: getCol('hab4')
     };
     
     // Filter rows based on graph type and bar category
@@ -1839,7 +1841,8 @@ window.openUserReportPopup = function(graphType, barCategory) {
             'Poor Sleep':       'str4',
             'Smoking':          'hab1',
             'Alcohol':          'hab2',
-            'Other Habits':     'hab3'
+            'Oral Tobacco':     'hab3',
+            'Poor Safety':      'hab4'
         };
 
         const key = keyMap[barCategory];
@@ -1848,8 +1851,8 @@ window.openUserReportPopup = function(graphType, barCategory) {
         if (idx !== -1 && idx != null) {
             filteredRows = rows.filter(row => {
                 const v = (row[idx] || '').toString().toUpperCase().trim();
-                if (key === 'str4') {
-                    // In the popup we count STR4 == 'N' (poor sleep) as an issue
+                if (key === 'str4' || key === 'hab4') {
+                    // Reversed: 'N' counts as the issue (poor sleep / poor safety)
                     return v.startsWith('N');
                 } else {
                     // For STR1–3 and HAB1–3 we count 'Y' as an issue
