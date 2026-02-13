@@ -200,7 +200,7 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
     }, 100);
 }
 
-// Dedicated renderer for age distribution by gender
+// Dedicated renderer for age distribution by gender (matches admin page style)
 function drawAgeChart(chartId, ageData) {
     const ctx = document.getElementById(chartId);
     if (!ctx) return;
@@ -208,29 +208,95 @@ function drawAgeChart(chartId, ageData) {
     if (chartInstances[chartId]) chartInstances[chartId].destroy();
     ctx.style.display = 'block';
 
-    // This specifically uses the Chart.js library as requested
+    // Responsive sizing based on viewport
+    const vw = window.innerWidth;
+    const legendFontSize = vw < 1200 ? 9 : vw < 1400 ? 10 : 11;
+
+    // Distinct colors per age bracket so the legend is readable
+    const maleColors   = ['#1e40af', '#3b82f6', '#93c5fd']; // dark → light blue
+    const femaleColors = ['#be123c', '#fb7185', '#fecdd3']; // dark → light pink
+
     chartInstances[chartId] = new Chart(ctx, {
         type: 'doughnut',
+        plugins: [ChartDataLabels],
         data: {
             labels: ageData.labels,
             datasets: [
                 {
                     label: 'Male',
                     data: ageData.male,
-                    backgroundColor: '#4e73df' // Admin Blue
+                    backgroundColor: maleColors.slice(0, ageData.labels.length)
                 },
                 {
                     label: 'Female',
                     data: ageData.female,
-                    backgroundColor: '#fb7185' // Admin Pink
+                    backgroundColor: femaleColors.slice(0, ageData.labels.length)
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'right' } },
-            cutout: '50%'
+            cutout: '45%',
+            layout: {
+                padding: {
+                    top: 2,
+                    bottom: 2,
+                    left: 2,
+                    right: 2
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: legendFontSize,
+                        boxHeight: legendFontSize - 2,
+                        padding: vw < 1400 ? 6 : 8,
+                        font: {
+                            size: legendFontSize,
+                            weight: '600'
+                        },
+                        color: '#1e293b',
+                        generateLabels: function(chart) {
+                            const datasets = chart.data.datasets;
+                            const labels = chart.data.labels;
+                            const items = [];
+                            datasets.forEach((ds, dsIdx) => {
+                                items.push({
+                                    text: ds.label,
+                                    fillStyle: ds.backgroundColor[0],
+                                    strokeStyle: ds.backgroundColor[0],
+                                    lineWidth: 0,
+                                    hidden: !chart.isDatasetVisible(dsIdx),
+                                    datasetIndex: dsIdx
+                                });
+                            });
+                            labels.forEach((label, i) => {
+                                items.push({
+                                    text: label,
+                                    fillStyle: datasets[0].backgroundColor[i],
+                                    strokeStyle: '#fff',
+                                    lineWidth: 1,
+                                    hidden: false,
+                                    index: i
+                                });
+                            });
+                            return items;
+                        }
+                    }
+                },
+                datalabels: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const dsLabel = context.dataset.label || '';
+                            const ageLabel = context.label || '';
+                            return `${dsLabel} (${ageLabel}): ${context.parsed}`;
+                        }
+                    }
+                }
+            }
         }
     });
 }
@@ -353,8 +419,6 @@ function updateDashboardAndCharts(data) {
     if (numCompaniesEl) {
         numCompaniesEl.textContent = companiesInSelection.size.toLocaleString();
     }
-    // Draw the overview graph card
-    createOverviewGraphIndex('overviewGraph', companiesInSelection.size, totalEmployees);
 
     // Process all charts
     // Inside updateDashboardAndCharts function in script.js

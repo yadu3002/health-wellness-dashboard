@@ -1703,14 +1703,30 @@ if (monthPickerInput) {
     
     // 5. Logout Button
     const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
+    const logoutModal = document.getElementById('logoutModal');
+    const logoutCancel = document.getElementById('logoutCancel');
+    const logoutConfirm = document.getElementById('logoutConfirm');
+
+    if (logoutBtn && logoutModal) {
         logoutBtn.addEventListener('click', () => {
-            const confirmed = window.confirm('Are you sure you want to logout?');
-            if (!confirmed) return;
-            
+            logoutModal.classList.add('active');
+        });
+
+        logoutCancel.addEventListener('click', () => {
+            logoutModal.classList.remove('active');
+        });
+
+        logoutConfirm.addEventListener('click', () => {
             localStorage.removeItem('adminName');
             localStorage.removeItem('loggedInUsername');
             window.location.href = 'index.html';
+        });
+
+        // Close modal if user clicks the backdrop
+        logoutModal.addEventListener('click', (e) => {
+            if (e.target === logoutModal) {
+                logoutModal.classList.remove('active');
+            }
         });
     }
 

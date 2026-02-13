@@ -1992,7 +1992,9 @@ window.openUserReportPopup = function(graphType, barCategory) {
         return obj;
     });
     
-    const reportTitle = `${barCategory} - ${graphType.charAt(0).toUpperCase() + graphType.slice(1)} Report`;
+    const graphLabel = graphType.charAt(0).toUpperCase() + graphType.slice(1);
+    const mainTitle = `${graphLabel} Report`;
+    const subTitle = barCategory;
     
     // Generate the HTML content
     const htmlContent = `
@@ -2000,7 +2002,7 @@ window.openUserReportPopup = function(graphType, barCategory) {
     <html>
     <head>
         <meta charset="UTF-8">
-        <title>${reportTitle}</title>
+        <title>${mainTitle} - ${subTitle}</title>
         <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2020,11 +2022,20 @@ window.openUserReportPopup = function(graphType, barCategory) {
             }
             .header h1 {
                 font-size: 24px;
-                margin-bottom: 10px;
+                margin-bottom: 4px;
+                text-align: center;
+            }
+            .header h2 {
+                font-size: 20px;
+                font-weight: 600;
+                opacity: 0.9;
+                margin-bottom: 8px;
+                text-align: center;
             }
             .header p {
                 font-size: 14px;
                 opacity: 0.9;
+                text-align: center;
             }
             .actions {
                 display: flex;
@@ -2086,19 +2097,21 @@ window.openUserReportPopup = function(graphType, barCategory) {
                 padding: 10px 12px;
                 border-bottom: 1px solid #e2e8f0;
             }
-            tr:hover {
+            tbody tr:hover {
                 background-color: #f8fafc;
             }
             @media print {
                 .actions { display: none; }
                 .header { background: #667eea !important; -webkit-print-color-adjust: exact; }
+                thead { background: #2563eb !important; -webkit-print-color-adjust: exact; }
                 body { padding: 0; }
             }
         </style>
     </head>
     <body>
         <div class="header">
-            <h1>${reportTitle}</h1>
+            <h1>${mainTitle}</h1>
+            <h2>${subTitle}</h2>
             <p>Total Employees: ${filteredRows.length}</p>
         </div>
         <div class="actions">
@@ -2129,7 +2142,7 @@ window.openUserReportPopup = function(graphType, barCategory) {
                 const ws = XLSX.utils.json_to_sheet(tableData);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, 'User Report');
-                XLSX.writeFile(wb, '${reportTitle.replace(/[^a-z0-9]/gi, '_')}.xlsx');
+                XLSX.writeFile(wb, '${(subTitle + '_' + mainTitle).replace(/[^a-z0-9]/gi, '_')}.xlsx');
             }
         </script>
     </body>

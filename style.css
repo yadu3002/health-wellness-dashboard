@@ -144,10 +144,10 @@ h1, h2, h3, h4 {
     position: relative;
     width: 100%;
     max-width: 100%;
-    /* Fluid height: scales from ~220px on small screens to ~300px on large ones */
-    height: clamp(200px, 26vh, 310px);
-    min-height: 180px;
-    max-height: 310px;
+    /* Fluid height: scales generously so charts are large and readable */
+    height: clamp(340px, 44vh, 520px);
+    min-height: 320px;
+    max-height: 520px;
     margin-bottom: clamp(0.75rem, 1.5vw, 1.5rem);
     padding: clamp(0.5rem, 1vw, 1rem);
     padding-bottom: 10px;
@@ -205,20 +205,82 @@ h1, h2, h3, h4 {
 }
 
 /* ============================
-   HEADER - Fluid scaling
+   DASHBOARD HEADER (index page) - matches admin page design
    ============================ */
-header .text-2xl {
-    font-size: clamp(1rem, 2vw, 1.5rem);
+.dashboard-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: none;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+    border-radius: 16px;
+    box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    overflow: hidden;
 }
 
-header .logo-container {
-    width: clamp(36px, 4vw, 48px) !important;
-    height: clamp(36px, 4vw, 48px) !important;
+.dashboard-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #f59e0b, #10b981);
+    border-radius: 16px 16px 0 0;
+}
+
+.logo-icon {
+    width: clamp(52px, 6vw, 80px);
+    height: clamp(52px, 6vw, 80px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.logo-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1rem 1.25rem;
+        gap: 0.75rem;
+    }
 }
 
 /* ============================
-   TOP INFO BAR - Fluid scaling
+   TOP INFO BAR - Fluid scaling + multi-color border
    ============================ */
+.info-bar {
+    position: relative;
+    overflow: hidden;
+}
+
+.info-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #f59e0b, #10b981);
+    border-radius: 16px 16px 0 0;
+}
 .info-bar-text {
     font-size: clamp(9px, 1vw, 11px);
 }
@@ -247,6 +309,14 @@ header .logo-container {
     grid-template-columns: repeat(5, 1fr);
 }
 
+/* Centered bottom row: 4 cards, full width so they match the top row sizing */
+.dashboard-chart-grid-centered {
+    grid-template-columns: repeat(4, 1fr);
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 /* ============================
    RESPONSIVENESS - Smooth breakpoints
    ============================ */
@@ -254,7 +324,7 @@ header .logo-container {
 /* Very large screens (2K+) - let charts breathe */
 @media (min-width: 1920px) {
     .chart-container {
-        height: clamp(260px, 24vh, 340px);
+        height: clamp(360px, 40vh, 520px);
     }
 }
 
@@ -262,7 +332,7 @@ header .logo-container {
 /* 14" laptops at native 1920x1080 w/ 125% scaling (effective ~1536px) */
 @media (max-width: 1536px) {
     .chart-container {
-        height: clamp(190px, 25vh, 290px);
+        height: clamp(300px, 38vh, 440px);
     }
 }
 
@@ -272,9 +342,12 @@ header .logo-container {
         grid-template-columns: repeat(5, 1fr);
         gap: 0.5rem;
     }
+    .dashboard-chart-grid-centered {
+        grid-template-columns: repeat(4, 1fr);
+    }
     
     .chart-container {
-        height: clamp(180px, 24vh, 260px);
+        height: clamp(260px, 34vh, 380px);
         padding: 0.5rem;
     }
     
@@ -293,9 +366,13 @@ header .logo-container {
     .dashboard-chart-grid {
         grid-template-columns: repeat(3, 1fr);
     }
+    .dashboard-chart-grid-centered {
+        grid-template-columns: repeat(3, 1fr);
+        max-width: 100%;
+    }
     
     .chart-container {
-        height: clamp(200px, 30vh, 280px);
+        height: clamp(260px, 34vh, 380px);
     }
 }
 
@@ -303,9 +380,13 @@ header .logo-container {
     .dashboard-chart-grid {
         grid-template-columns: repeat(2, 1fr);
     }
+    .dashboard-chart-grid-centered {
+        grid-template-columns: repeat(2, 1fr);
+        max-width: 100%;
+    }
     
     .chart-container {
-        height: clamp(200px, 32vh, 280px);
+        height: clamp(260px, 36vh, 380px);
         padding: 0.75rem;
     }
 }
@@ -319,8 +400,12 @@ header .logo-container {
     .dashboard-chart-grid {
         grid-template-columns: 1fr;
     }
+    .dashboard-chart-grid-centered {
+        grid-template-columns: 1fr;
+        max-width: 100%;
+    }
     
     .chart-container {
-        height: clamp(220px, 35vh, 300px);
+        height: clamp(280px, 40vh, 400px);
     }
 }
