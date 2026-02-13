@@ -435,16 +435,20 @@ async function generateUserReport() {
     // --- DATA GRID LOGIC ---
     if (userDateValue) {
         const gridData = filterDataBySpecificRange(userDateValue);
+        console.log(`📋 User Report: company="${selectedCompany}", date="${userDateValue}", rows=${gridData.length - 1}`);
         if (gridData.length > 1) openDataGridPopup(gridData, userDateValue);
-        else alert("No records for the grid date range.");
+        else alert("No records for the grid date range." +
+                   (selectedCompany !== 'ALL' ? ` (Company: ${selectedCompany})` : ''));
     }
 
     // --- WORD DOCUMENT LOGIC ---
     if (wordDateValue) {
         const reportData = filterDataBySpecificRange(wordDateValue);
+        console.log(`📊 Group Profile: company="${selectedCompany}", date="${wordDateValue}", rows=${reportData.length - 1}`);
         
         if (!reportData || reportData.length <= 1) {
-            alert(`No records found for: ${wordDateValue}`);
+            alert(`No records found for: ${wordDateValue}` +
+                  (selectedCompany !== 'ALL' ? ` (Company: ${selectedCompany})` : ''));
         } else {
             const employeeCount = reportData.length - 1;
 
@@ -1313,6 +1317,7 @@ async function generateUserReport() {
             // We pass an object so it's easy to add more stats later
             const reportPayload = {
                 count: employeeCount,
+                company_name: (typeof selectedCompany !== 'undefined' && selectedCompany && selectedCompany !== 'ALL') ? selectedCompany : 'All Companies',
                 s_date,
                 e_date,
                 employees,

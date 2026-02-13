@@ -199,22 +199,48 @@ function calculateChronicData(data, header) {
 }
 
 // (8) Chronic Medication Status
+// Risk = NOT medicated but HAS a chronic disease (diabetes, hypertension, high cholesterol)
 function calculateMedicationData(data, header) {
-    const medicationCol = findCol(header, 'medication');
-    if (medicationCol === -1) return null;
+    const medCol  = findCol(header, 'medication');
+    const fbsCol  = findCol(header, 'bs1');
+    const rbsCol  = findCol(header, 'bs2');
+    const bp1Col  = findCol(header, 'bp1');
+    const cholCol = findCol(header, 'cholesterol');
 
-    const counts = { 'Yes': 0, 'No': 0 }; 
+    // Need at least the medication column + one chronic-disease column
+    if (medCol === -1) return null;
+    if (fbsCol === -1 && rbsCol === -1 && bp1Col === -1 && cholCol === -1) return null;
+
+    const counts = { 'Risk': 0, 'WNL': 0 };
+
     for (const row of data) {
-        const value = (row[medicationCol] || '').toString().toUpperCase().trim();
+        const medValue = (row[medCol] || '').toString().toUpperCase().trim();
 
-        if (value.startsWith('Y')) { 
-            counts['Yes']++; 
-        } else if (value.startsWith('N')) { 
-            counts['No']++; 
+        // Skip rows with no medication answer
+        if (!medValue.startsWith('Y') && !medValue.startsWith('N')) continue;
+
+        const isOnMedication = medValue.startsWith('Y');
+
+        // Check for chronic conditions from lab values
+        const fbs  = parseFloat(row[fbsCol]);
+        const rbs  = parseFloat(row[rbsCol]);
+        const sbp  = parseFloat(row[bp1Col]);
+        const chol = parseFloat(row[cholCol]);
+
+        const hasDiabetes      = (fbs >= 126) || (rbs >= 200);
+        const hasHypertension  = (sbp >= 140);
+        const hasHighChol      = (chol >= 200);
+        const hasChronicDisease = hasDiabetes || hasHypertension || hasHighChol;
+
+        // RISK = NOT medicated BUT has a chronic disease
+        if (!isOnMedication && hasChronicDisease) {
+            counts['Risk']++;
+        } else {
+            counts['WNL']++;
         }
     }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
+
+    if (counts['Risk'] + counts['WNL'] === 0) return null;
     return counts;
 }
 

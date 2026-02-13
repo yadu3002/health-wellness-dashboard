@@ -64,10 +64,12 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
 
     const isPie = (type === 'pie' || type === 'doughnut');
 
-    // Calculate appropriate height based on container - ensure labels fit within bounds
-    const containerElement = container ? container : null;
-    const availableHeight = containerElement ? Math.min(containerElement.offsetHeight || 250, 250) : 250;
-    const containerHeight = availableHeight;
+    // Dynamic height: measure the actual container space minus the title label
+    const parentContainer = container.closest('.chart-container');
+    const titleEl = parentContainer ? parentContainer.querySelector('.text-sm') : null;
+    const titleHeight = titleEl ? titleEl.offsetHeight + 8 : 30; // title + margin
+    const parentHeight = parentContainer ? parentContainer.clientHeight : 260;
+    const containerHeight = Math.max(140, parentHeight - titleHeight - 16); // 16px for padding
 
     const options = {
         series: data,
@@ -116,21 +118,21 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
         },
         plotOptions: {
             pie: {
-                startAngle: -90, // Makes it a cool semi-circle arch
+                startAngle: -90,
                 endAngle: 90,
-                offsetY: 15,
+                offsetY: Math.max(5, Math.round(containerHeight * 0.06)),
                 donut: {
                     size: '68%',
                     labels: {
                         show: true,
-                        name: { show: true, fontSize: '12px', offsetY: -5, color: '#000000' },
-                        value: { show: true, fontSize: '18px', fontWeight: 'bold', offsetY: 0, color: '#000000' },
+                        name: { show: true, fontSize: window.innerWidth < 1400 ? '10px' : '12px', offsetY: -5, color: '#000000' },
+                        value: { show: true, fontSize: window.innerWidth < 1400 ? '14px' : '18px', fontWeight: 'bold', offsetY: 0, color: '#000000' },
                         total: {
                             show: true,
                             label: title,
                             formatter: (w) => w.globals.seriesTotals.reduce((a, b) => a + b, 0),
                             color: '#000000',
-                            fontSize: '12px',
+                            fontSize: window.innerWidth < 1400 ? '10px' : '12px',
                             fontWeight: 600
                         }
                     }
@@ -148,7 +150,7 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
                 return val.toFixed(0) + '%';
             },
             style: {
-                fontSize: '14px',
+                fontSize: window.innerWidth < 1400 ? '11px' : '14px',
                 fontWeight: 600,
                 colors: ['#000000']
             },
@@ -166,23 +168,23 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
         legend: { 
             position: 'bottom', 
             offsetY: -5,
-            height: 30,
+            height: undefined, // auto-size based on content
+            fontSize: window.innerWidth < 1400 ? '10px' : '11px',
             labels: {
                 colors: '#000000',
-                useSeriesColors: false,
-                fontSize: '11px'
+                useSeriesColors: false
             },
             itemMargin: {
-                horizontal: 6,
-                vertical: 2
+                horizontal: 4,
+                vertical: 1
             }
         },
         grid: { 
             padding: { 
-                bottom: 5,
-                top: 5,
-                left: 5,
-                right: 5
+                bottom: 0,
+                top: 0,
+                left: 2,
+                right: 2
             }
         }
     };
@@ -422,8 +424,8 @@ const charts = [
         const d = calculateMedicationData(data, header);
         if (d) { 
             preDrawCleanup('chartMedication'); 
-            // Map YES/NO to Risk/WNL, then ensure larger side is green
-            const mapped = { Risk: d['Yes'] || 0, WNL: d['No'] || 0 };
+            // Risk = unmedicated with chronic disease, WNL = everyone else
+            const mapped = { Risk: d['Risk'] || 0, WNL: d['WNL'] || 0 };
             const series = buildRiskWnlSeries(mapped);
             drawChart('chartMedication', 'pie', '', series.labels, series.values, series.colors);
         } else { 
@@ -463,12 +465,24 @@ function handleFilterChange() {
     updateDashboardAndCharts(dataToProcess);
 }
 
-// Window resize handler to update charts
+// Window resize handler - fully re-render charts so dynamic font sizes
+// and heights adapt when the window moves between monitors or is resized.
 let resizeTimeout;
+let lastResizeWidth = window.innerWidth;
 function handleResize() {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
-        // Resize all ApexCharts instances
+        const widthDelta = Math.abs(window.innerWidth - lastResizeWidth);
+        lastResizeWidth = window.innerWidth;
+
+        // If the width changed significantly (e.g. moved to a different monitor),
+        // do a full re-render so dynamic font sizes and chart heights recalculate.
+        if (widthDelta > 100 && lastFilteredData) {
+            updateDashboardAndCharts(lastFilteredData);
+            return;
+        }
+
+        // Otherwise, just resize existing chart instances
         Object.keys(chartInstances).forEach(chartId => {
             if (chartInstances[chartId] && typeof chartInstances[chartId].resize === 'function') {
                 try {
@@ -478,18 +492,7 @@ function handleResize() {
                 }
             }
         });
-        
-        // Resize Chart.js instances
-        Object.keys(chartInstances).forEach(chartId => {
-            if (chartInstances[chartId] && chartInstances[chartId].canvas) {
-                try {
-                    chartInstances[chartId].resize();
-                } catch (e) {
-                    console.warn('Error resizing Chart.js:', chartId, e);
-                }
-            }
-        });
-    }, 250);
+    }, 300);
 }
 
 // --- Initialize ---

@@ -1191,16 +1191,52 @@ function openPDetailsPopup() {
     const conditionCounts = {};
     let totalParticipantsWithConditions = 0;
 
+    // Known multi-word conditions that should NOT be split on spaces
+    const MULTI_WORD_CONDITIONS = [
+        'URIC ACID', 'KIDNEY STONE', 'SLEEPING PILLS', 'FATTY LIVER',
+        'BACK PAIN', 'GASTRIC ULCER', 'VITAMIN D', 'MULTI VITAMINS',
+        'ANTI COAGULATION', 'CARDIAC BLOCK', 'CARDIAC - BLOCK',
+        'MED FOR SLEEP', 'OMEGA - 3'
+    ];
+
+    // Noise words / qualifiers that are not conditions themselves
+    const NOISE_WORDS = new Set([
+        'STOPPED', 'IRREGULAR', 'SOMETIMES', 'OF', 'FOR', 'NONE',
+        'NA', 'WNL', 'ALL', 'LEFT', 'MONTH', 'MONTHS', 'MEDICINE', 'MED'
+    ]);
+
     // 1. Extract and count unique conditions
     rows.forEach(row => {
         const details = (row[pDetailsIdx] || '').toString().trim();
-        if (details && details.toLowerCase() !== 'WNL' && details !== '0') {
+        if (details && details.toUpperCase() !== 'NONE' && details.toLowerCase() !== 'wnl' && details !== '0' && details.toUpperCase() !== 'NA') {
             totalParticipantsWithConditions++;
-            const words = details.split(/[\s,]+/).map(w => w.toUpperCase().trim()).filter(w => w.length > 1);
-            const uniqueWordsInRow = [...new Set(words)]; 
+
+            let text = details.toUpperCase().trim();
+            const foundConditions = [];
+
+            // Step 1: Extract known multi-word conditions first
+            for (const mw of MULTI_WORD_CONDITIONS) {
+                if (text.includes(mw)) {
+                    foundConditions.push(mw);
+                    text = text.replace(mw, ','); // replace with comma so remainder splits cleanly
+                }
+            }
+
+            // Step 2: Strip parenthetical qualifiers like (STOPPED), (IRREGULAR)
+            text = text.replace(/\([^)]*\)/g, '');
+
+            // Step 3: Split remaining text on commas and spaces
+            const tokens = text.split(/[\s,]+/)
+                .map(t => t.replace(/[()]/g, '').trim())
+                .filter(t => t.length > 1 && !NOISE_WORDS.has(t));
+
+            foundConditions.push(...tokens);
+
+            // Deduplicate within this row
+            const uniqueConditions = [...new Set(foundConditions)];
             
-            uniqueWordsInRow.forEach(word => {
-                conditionCounts[word] = (conditionCounts[word] || 0) + 1;
+            uniqueConditions.forEach(condition => {
+                conditionCounts[condition] = (conditionCounts[condition] || 0) + 1;
             });
         }
     });
@@ -1331,22 +1367,47 @@ function openPDetailsPopup() {
 }
 
 function calculateMedicationData(data, header) {
-    const medicationCol = findCol(header, 'medication');
-    if (medicationCol === -1) return null;
+    const medCol  = findCol(header, 'medication');
+    const fbsCol  = findCol(header, 'bs1');
+    const rbsCol  = findCol(header, 'bs2');
+    const bp1Col  = findCol(header, 'bp1');
+    const cholCol = findCol(header, 'cholesterol');
 
-    const counts = { 'Yes': 0, 'No': 0 }; 
+    // Need at least the medication column + one chronic-disease column
+    if (medCol === -1) return null;
+    if (fbsCol === -1 && rbsCol === -1 && bp1Col === -1 && cholCol === -1) return null;
+
+    const counts = { 'Risk': 0, 'WNL': 0 };
+
     for (let i = 1; i < data.length; i++) {
-        const value = (data[i][medicationCol] || '').toString().toUpperCase().trim();
+        const row = data[i];
+        const medValue = (row[medCol] || '').toString().toUpperCase().trim();
 
-        if (value.startsWith('Y')) { 
-            counts['Yes']++; 
-        } else if (value.startsWith('N')) { 
-            counts['No']++; 
+        // Skip rows with no medication answer
+        if (!medValue.startsWith('Y') && !medValue.startsWith('N')) continue;
+
+        const isOnMedication = medValue.startsWith('Y');
+
+        // Check for chronic conditions from lab values
+        const fbs  = parseFloat(row[fbsCol]);
+        const rbs  = parseFloat(row[rbsCol]);
+        const sbp  = parseFloat(row[bp1Col]);
+        const chol = parseFloat(row[cholCol]);
+
+        const hasDiabetes      = (fbs >= 126) || (rbs >= 200);
+        const hasHypertension  = (sbp >= 140);
+        const hasHighChol      = (chol >= 200);
+        const hasChronicDisease = hasDiabetes || hasHypertension || hasHighChol;
+
+        // RISK = NOT medicated BUT has a chronic disease
+        if (!isOnMedication && hasChronicDisease) {
+            counts['Risk']++;
+        } else {
+            counts['WNL']++;
         }
-        // Skip if value is empty or anything else
     }
-    
-    if (counts['Yes'] + counts['No'] === 0) return null;
+
+    if (counts['Risk'] + counts['WNL'] === 0) return null;
     return counts;
 }
 

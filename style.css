@@ -1,7 +1,7 @@
 /* --- Global Reset and Typography --- */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: #F8F9FA; /* Light background */
+    background-color: #F8F9FA;
     color: #333;
     margin: 0;
     padding: 0;
@@ -35,7 +35,7 @@ h1, h2, h3, h4 {
 
 /* --- Navbar/Header --- */
 .navbar {
-    background-color: #007BFF; /* Professional Blue */
+    background-color: #007BFF;
     color: white;
     padding: 20px 0;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -58,7 +58,7 @@ h1, h2, h3, h4 {
 .card {
     background-color: #FFFFFF;
     border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     padding: 20px;
     margin-bottom: 30px;
     transition: all 0.3s ease;
@@ -128,29 +128,36 @@ h1, h2, h3, h4 {
 }
 
 .kpi-value.primary {
-    color: #007BFF; /* Primary Blue */
+    color: #007BFF;
 }
 
 .kpi-value.secondary {
-    color: #28A745; /* Green for health metrics */
+    color: #28A745;
 }
 
-/* --- Chart Containers --- */
+/* ============================
+   Chart Containers - FLUID SIZING
+   Uses viewport-relative units so charts scale
+   smoothly across 14", 15.6", extension monitors, etc.
+   ============================ */
 .chart-container {
     position: relative;
     width: 100%;
     max-width: 100%;
-    min-height: 280px;
-    max-height: 300px;
-    height: 280px;
-    margin-bottom: 1.5rem;
-    padding: 1rem;
-    padding-bottom: 15px;
+    /* Fluid height: scales from ~220px on small screens to ~300px on large ones */
+    height: clamp(200px, 26vh, 310px);
+    min-height: 180px;
+    max-height: 310px;
+    margin-bottom: clamp(0.75rem, 1.5vw, 1.5rem);
+    padding: clamp(0.5rem, 1vw, 1rem);
+    padding-bottom: 10px;
     background: #fff;
     border-radius: 0.5rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     overflow: hidden;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 .chart-container h4 {
@@ -161,20 +168,27 @@ h1, h2, h3, h4 {
     border-bottom: 1px solid #F0F0F0;
 }
 
-/* Ensures canvas is correctly sized */
+/* Chart title label */
+.chart-container > .text-sm {
+    flex-shrink: 0;
+}
+
+/* Ensures canvas is correctly sized and fills available space */
 .chart-container canvas {
     display: block;
     max-width: 100%;
-    max-height: 280px;
+    flex: 1 1 auto;
+    min-height: 0;
     height: auto !important;
     width: auto !important;
 }
 
-/* ApexCharts container sizing */
-.chart-container > div[id^="chart"] {
+/* ApexCharts container sizing - fill remaining space */
+.chart-container > div[id^="chart"],
+.chart-container > div[id^="overview"] {
     max-width: 100%;
-    max-height: 100%;
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: hidden;
 }
 
@@ -190,48 +204,109 @@ h1, h2, h3, h4 {
     width: 80%;
 }
 
-/* --- Responsiveness --- */
-@media (min-width: 1280px) and (max-width: 1536px) {
-    /* 14 inch devices - ensure all 5 graphs fit */
+/* ============================
+   HEADER - Fluid scaling
+   ============================ */
+header .text-2xl {
+    font-size: clamp(1rem, 2vw, 1.5rem);
+}
+
+header .logo-container {
+    width: clamp(36px, 4vw, 48px) !important;
+    height: clamp(36px, 4vw, 48px) !important;
+}
+
+/* ============================
+   TOP INFO BAR - Fluid scaling
+   ============================ */
+.info-bar-text {
+    font-size: clamp(9px, 1vw, 11px);
+}
+
+.info-bar-value {
+    font-size: clamp(1.1rem, 2vw, 1.5rem);
+}
+
+/* ============================
+   RESPONSIVE - Chart grid rows
+   The 5-column layout is the star. These rules ensure
+   it works on every screen width without fixed breakpoint jumps.
+   ============================ */
+
+/* Dashboard chart grid rows */
+.dashboard-chart-grid {
+    display: grid;
+    gap: clamp(0.5rem, 1vw, 1rem);
+    margin-bottom: clamp(0.75rem, 1.5vw, 1.5rem);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Default: 5 columns that shrink gracefully */
+.dashboard-chart-grid {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+/* ============================
+   RESPONSIVENESS - Smooth breakpoints
+   ============================ */
+
+/* Very large screens (2K+) - let charts breathe */
+@media (min-width: 1920px) {
     .chart-container {
-        min-height: 220px;
-        max-height: 280px;
-    }
-    
-    .chart-container canvas {
-        max-height: 240px;
-    }
-    
-    .chart-container > div[id^="chart"] {
-        max-height: 240px;
+        height: clamp(260px, 24vh, 340px);
     }
 }
 
+/* Standard 15.6" at 1080p - already the sweet spot */
+/* 14" laptops at native 1920x1080 w/ 125% scaling (effective ~1536px) */
+@media (max-width: 1536px) {
+    .chart-container {
+        height: clamp(190px, 25vh, 290px);
+    }
+}
+
+/* 14" laptops with higher scaling or 1366-wide screens */
+@media (max-width: 1366px) {
+    .dashboard-chart-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.5rem;
+    }
+    
+    .chart-container {
+        height: clamp(180px, 24vh, 260px);
+        padding: 0.5rem;
+    }
+    
+    .chart-container .text-sm {
+        font-size: 0.75rem;
+    }
+}
+
+/* Tablets / narrow extension monitors */
 @media (max-width: 1024px) {
     .col-md-2, .col-md-3, .col-md-4 {
         flex: 0 0 50%;
         max-width: 50%;
     }
     
-    .chart-container {
-        min-height: 200px;
-        max-height: 300px;
+    .dashboard-chart-grid {
+        grid-template-columns: repeat(3, 1fr);
     }
     
-    .chart-container canvas {
-        max-height: 220px;
+    .chart-container {
+        height: clamp(200px, 30vh, 280px);
     }
 }
 
 @media (max-width: 768px) {
-    .chart-container {
-        min-height: 180px;
-        max-height: 250px;
-        padding: 0.75rem;
+    .dashboard-chart-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
     
-    .chart-container canvas {
-        max-height: 180px;
+    .chart-container {
+        height: clamp(200px, 32vh, 280px);
+        padding: 0.75rem;
     }
 }
 
@@ -241,8 +316,11 @@ h1, h2, h3, h4 {
         max-width: 100%;
     }
     
+    .dashboard-chart-grid {
+        grid-template-columns: 1fr;
+    }
+    
     .chart-container {
-        min-height: 200px;
-        max-height: 280px;
+        height: clamp(220px, 35vh, 300px);
     }
 }

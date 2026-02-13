@@ -223,9 +223,11 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
 
     const isPie = (type === 'pie' || type === 'doughnut');
 
-    // Calculate appropriate height based on container - ensure labels are visible
+    // Dynamic height: measure actual container instead of using fixed pixels
     const containerElement = document.getElementById(chartId);
-    const containerHeight = containerElement ? Math.min(containerElement.offsetHeight || 220, 220) : 220;
+    const parentCard = containerElement ? containerElement.closest('.chart-container') : null;
+    const measuredHeight = parentCard ? parentCard.offsetHeight : (containerElement ? containerElement.offsetHeight : 0);
+    const containerHeight = Math.max(measuredHeight || 180, 140); // floor at 140px
     
     const chartOptions = {
         type: isPie ? 'donut' : 'bar',
@@ -266,20 +268,19 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
             pie: {
                 startAngle: -90, // Semi-circle gauge
                 endAngle: 90,
-                offsetY: 10,
+                offsetY: window.innerWidth < 1400 ? 5 : 10,
                 donut: {
-                    // Make the ring thicker by reducing the inner hole
-                    size: '72%',
+                    size: window.innerWidth < 1400 ? '68%' : '72%',
                     labels: {
                         show: true,
-                        name: { show: true, fontSize: '14px', offsetY: -8, color: '#000000' },
-                        value: { show: true, fontSize: '22px', fontWeight: 700, offsetY: 0, color: '#000000' },
+                        name: { show: true, fontSize: window.innerWidth < 1400 ? '11px' : '14px', offsetY: window.innerWidth < 1400 ? -5 : -8, color: '#000000' },
+                        value: { show: true, fontSize: window.innerWidth < 1400 ? '16px' : '22px', fontWeight: 700, offsetY: 0, color: '#000000' },
                         total: {
                             show: true,
                             label: title,
                             formatter: (w) => w.globals.seriesTotals.reduce((a, b) => a + b, 0),
                             color: '#000000',
-                            fontSize: '14px',
+                            fontSize: window.innerWidth < 1400 ? '11px' : '14px',
                             fontWeight: 600
                         }
                     }
@@ -297,14 +298,14 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
                 return val.toFixed(0) + '%';
             },
             style: {
-                fontSize: '13px',
+                fontSize: window.innerWidth < 1400 ? '10px' : '13px',
                 fontWeight: 600,
                 colors: ['#000000']
             },
             dropShadow: {
                 enabled: false
             },
-            offsetY: -5
+            offsetY: window.innerWidth < 1400 ? -3 : -5
         },
         colors: colors,
         labels: labels,
@@ -314,23 +315,23 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
         },
         grid: {
             padding: { 
-                bottom: 0,
-                top: 0,
+                bottom: window.innerWidth < 1400 ? -5 : 0,
+                top: window.innerWidth < 1400 ? -5 : 0,
                 left: 0,
                 right: 0
             }
         },
         legend: { 
             position: 'bottom',
-            offsetY: -20,
-            height: 20,
+            offsetY: window.innerWidth < 1400 ? -15 : -20,
+            height: undefined, // auto-size based on content
+            fontSize: window.innerWidth < 1400 ? '9px' : '11px',
             labels: {
                 colors: '#000000',
-                useSeriesColors: false,
-                fontSize: '11px'
+                useSeriesColors: false
             },
             itemMargin: {
-                horizontal: 6,
+                horizontal: window.innerWidth < 1400 ? 4 : 6,
                 vertical: 1
             }
         }
@@ -367,6 +368,14 @@ function drawAgeChart(chartId, ageData, onClickHandler = null) {
 
     ctx.style.display = 'block';
 
+    // Responsive sizing based on viewport
+    const vw = window.innerWidth;
+    const legendFontSize = vw < 1200 ? 9 : vw < 1400 ? 10 : 11;
+
+    // Distinct colors per age bracket so the legend is readable
+    const maleColors   = ['#1e40af', '#3b82f6', '#93c5fd']; // dark → light blue
+    const femaleColors = ['#be123c', '#fb7185', '#fecdd3']; // dark → light pink
+
     chartInstances[chartId] = new Chart(ctx, {
         type: 'doughnut',
         plugins: [ChartDataLabels],
@@ -376,21 +385,80 @@ function drawAgeChart(chartId, ageData, onClickHandler = null) {
                 {
                     label: 'Male',
                     data: ageData.male,
-                    backgroundColor: ageData.labels.map(() => '#4e73df')
+                    backgroundColor: maleColors.slice(0, ageData.labels.length)
                 },
                 {
                     label: 'Female',
                     data: ageData.female,
-                    backgroundColor: ageData.labels.map(() => '#fb7185')
+                    backgroundColor: femaleColors.slice(0, ageData.labels.length)
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            cutout: '45%',
+            layout: {
+                padding: {
+                    top: 2,
+                    bottom: 2,
+                    left: 2,
+                    right: 2
+                }
+            },
             plugins: {
-                legend: { position: 'right' },
-                datalabels: { display: false } // Remove datalabels for cleaner display
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: legendFontSize,
+                        boxHeight: legendFontSize - 2,
+                        padding: vw < 1400 ? 6 : 8,
+                        font: {
+                            size: legendFontSize,
+                            weight: '600'
+                        },
+                        color: '#1e293b',
+                        // Custom legend: show Male/Female with color swatches
+                        generateLabels: function(chart) {
+                            const datasets = chart.data.datasets;
+                            const labels = chart.data.labels;
+                            const items = [];
+                            // Add dataset labels (Male / Female) with their first color
+                            datasets.forEach((ds, dsIdx) => {
+                                items.push({
+                                    text: ds.label,
+                                    fillStyle: ds.backgroundColor[0],
+                                    strokeStyle: ds.backgroundColor[0],
+                                    lineWidth: 0,
+                                    hidden: !chart.isDatasetVisible(dsIdx),
+                                    datasetIndex: dsIdx
+                                });
+                            });
+                            // Add age bracket labels with colors from first dataset
+                            labels.forEach((label, i) => {
+                                items.push({
+                                    text: label,
+                                    fillStyle: datasets[0].backgroundColor[i],
+                                    strokeStyle: '#fff',
+                                    lineWidth: 1,
+                                    hidden: false,
+                                    index: i
+                                });
+                            });
+                            return items;
+                        }
+                    }
+                },
+                datalabels: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const dsLabel = context.dataset.label || '';
+                            const ageLabel = context.label || '';
+                            return `${dsLabel} (${ageLabel}): ${context.parsed}`;
+                        }
+                    }
+                }
             }
         }
     });
@@ -450,25 +518,34 @@ function createOverviewGraph(containerId, numCompanies, numEmployees, maxCompani
     }
     container.innerHTML = '';
     
-    // Create sleek professional display with icons and values
+    // Create sleek professional display with icons and values - fluid sizing
+    const isCompact = window.innerWidth < 1400;
+    const iconSize = isCompact ? '28px' : '36px';
+    const svgSize = isCompact ? '16' : '20';
+    const labelFontSize = isCompact ? '8px' : '9px';
+    const valueFontSize = isCompact ? '16px' : '20px';
+    const cardPadding = isCompact ? '0.5rem 0.75rem' : '0.75rem 1rem';
+    const cardMaxW = isCompact ? '160px' : '180px';
+    const gapSize = isCompact ? '0.6rem' : '1rem';
+    
     container.innerHTML = `
-        <div style="display: flex; flex-direction: column; gap: 1rem; height: 100%; min-height: 100%; justify-content: center; align-items: center; padding: 0.75rem; width: 100%; position: relative;">
-            <div style="display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.6); border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.15); backdrop-filter: blur(10px); transition: all 0.2s ease; width: 100%; max-width: 180px;">
-                <div style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 8px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+        <div style="display: flex; flex-direction: column; gap: ${gapSize}; height: 100%; min-height: 100%; justify-content: center; align-items: center; padding: 0.5rem; width: 100%; position: relative;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; padding: ${cardPadding}; background: rgba(255, 255, 255, 0.6); border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.15); backdrop-filter: blur(10px); transition: all 0.2s ease; width: 100%; max-width: ${cardMaxW};">
+                <div style="width: ${iconSize}; height: ${iconSize}; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 8px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="${svgSize}" height="${svgSize}">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
                 </div>
                 <div style="flex: 1; min-width: 0;">
-                    <div style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem;">Corporates</div>
-                    <div style="font-size: 20px; font-weight: 700; color: #1e293b; line-height: 1.1;">${numCompanies.toLocaleString()}</div>
+                    <div style="font-size: ${labelFontSize}; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.1rem;">Corporates</div>
+                    <div style="font-size: ${valueFontSize}; font-weight: 700; color: #1e293b; line-height: 1.1;">${numCompanies.toLocaleString()}</div>
                 </div>
             </div>
             
-            <div style="display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.6); border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.15); backdrop-filter: blur(10px); transition: all 0.2s ease; width: 100%; max-width: 180px;">
-                <div style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #10b981, #34d399); border-radius: 8px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+            <div style="display: flex; align-items: center; gap: 0.5rem; padding: ${cardPadding}; background: rgba(255, 255, 255, 0.6); border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.15); backdrop-filter: blur(10px); transition: all 0.2s ease; width: 100%; max-width: ${cardMaxW};">
+                <div style="width: ${iconSize}; height: ${iconSize}; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #10b981, #34d399); border-radius: 8px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="${svgSize}" height="${svgSize}">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                         <circle cx="9" cy="7" r="4"></circle>
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -476,8 +553,8 @@ function createOverviewGraph(containerId, numCompanies, numEmployees, maxCompani
                     </svg>
                 </div>
                 <div style="flex: 1; min-width: 0;">
-                    <div style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.15rem;">Employees</div>
-                    <div style="font-size: 20px; font-weight: 700; color: #1e293b; line-height: 1.1;">${numEmployees.toLocaleString()}</div>
+                    <div style="font-size: ${labelFontSize}; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.1rem;">Employees</div>
+                    <div style="font-size: ${valueFontSize}; font-weight: 700; color: #1e293b; line-height: 1.1;">${numEmployees.toLocaleString()}</div>
                 </div>
             </div>
         </div>
@@ -624,7 +701,7 @@ async function updateDashboardAndCharts(data) {
             const d = calculateMedicationData(data, header);
             if (d) { 
                 preDrawCleanup('chartMedication'); 
-                const mapped = { Risk: d['Yes'] || 0, WNL: d['No'] || 0 };
+                const mapped = { Risk: d['Risk'] || 0, WNL: d['WNL'] || 0 };
                 const series = buildRiskWnlSeriesAdmin(mapped);
                 drawChart('chartMedication', 'pie', '', series.labels, series.values, series.colors, openChronicMedicationPopup);
             } else { 
@@ -921,6 +998,7 @@ function filterDataBySpecificRange(rangeStr) {
     }
 
     const doscIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('DOSC'));
+    const compIdx = headerRow.findIndex(h => String(h || '').toUpperCase().includes('COMPANY'));
     let combined = [headerRow];
 
     allLoadedData.forEach(obj => {
@@ -928,6 +1006,12 @@ function filterDataBySpecificRange(rangeStr) {
         const rows = obj.data ? obj.data.slice(1) : obj.slice(1);
         
         rows.forEach(row => {
+            // --- Company filter: only include rows matching the selected company ---
+            if (selectedCompany && selectedCompany !== 'ALL' && compIdx !== -1) {
+                const rowComp = String(row[compIdx] || '').trim();
+                if (rowComp !== selectedCompany) return; // skip this row
+            }
+
             const rowDateRaw = String(row[doscIdx] || '').trim();
             const rowDateObj = parseDateStr(rowDateRaw);
 
@@ -1238,11 +1322,27 @@ function filterData() {
             
             const compMatch = (selectedCompany === 'ALL' || rowComp === selectedCompany);
             
-            // --- UPDATED: Single Date Filtering Logic ---
+            // --- UPDATED: Handles both single date AND date range ---
             let dateMatch = true;
             if (selectedDateRange) {
-                // It's a single date - exact match
-                dateMatch = (rowDateRaw === selectedDateRange);
+                if (selectedDateRange.includes(' to ')) {
+                    // It's a date range like "01.02.2026 to 13.02.2026"
+                    const rangeParts = selectedDateRange.split(' to ');
+                    const startDate = parseDateStr(rangeParts[0].trim());
+                    const endDate   = parseDateStr(rangeParts[1].trim());
+                    const rowDate   = parseDateStr(rowDateRaw);
+                    if (startDate && endDate && rowDate) {
+                        startDate.setHours(0,0,0,0);
+                        endDate.setHours(0,0,0,0);
+                        rowDate.setHours(0,0,0,0);
+                        dateMatch = (rowDate >= startDate && rowDate <= endDate);
+                    } else {
+                        dateMatch = false;
+                    }
+                } else {
+                    // It's a single date - exact match
+                    dateMatch = (rowDateRaw === selectedDateRange);
+                }
             }
             
             let searchMatch = true;
@@ -1398,12 +1498,23 @@ function transformToExcelStyle(json) {
 
 
 
-// Window resize handler to update charts
+// Window resize handler - fully re-renders charts so dynamic font sizes update
 let resizeTimeoutAdmin;
+let lastKnownWidth = window.innerWidth;
 function handleResizeAdmin() {
     clearTimeout(resizeTimeoutAdmin);
     resizeTimeoutAdmin = setTimeout(() => {
-        // Resize all ApexCharts instances
+        const widthDelta = Math.abs(window.innerWidth - lastKnownWidth);
+        lastKnownWidth = window.innerWidth;
+        
+        // If width changed significantly (e.g. moved to extension monitor), re-render everything
+        if (widthDelta > 100 && lastFilteredData && lastFilteredData.length > 1) {
+            console.log('Significant viewport change detected, re-rendering all charts...');
+            updateDashboardAndCharts(lastFilteredData);
+            return;
+        }
+        
+        // Otherwise just resize existing instances
         Object.keys(chartInstances).forEach(chartId => {
             if (chartInstances[chartId] && typeof chartInstances[chartId].resize === 'function') {
                 try {
@@ -1424,7 +1535,7 @@ function handleResizeAdmin() {
                 }
             }
         });
-    }, 250);
+    }, 300);
 }
 
 document.addEventListener('DOMContentLoaded', async function () {
@@ -1553,10 +1664,11 @@ if (datePickerInput) {
             mode: "range", // Set to range mode
             dateFormat: "d.m.Y",
             onClose: function(selectedDates, dateStr) {
-            if (selectedDates.length > 0) {
-                selectedDateRange = dateStr; 
+                if (selectedDates.length > 0) {
+                    selectedDateRange = dateStr; 
+                    handleFilterChange(); // Update all dashboard graphs with this date range
+                }
             }
-        }
         });
     }
 

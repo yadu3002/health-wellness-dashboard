@@ -271,7 +271,7 @@ console.log("Data loaded! Server is now lightning fast.");
 app.post('/generate-report', (req, res) => {
     try {
         const data = req.body;
-
+        
         // --- Separate chart images from text data ---
         const chartImages = data._chartImages || {};
         const textData = { ...data };
@@ -279,7 +279,7 @@ app.post('/generate-report', (req, res) => {
         // Strip any stale image keys that might have leaked in
         Object.keys(textData).filter(k => k.includes('_image')).forEach(key => {
             delete textData[key];
-        });
+        }); 
 
         console.log('\n=== Chart images received ===');
         const imageTagNames = Object.keys(chartImages);
@@ -320,7 +320,7 @@ app.post('/generate-report', (req, res) => {
         if (!zip.files['word/document.xml']) {
             return res.status(500).send("Template is missing word/document.xml.");
         }
-
+        
         // ──────────────────────────────────────────────
         // PHASE 1 — Docxtemplater: TEXT-ONLY replacement
         // Uses {{ }} delimiters.  {%...} tags are left as-is.
@@ -335,7 +335,7 @@ app.post('/generate-report', (req, res) => {
         console.log('\n=== Phase 1: Text replacement ===');
         console.log('Text data keys:', Object.keys(textData).slice(0, 10), '...');
         try {
-            doc.render(textData);
+        doc.render(textData);
             console.log('✅ Text rendered successfully');
         } catch (renderError) {
             console.error('❌ Docxtemplater render error:', renderError.message);
@@ -353,7 +353,7 @@ app.post('/generate-report', (req, res) => {
             console.error('❌ Failed to generate buffer:', genErr.message);
             return res.status(500).send("Failed to generate Word document.");
         }
-
+        
         // ──────────────────────────────────────────────
         // PHASE 2 — Image swap via alt-text matching
         // Finds stock images whose alt-text matches a tag
