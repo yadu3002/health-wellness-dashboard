@@ -32,12 +32,12 @@ function openLoginPopup() {
 
 /**
  * Populates the data table with the filtered participant records.
+ * Uses string-based rendering (innerHTML) for better performance on large datasets.
  * @param {Array<Array<any>>} data - The filtered data array (including the header row).
  */
 function populateDataTable(data) {
     const tableBody = document.getElementById('tableBody');
     if (!tableBody) return;
-    tableBody.innerHTML = ''; 
 
     if (!data || data.length <= 1) {
         tableBody.innerHTML = '<tr><td colspan="16" style="text-align:center;">No data records found.</td></tr>';
@@ -46,8 +46,6 @@ function populateDataTable(data) {
 
     const header = data[0];
     const rows = data.slice(1); // Show all rows
-
-    
 
     // FIX: Enhanced Column Finder (Case-Insensitive & Flexible)
     const getCol = (name) => header.findIndex(h => h.toUpperCase().replace(/\s/g, '').includes(name.toUpperCase()));
@@ -76,48 +74,36 @@ function populateDataTable(data) {
         dosc: getCol('DOSC')
     };
 
-    rows.forEach(row => {
-        const tr = tableBody.insertRow();
+    const buildFlag = (isIssue, labelIssue, labelNormal) => {
+        const label = isIssue ? labelIssue : labelNormal;
+        const className = isIssue ? 'flag-issue' : 'flag-normal';
+        return `<span class="flag-indicator ${className}">${label}</span>`;
+    };
 
+    const escapeCell = (value) => {
+        if (value === undefined || value === null) return '-';
+        return String(value);
+    };
+
+    const rowsHtml = rows.map(row => {
+        // BMI formatting
         let rawBMI = row[colIdx.bmi];
-    let formattedBMI = '-';
+        let formattedBMI = '-';
+        if (rawBMI !== undefined && rawBMI !== null && rawBMI !== '') {
+            const bmiNum = parseFloat(rawBMI);
+            if (!isNaN(bmiNum)) {
+                formattedBMI = bmiNum.toFixed(2);
+            }
+        }
 
-    // 2. Check if the value exists and is a valid number
-    if (rawBMI !== undefined && rawBMI !== null && rawBMI !== '') {
-        let bmiNum = parseFloat(rawBMI);
-    if (!isNaN(bmiNum)) {
-        formattedBMI = bmiNum.toFixed(2);
-    }
-}
-        
-        // Populate Cells with Fallbacks
-        tr.insertCell().textContent = row[colIdx.ref] || '-';
-        tr.insertCell().textContent = row[colIdx.emp] || '-';
-        tr.insertCell().textContent = row[colIdx.name] || '-';
-        tr.insertCell().textContent = row[colIdx.phone] || '-';
-        tr.insertCell().textContent = row[colIdx.dept] || '-';
-        tr.insertCell().textContent = formattedBMI;
-        
         // BP - Separate column
         const bp = (row[colIdx.bp1] && row[colIdx.bp2]) ? `${row[colIdx.bp1]}/${row[colIdx.bp2]}` : '-';
-        tr.insertCell().textContent = bp;
-        
+
         // Blood Sugar - Separate column
         const bs = (row[colIdx.bs1] || row[colIdx.bs2]) ? (row[colIdx.bs1] || row[colIdx.bs2]) : '-';
-        tr.insertCell().textContent = bs;
-
-        tr.insertCell().textContent = row[colIdx.chol] || '0';
-        
-
-        // Helper to generate Red/Green labels
-        const createFlag = (cell, isIssue, labelIssue, labelNormal) => {
-            const label = isIssue ? labelIssue : labelNormal;
-            const className = isIssue ? 'flag-issue' : 'flag-normal';
-            cell.innerHTML = `<span class="flag-indicator ${className}">${label}</span>`;
-        };
 
         // 1. Medication
-        createFlag(tr.insertCell(), row[colIdx.med] === 'Y', 'YES', 'NO');
+        const medFlag = buildFlag(String(row[colIdx.med] || '').toUpperCase().trim() === 'Y', 'YES', 'NO');
 
         // 2. Cardiac Risk (derived from BP, Blood Sugar, Cholesterol)
         const sbp  = parseFloat(row[colIdx.bp1]);
@@ -129,13 +115,12 @@ function populateDataTable(data) {
         const highBP   = ((!isNaN(sbp) && sbp > 140) || (!isNaN(dbp) && dbp > 90));
         const highBS   = ((!isNaN(fbs) && fbs > 126) || (!isNaN(rbs) && rbs > 200));
         const highChol = (!isNaN(chol) && chol > 200);
-
         const cardiacRisk = highBP || highBS || highChol;
-        createFlag(tr.insertCell(), cardiacRisk, 'HIGH', 'LOW');
+        const cardiacFlag = buildFlag(cardiacRisk, 'HIGH', 'LOW');
 
         // 3. Health Habit (If any HAB column is 'N')
         const poorHabit = colIdx.habs.some(i => i !== -1 && String(row[i] || '').toUpperCase().trim() === 'N');
-        createFlag(tr.insertCell(), poorHabit, 'POOR', 'GOOD');
+        const habitFlag = buildFlag(poorHabit, 'POOR', 'GOOD');
 
         // 4. Nutrient Status (NUT1–4)
         const isYes = (v) => {
@@ -150,9 +135,9 @@ function populateDataTable(data) {
         if (colIdx.nut1 !== -1 && isYes(row[colIdx.nut1])) nutScore++;
         if (colIdx.nut2 !== -1 && isYes(row[colIdx.nut2])) nutScore++;
         if (colIdx.nut3 !== -1 && isYes(row[colIdx.nut3])) nutScore++;
-        if (colIdx.nut4 !== -1 && isNo(row[colIdx.nut4])) nutScore++;
+        if (colIdx.nut4 !== -1 && isNo(row[colIdx.nut4]))  nutScore++;
         const nutrientStatus = nutScore >= 3 ? 'Adequate' : 'Inadequate';
-        createFlag(tr.insertCell(), nutrientStatus === 'Inadequate', 'Inadequate', 'Adequate');
+        const nutrientFlag = buildFlag(nutrientStatus === 'Inadequate', 'Inadequate', 'Adequate');
 
         // 5. Fitness – align with chart logic (EXE1/2/3, >1 'Y' = ACTIVE/WNL)
         let exeYCount = 0;
@@ -162,41 +147,51 @@ function populateDataTable(data) {
             if (v === 'Y') exeYCount++;
         });
         const lowFitness = exeYCount <= 1;
-        createFlag(tr.insertCell(), lowFitness, 'LOW', 'ACTIVE');
+        const fitnessFlag = buildFlag(lowFitness, 'LOW', 'ACTIVE');
 
         // 6. Stress – weighted stress_score from STR1–STR4 (data grid only)
-        // STR1 (Job satisfaction):   "No"  -> +3
-        // STR2 (Home situation):     "No"  -> +3
-        // STR3 (Major problems):     "Yes" -> +4
-        // STR4 (Sufficient sleep):   "No"  -> +2
-        // If stress_score >= 4 THEN "High Stress"
         const [str1Idx, str2Idx, str3Idx, str4Idx] = colIdx.strs;
         let stressScore = 0;
-
         const getStrVal = (idx) => {
             if (idx === -1) return '';
             return (row[idx] || '').toString().toUpperCase().trim();
         };
-
         const s1 = getStrVal(str1Idx);
         const s2 = getStrVal(str2Idx);
         const s3 = getStrVal(str3Idx);
         const s4 = getStrVal(str4Idx);
-
         if (s1.startsWith('N')) stressScore += 3; // STR1 == "No"
         if (s2.startsWith('N')) stressScore += 3; // STR2 == "No"
         if (s3.startsWith('Y')) stressScore += 4; // STR3 == "Yes"
         if (s4.startsWith('N')) stressScore += 2; // STR4 == "No"
-
         const highStress = stressScore >= 4;
-        createFlag(tr.insertCell(), highStress, 'HIGH', 'NORMAL');
+        const stressFlag = buildFlag(highStress, 'HIGH', 'NORMAL');
 
-        tr.insertCell().textContent = row[colIdx.dosc] || '-';
+        const doscVal = row[colIdx.dosc] || '-';
+        const nameVal = row[colIdx.name] || '-';
 
-        // View Button
-        const viewCell = tr.insertCell();
-        viewCell.innerHTML = `<button class="view-button" onclick="alert('Viewing Report for ${row[colIdx.name]}')">View</button>`;
-    });
+        return `<tr>
+            <td>${escapeCell(row[colIdx.ref])}</td>
+            <td>${escapeCell(row[colIdx.emp])}</td>
+            <td>${escapeCell(nameVal)}</td>
+            <td>${escapeCell(row[colIdx.phone])}</td>
+            <td>${escapeCell(row[colIdx.dept])}</td>
+            <td>${formattedBMI}</td>
+            <td>${bp}</td>
+            <td>${bs}</td>
+            <td>${escapeCell(row[colIdx.chol] || '0')}</td>
+            <td>${medFlag}</td>
+            <td>${cardiacFlag}</td>
+            <td>${habitFlag}</td>
+            <td>${nutrientFlag}</td>
+            <td>${fitnessFlag}</td>
+            <td>${stressFlag}</td>
+            <td>${escapeCell(doscVal)}</td>
+            <td><button class="view-button" onclick="alert('Viewing Report for ${escapeCell(nameVal)}')">View</button></td>
+        </tr>`;
+    }).join('');
+
+    tableBody.innerHTML = rowsHtml;
 }
 
 
@@ -215,6 +210,8 @@ function updateDashboardFilters() {
 function drawChart(chartId, type, title, labels, data, colors, onClickHandler = null) {
     const container = document.getElementById(chartId);
     if (!container) return;
+
+    const hadExistingChart = !!chartInstances[chartId];
 
     // Standard cleanup: ApexCharts needs to be destroyed manually to avoid overlaps
     if (chartInstances[chartId] && typeof chartInstances[chartId].destroy === 'function') {
@@ -237,6 +234,12 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
         toolbar: { show: false },
         zoom: { enabled: false },
         offsetY: 0,
+        animations: {
+            // Animate only on first render to keep filter updates snappy
+            enabled: !hadExistingChart,
+            easing: 'easeinout',
+            speed: 600
+        },
         // IMPORTANT: We intentionally do NOT wire chart-level click handlers here.
         // Popup opening is handled at the card level in setupMetricCardClickHandlers()
         // to avoid multiple popups from a single user click.
@@ -339,13 +342,6 @@ function drawChart(chartId, type, title, labels, data, colors, onClickHandler = 
 
     chartInstances[chartId] = new ApexCharts(container, options);
     chartInstances[chartId].render();
-    
-    // Force resize after render to ensure proper fitting
-    setTimeout(() => {
-        if (chartInstances[chartId] && typeof chartInstances[chartId].resize === 'function') {
-            chartInstances[chartId].resize();
-        }
-    }, 100);
 }
 
 // Helper: fixed ordering & colors on admin charts: Risk first (red), WNL second (green)
@@ -1365,40 +1361,39 @@ function filterData() {
     });
     return combined;
 }
- async function handleFilterChange() {
-    if (!allLoadedData || allLoadedData.length === 0) return;
 
-    const fullData = allLoadedData[0].data;
-    const header = allLoadedData[0].header;
-    
-
-    // --- NEW: Populate Company List if it's empty ---
-    if (companyNames.size === 0) {
-        const cIdx = findCol(header, 'COMPANY');
-        if (cIdx !== -1) {
-            fullData.slice(1).forEach(row => {
-                const val = String(row[cIdx] || '').trim();
-                if (val) companyNames.add(val);
-            });
-            populateCompanyDropdown(); // Call the specific company populator
-        }
+// Debounced dashboard refresh to avoid overlapping re-renders on quick filter changes
+let filterChangeTimeout = null;
+function handleFilterChange() {
+    if (filterChangeTimeout) {
+        clearTimeout(filterChangeTimeout);
     }
 
-    
+    filterChangeTimeout = setTimeout(async () => {
+        if (!allLoadedData || allLoadedData.length === 0) return;
 
-    // Apply filter (Company + Date + Search)
-    lastFilteredData = filterData(); 
-    
-    // Step 4: Refresh UI
-    setTimeout(() => {
-        updateDashboardAndCharts(lastFilteredData);
-    }, 0);
-    setTimeout(() => {
+        const fullData = allLoadedData[0].data;
+        const header = allLoadedData[0].header;
+
+        // --- Populate Company List if it's empty ---
+        if (companyNames.size === 0) {
+            const cIdx = findCol(header, 'COMPANY');
+            if (cIdx !== -1) {
+                fullData.slice(1).forEach(row => {
+                    const val = String(row[cIdx] || '').trim();
+                    if (val) companyNames.add(val);
+                });
+                populateCompanyDropdown(); // Call the specific company populator
+            }
+        }
+
+        // Apply filter (Company + Date + Search)
+        lastFilteredData = filterData();
+
+        // Refresh UI in a single awaited flow
+        await updateDashboardAndCharts(lastFilteredData);
         populateDataTable(lastFilteredData);
     }, 50);
-
-    
-
 }
 
 // --- File Upload Logic (MODIFIED) ---
@@ -1540,46 +1535,27 @@ function handleResizeAdmin() {
 
 document.addEventListener('DOMContentLoaded', async function () {
 
+    // Load initial wellness data once, using the shared loader
     const data = await loadWellnessData();
     
     if (data && data.length > 0) {
-        // 2. Set the global variables your existing charts need
-        headerRow = data[0]; 
-        allLoadedData = [{ data: data, header: headerRow }];
-        
-        // 3. Kick off your existing dashboard logic
-        populateDropdowns(); 
-        handleFilterChange(); 
-        
+        // data-loader.js returns an array of { data, header, ... }
+        allLoadedData = data;
+        headerRow = data[0].header || (data[0].data ? data[0].data[0] : null);
+
+        // Kick off your existing dashboard logic
+        populateDropdowns();
+        handleFilterChange();
+
         console.log("Dashboard populated automatically!");
     } else {
         alert("No data found on the server.");
     }
 
-fetch('/get-my-data')
-        .then(response => response.json())
-        .then(data => {
-            console.log("Data received automatically!", data);
-            
-            // Set the global variables your charts use
-            headerRow = data[0]; 
-            allLoadedData = [{ data: data, header: headerRow }];
-            
-            // Run your existing logic to fill the dashboard
-            populateDropdowns(); 
-            handleFilterChange(); 
-            document.getElementById('loadingOverlay').style.display = 'none';
-        })
-        
-        .catch(err => {
-            console.error("Server error:", err);
-            alert("Could not connect to the server. Make sure 'node server.js' is running!");
-
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/1d97a748-68d6-4f07-a07e-26d0c0815749',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H3',location:'adminpage.js:/get-my-data.catch',message:'get-my-data failed',data:{error:String(err)},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion agent log
-        });
-
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) {
+        loadingOverlay.style.display = 'none';
+    }
 
     // 1. Initial date and stat setup
     const dateElement = document.getElementById('currentDate');
@@ -1671,7 +1647,7 @@ if (datePickerInput) {
             }
         });
     }
-
+}
 
 
 let selectedUserReportDate = null; // Use a dedicated variable or share selectedDateRange
@@ -1734,14 +1710,14 @@ if (monthPickerInput) {
     let searchTimeout;
     const employeeSearch = document.getElementById('employeeSearch');
     if (employeeSearch) {
-            employeeSearch.addEventListener('input', (e) => {
-                searchQuery = e.target.value.toLowerCase().trim();
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    handleFilterChange();
-             }, 300)
-    });
-}
+        employeeSearch.addEventListener('input', (e) => {
+            searchQuery = e.target.value.toLowerCase().trim();
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                handleFilterChange();
+            }, 300);
+        });
+    }
     
     
     // 6. Initial Stats & Chart Placeholders
@@ -1776,24 +1752,7 @@ if (monthPickerInput) {
             : (savedName && savedName.trim()) ? savedName.trim() : "Admin";
     }
 
-}});
-
-window.addEventListener('load', async () => {
-    // This calls the server's "cached" data, so it won't lag the login transition
-    const data = await loadWellnessData();
-    
-    if (data) {
-        allLoadedData = data;
-        headerRow = data[0];
-        
-        // Populate the table and charts immediately
-        handleFilterChange(); 
-        console.log("Admin page populated instantly from server cache.");
-    }
-    
     // Add resize listener for charts
     window.addEventListener('resize', handleResizeAdmin);
-    
-    // Add function to adjust table container width based on viewport
-    // Table container now fits naturally with CSS - no JS width constraints needed
+
 });

@@ -1458,11 +1458,13 @@ function openCholesterolPopup() {
     if (cholIdx === -1) return alert("Cholesterol column not found.");
 
     // 1. Clinical Categories & Thresholds (mg/dL)
+    // Labels intentionally do NOT include numeric ranges in the text;
+    // ranges are only used internally for classification.
     const stages = [
-        { name: 'Normal (<200)', color: '#1cc88a', check: (v) => v < 200, count: 0 },
-        { name: 'Mild Hyper (200-239)', color: '#f6c23e', check: (v) => v >= 200 && v <= 239, count: 0 },
-        { name: 'Moderate Hyper (240-299)', color: '#fd7e14', check: (v) => v >= 240 && v <= 299, count: 0 },
-        { name: 'Hyper (≥300)', color: '#e74a3b', check: (v) => v >= 300, count: 0 }
+        { name: 'Normal',         color: '#1cc88a', check: (v) => v < 200,                    count: 0 },
+        { name: 'Mild Hyper',     color: '#f6c23e', check: (v) => v >= 200 && v <= 239,       count: 0 },
+        { name: 'Moderate Hyper', color: '#fd7e14', check: (v) => v >= 240 && v <= 299,       count: 0 },
+        { name: 'Severe Hyper',   color: '#e74a3b', check: (v) => v >= 300,                   count: 0 }
     ];
 
     const rows = lastFilteredData.slice(1);

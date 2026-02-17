@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  health-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: health-dashboard
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount data directory for persistent Excel files and templates
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
